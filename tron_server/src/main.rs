@@ -16,10 +16,7 @@ use tokio::sync::{
 };
 
 use serde_json::Value;
-use tron::{
-    ApplicationStates, ComponentBaseTrait, ComponentRenderTraits, ComponentTypes,
-    ComponentValueTrait, TnButton,
-};
+use tron::{ApplicationStates, ComponentBaseTrait, ComponentTypes, ComponentValue, TnButton};
 //use std::sync::Mutex;
 use std::{
     collections::HashMap,
@@ -146,28 +143,29 @@ async fn load_page(
     let session_id = session.id().unwrap();
     {
         let mut session_app_states = session_app_states.write().await;
-        let e = session_app_states
-            .entry(session_id)
-            .or_insert(ApplicationStates {
-                components: HashMap::default(),
-                assets: HashMap::default(),
-            });
-        let c = &mut e.components;
-        let mut btn = tron::TnButton::new(12, "btn".to_string(), "12".to_string());
-
-        btn.set_attribute("hx-post".to_string(), "/tron/12".to_string())
-            .set_attribute("hx-swap".to_string(), "outerHTML".to_string())
-            .set_attribute("hx-target".to_string(), "#btn".to_string());
-        let btn = tron::ComponentTypes::TnButton(btn);
-        c.insert(12, btn);
+        if !session_app_states.contains_key(&session_id) {
+            let e = session_app_states
+                .entry(session_id)
+                .or_insert(ApplicationStates {
+                    components: HashMap::default(),
+                    assets: HashMap::default(),
+                });
+            let c = &mut e.components;
+            (0..100).for_each(|i| {
+                let mut btn = TnButton::new(i, format!("btn-{:02}", i), format!("{:02}", i));
+                btn.set_attribute("hx-get".to_string(), format!("/tron/{}", i));
+                btn.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
+                btn.set_attribute("hx-target".to_string(), format!("#btn-{:02}", i));
+                btn.set_attribute("id".to_string(), format!("btn-{:02}", i));
+                c.insert(i, Box::new(btn));
+            })
+        }
     }
     let session_app_state = session_app_states.read().await;
     let c = &session_app_state.get(&session_id).unwrap().components;
     Html::from(
         c.iter()
-            .map(|(k, v)| match v {
-                ComponentTypes::TnButton(b) => b.render().0,
-            })
+            .map(|(k, v)| v.render().0)
             .collect::<Vec<String>>()
             .join(" "),
     )
@@ -190,14 +188,12 @@ async fn tron_entry(
     let c = &mut session_app_states.get_mut(&session_id).unwrap().components;
 
     let e = c.get_mut(&tron_id).unwrap();
-    match e {
-        ComponentTypes::TnButton(b) => {
-            let v = b.value().clone().unwrap().parse::<u32>().unwrap();
-            b.set_value(format!("{}", v + 1));
-            println!("{}", b.value().clone().unwrap());
-            b.render()
-        }
-    }
+    let v = match e.value() {
+        ComponentValue::String(s) => s.parse::<u32>().unwrap(),
+        _ => 0,
+    };
+    e.set_value(ComponentValue::String(format!("{}", v + 1)));
+    e.render()
 }
 
 #[allow(dead_code)]

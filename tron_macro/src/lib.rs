@@ -41,6 +41,33 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                     .collect::<Vec<_>>()
                     .join(" ")
             }
+
+            fn set_attribute(&mut self, key: String, val: String) -> &mut Self {
+                self.attributes.insert(key, val);
+                self
+            }
+            
+            fn generate_attr_string(&self) -> String {
+                self.attributes
+                    .iter()
+                    .map(|(k, v)| format!(r#"{}="{}""#, k, v))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+            }
+        
+            fn value(&self) -> &Option<V> {
+                &self.value
+            }
+            fn set_value(&mut self, value: V) -> &Self {
+                self.value = Some(value);
+                self
+            }
+            fn assets(&self) -> &Option<HashMap<String, A>> {
+                &self.assets
+            }
+            fn render(&self) -> Html<String> {
+                unimplemented!()
+            }
         }
     };
     gen.into()

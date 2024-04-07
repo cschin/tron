@@ -64,11 +64,10 @@ impl Stream for SessionMessageQueue {
     type Item = Json<Value>;
     fn poll_next(
         self: std::pin::Pin<&mut Self>,
-        _cx: &mut std::task::Context<'_>,
+        cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
         let mut msg = self.messages.write().unwrap();
         if let Some(item) = msg.pop_front() {
-            println!("poll_next queue: {:?}", item);
             std::task::Poll::Ready(Some(item))
         } else {
             std::task::Poll::Pending
@@ -243,7 +242,7 @@ async fn tron_entry(
         let messages = app_share_data.app_messages.write().await;
         let mq = messages.get(&session_id).unwrap();
         let mut mq = mq.messages.write().unwrap();
-        println!("write to msg queue: {:?}",payload );
+        println!("write to msg queue: {:?}", payload);
         mq.push_back(axum::Json(payload));
     }
 
@@ -291,8 +290,21 @@ async fn sse_event_handler(
 ) -> Sse<impl Stream<Item = Result<sse::Event, Infallible>>> {
     let session_id = session.id().expect("The session is expired");
     let messages = app_share_data.app_messages.write().await;
-    let stream = messages.get(&session_id).unwrap().clone();
-    let stream = stream.map(|v| Ok(sse::Event::default().data(v.clone().to_string())));
+    let mq = messages.get(&session_id).unwrap().clone();
+    let stream = mq.map(|v| Ok(sse::Event::default().data(v.clone().to_string())));
 
-    Sse::new(stream).keep_alive(KeepAlive::default())
+    Sse::new(stream).keep_alive(KeepAlive::default().interval(std::time::Duration::from_secs(1)))
 }
+
+// use async_stream::stream;
+// async fn sse_event_handler(
+//     State(app_share_data): State<Arc<AppShareData>>,
+//     session: Session,
+// ) -> Sse<impl Stream<Item = Result<sse::Event, Infallible>>> {
+//     let session_id = session.id().expect("The session is expired");
+//     let messages = app_share_data.app_messages.write().await;
+//     let mq = messages.get(&session_id).unwrap().clone();
+//     let stream = mq.map(|v| Ok(sse::Event::default().data(v.clone().to_string())));
+
+//     Sse::new(stream).keep_alive(KeepAlive::default())
+// }

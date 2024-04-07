@@ -15,6 +15,24 @@
 window.addEventListener("load", (event) => {
     console.log("page is fully loaded");
 });
+
+
+// Create a new EventSource instance pointing to the endpoint where your server sends the events
+const eventSource = new EventSource('/server_events');
+
+// Listen for messages from the server
+eventSource.onmessage = function(event) {
+   console.log('New message from server:', event.data);
+};
+
+// Listen for errors
+eventSource.onerror = function(event) {
+  // Handle errors here
+  console.error('EventSource failed:', event);
+};
+
+// To close the connection when it's no longer needed
+// eventSource.close();
 </script>
 
 </html>

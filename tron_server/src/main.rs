@@ -1,5 +1,14 @@
 use axum::{
-    body::{to_bytes, Body}, extract::{Host, Json, Path, Query, Request, State}, handler::HandlerWithoutStateExt, http::{header, HeaderMap, StatusCode, Uri}, response::{Html, IntoResponse, Redirect}, routing::{get, post}, BoxError, Error, Form, RequestExt, Router
+    body::{to_bytes, Body},
+    extract::{Host, Json, Path, Query, Request, State},
+    handler::HandlerWithoutStateExt,
+    http::{header, HeaderMap, StatusCode, Uri},
+    response::{
+        sse::{Event, KeepAlive},
+        Html, IntoResponse, Redirect, Sse,
+    },
+    routing::{get, post},
+    BoxError, Error, Form, RequestExt, Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
 use lazy_static::lazy_static;
@@ -13,7 +22,14 @@ use serde_json::Value;
 use tron::{ApplicationStates, ComponentBaseTrait, ComponentTypes, ComponentValue, TnButton};
 //use std::sync::Mutex;
 use std::{
-    borrow::Borrow, collections::HashMap, env, net::SocketAddr, ops::Deref, path::{Component, PathBuf}, sync::Arc
+    borrow::Borrow,
+    collections::HashMap,
+    convert::Infallible,
+    env,
+    net::SocketAddr,
+    ops::Deref,
+    path::{Component, PathBuf},
+    sync::Arc,
 };
 use time::Duration;
 use tokio::sync::Mutex;
@@ -25,11 +41,11 @@ use tower_http::{
 use tower_sessions::{session_store, Expiry, MemoryStore, Session, SessionManagerLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use futures_util::{stream, StreamExt};
+use futures_util::{stream, Stream};
 //use tokio_stream::StreamExt as _;
 //use std::fs::File;
 use base64::prelude::*;
-use tokio_stream::wrappers::ReceiverStream;
+use tokio_stream::{wrappers::ReceiverStream, StreamExt};
 //use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 //use tokio::io::{AsyncReadExt, AsyncWriteExt};
 //use tungstenite::{connect, Message};
@@ -46,10 +62,9 @@ struct Ports {
 type SessionApplicationStates =
     RwLock<HashMap<tower_sessions::session::Id, tron::ApplicationStates<'static>>>;
 
-type SessionApplicationSender =
-    Arc<HashMap<tower_sessions::session::Id, Sender<String>>>;
-type SessionApplicationRecivers =
-    Arc<HashMap<tower_sessions::session::Id, Sender<String>>>;
+type SessionApplicationSender = Arc<HashMap<tower_sessions::session::Id, Sender<String>>>;
+
+type SessionApplicationRecivers = Arc<HashMap<tower_sessions::session::Id, Receiver<String>>>;
 
 #[tokio::main]
 async fn main() {
@@ -88,11 +103,11 @@ async fn main() {
 
     // set app state
     let app_states: SessionApplicationStates = RwLock::new(HashMap::default());
-    
 
     // build our application with a route
     let routes = Router::new()
         .route("/", get(index))
+        .route("/server_events", get(sse_event_handler))
         .route("/get_session", post(get_session))
         .route("/load_page", get(load_page))
         .route("/tron/:tronid", get(tron_entry).post(tron_entry))
@@ -175,10 +190,10 @@ async fn tron_entry(
     Json(payload): Json<Value>,
     //request: Request,
 ) -> Html<String> {
-    // println!("req: {:?}", request); 
-    // println!("req body: {:?}", to_bytes(request.into_body(), usize::MAX).await ); 
+    // println!("req: {:?}", request);
+    // println!("req body: {:?}", to_bytes(request.into_body(), usize::MAX).await );
     // let body_bytes =  to_bytes(request.into_body(), usize::MAX).await.unwrap();
-    println!("payload: {:?}", payload); 
+    println!("payload: {:?}", payload);
     let session_id = session.id().expect("The session is expired");
     let mut session_app_states = session_app_states.write().await;
     let c = &mut session_app_states.get_mut(&session_id).unwrap().components;
@@ -225,4 +240,15 @@ async fn redirect_http_to_https(ports: Ports) {
     axum::serve(listener, redirect.into_make_service())
         .await
         .unwrap();
+}
+
+async fn sse_event_handler(
+    State(session_app_states): State<Arc<SessionApplicationStates>>,
+    session: Session,
+) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
+    // A `Stream` that repeats an event every second
+    let stream = stream::repeat_with(|| Event::default().data("hi!"))
+        .map(Ok)
+        .throttle(std::time::Duration::from_secs(1));
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }

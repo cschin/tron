@@ -2,11 +2,10 @@ pub mod button;
 
 use std::collections::HashMap;
 
-
 pub use button::TnButton;
 use rand::{thread_rng, Rng};
 
-use axum::response::Html;
+use axum::{body::Bytes, response::Html};
 
 pub type ComponentId = u32;
 pub type ElmAttributes = HashMap<String, String>;
@@ -15,49 +14,58 @@ pub type ElmTag = String;
 #[derive(Debug)]
 pub enum ComponentValue {
     None,
-    String(String)
+    String(String),
 }
 #[derive(Debug)]
 pub enum ComponentAsset {
     None,
-    VecU8(Vec<u8>)
+    VecU8(Vec<u8>),
+    String(String),
+    Bytes(Bytes),
+}
+
+#[derive(Debug)]
+pub enum ComponentState {
+    Ready,   // ready to receive new event on the UI end
+    Pending, // UI event receive, server function dispatched, waiting for server to response
+    Update,  // server ready to send, change UI to update to receive server response
 }
 #[derive(Debug)]
-pub struct ComponentBase {
+pub struct ComponentBase<'a> {
     pub tag: ElmTag,
     pub id: ComponentId,
     pub tron_id: String,
     pub attributes: ElmAttributes,
     pub value: ComponentValue,
     pub assets: Option<HashMap<String, ComponentAsset>>,
-    pub children_targets: Option<Vec<ComponentId>>, // general storage
+    pub state: ComponentState,
+    pub children: Option<Vec<&'a ComponentBase<'a>>>, // general storage
 }
 
-pub enum ComponentTypes {
-    TnButton(TnButton),
+pub enum ComponentTypes<'a> {
+    TnButton(TnButton<'a>),
 }
-pub struct ApplicationStates {
-    pub components: HashMap<u32, Box<dyn ComponentBaseTrait>>, // component ID mapped to Component structs
+pub struct ApplicationStates<'a> {
+    pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
     pub assets: HashMap<String, Vec<u8>>,
 }
 
-
-pub trait ComponentBaseTrait: Send + Sync {
+pub trait ComponentBaseTrait<'a>: Send + Sync {
     fn id(&self) -> ComponentId;
     fn tron_id(&self) -> &String;
     fn attributes(&self) -> &ElmAttributes;
-    fn children_targets(&self) -> &Option<Vec<ComponentId>>;
     fn set_attribute(&mut self, key: String, value: String);
     fn generate_attr_string(&self) -> String;
     fn value(&self) -> &ComponentValue;
     fn set_value(&mut self, value: ComponentValue);
+    fn state(&self) -> &ComponentState;
+    fn set_state(&mut self, state: ComponentState);
     fn assets(&self) -> &Option<HashMap<String, ComponentAsset>>;
     fn render(&self) -> Html<String>;
+    fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>>;
 }
 
-
-
-impl ComponentBase {
+impl<'a> ComponentBase<'a> {
     pub fn new(tag: ElmTag, id: ComponentId, tron_id: String) -> Self {
         Self {
             tag,
@@ -66,13 +74,14 @@ impl ComponentBase {
             attributes: HashMap::default(),
             value: ComponentValue::None,
             assets: None,
-            children_targets: None,
+            state: ComponentState::Ready,
+            children: None,
         }
     }
 }
 
-impl Default for ComponentBase {
-    fn default() -> ComponentBase {
+impl<'a> Default for ComponentBase<'a> {
+    fn default() -> ComponentBase<'a> {
         let mut rng = thread_rng();
         let id: u32 = rng.gen();
         let tron_id = format!("{:x}", id);
@@ -83,13 +92,13 @@ impl Default for ComponentBase {
             attributes: HashMap::default(),
             value: ComponentValue::None,
             assets: None,
-            children_targets: None,
+            state: ComponentState::Ready,
+            children: None,
         }
     }
 }
 
-impl ComponentBaseTrait for ComponentBase {
-    
+impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
     fn id(&self) -> u32 {
         self.id
     }
@@ -100,10 +109,6 @@ impl ComponentBaseTrait for ComponentBase {
 
     fn attributes(&self) -> &ElmAttributes {
         &self.attributes
-    }
-
-    fn children_targets(&self) -> &Option<Vec<u32>> {
-        &self.children_targets
     }
 
     fn set_attribute(&mut self, key: String, val: String) {
@@ -122,8 +127,16 @@ impl ComponentBaseTrait for ComponentBase {
         &self.value
     }
 
-    fn set_value(&mut self, _value: ComponentValue) {
-        unimplemented!()
+    fn set_value(&mut self, _new_value: ComponentValue) {
+        self.value = _new_value;
+    }
+
+    fn set_state(&mut self, new_state: ComponentState) {
+        self.state = new_state;
+    }
+
+    fn state(&self) -> &ComponentState {
+        &self.state
     }
 
     fn assets(&self) -> &Option<HashMap<String, ComponentAsset>> {
@@ -133,8 +146,19 @@ impl ComponentBaseTrait for ComponentBase {
     fn render(&self) -> Html<String> {
         unimplemented!()
     }
+
+    fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>> {
+        &self.children
+    }
 }
 
+
+// Event Dispatcher
+
+struct Event {
+    evt_target: String,
+    evt_type: String // maybe use Enum
+}
 
 
 #[cfg(test)]

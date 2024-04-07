@@ -1,11 +1,5 @@
 use axum::{
-    body::Body,
-    extract::{Host, Json, Path, Request, State},
-    handler::HandlerWithoutStateExt,
-    http::{header, HeaderMap, StatusCode, Uri},
-    response::{Html, IntoResponse, Redirect},
-    routing::{get, post},
-    BoxError, Error, Router,
+    body::{to_bytes, Body}, extract::{Host, Json, Path, Query, Request, State}, handler::HandlerWithoutStateExt, http::{header, HeaderMap, StatusCode, Uri}, response::{Html, IntoResponse, Redirect}, routing::{get, post}, BoxError, Error, Form, RequestExt, Router
 };
 use axum_server::tls_rustls::RustlsConfig;
 use lazy_static::lazy_static;
@@ -19,12 +13,7 @@ use serde_json::Value;
 use tron::{ApplicationStates, ComponentBaseTrait, ComponentTypes, ComponentValue, TnButton};
 //use std::sync::Mutex;
 use std::{
-    collections::HashMap,
-    env,
-    net::SocketAddr,
-    ops::Deref,
-    path::{Component, PathBuf},
-    sync::Arc,
+    borrow::Borrow, collections::HashMap, env, net::SocketAddr, ops::Deref, path::{Component, PathBuf}, sync::Arc
 };
 use time::Duration;
 use tokio::sync::Mutex;
@@ -55,7 +44,12 @@ struct Ports {
 }
 
 type SessionApplicationStates =
-    RwLock<HashMap<tower_sessions::session::Id, tron::ApplicationStates>>;
+    RwLock<HashMap<tower_sessions::session::Id, tron::ApplicationStates<'static>>>;
+
+type SessionApplicationSender =
+    Arc<HashMap<tower_sessions::session::Id, Sender<String>>>;
+type SessionApplicationRecivers =
+    Arc<HashMap<tower_sessions::session::Id, Sender<String>>>;
 
 #[tokio::main]
 async fn main() {
@@ -94,10 +88,7 @@ async fn main() {
 
     // set app state
     let app_states: SessionApplicationStates = RwLock::new(HashMap::default());
-    //  {
-    //     components: Mutex::new(HashMap::default()),
-    //     assets: Mutex::new(HashMap::default()),
-    // };
+    
 
     // build our application with a route
     let routes = Router::new()
@@ -153,7 +144,7 @@ async fn load_page(
             let c = &mut e.components;
             (0..100).for_each(|i| {
                 let mut btn = TnButton::new(i, format!("btn-{:02}", i), format!("{:02}", i));
-                btn.set_attribute("hx-get".to_string(), format!("/tron/{}", i));
+                btn.set_attribute("hx-post".to_string(), format!("/tron/{}", i));
                 btn.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
                 btn.set_attribute("hx-target".to_string(), format!("#btn-{:02}", i));
                 btn.set_attribute("id".to_string(), format!("btn-{:02}", i));
@@ -179,11 +170,16 @@ async fn load_page(
 async fn tron_entry(
     State(session_app_states): State<Arc<SessionApplicationStates>>,
     session: Session,
+    _headers: HeaderMap,
     Path(tron_id): Path<tron::ComponentId>,
-    _request: Request,
+    Json(payload): Json<Value>,
+    //request: Request,
 ) -> Html<String> {
-    //let mut c = app_state.components.lock().await;
-    let session_id = session.id().unwrap();
+    // println!("req: {:?}", request); 
+    // println!("req body: {:?}", to_bytes(request.into_body(), usize::MAX).await ); 
+    // let body_bytes =  to_bytes(request.into_body(), usize::MAX).await.unwrap();
+    println!("payload: {:?}", payload); 
+    let session_id = session.id().expect("The session is expired");
     let mut session_app_states = session_app_states.write().await;
     let c = &mut session_app_states.get_mut(&session_id).unwrap().components;
 

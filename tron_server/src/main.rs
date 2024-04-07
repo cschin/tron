@@ -4,14 +4,13 @@ use axum::{
     handler::HandlerWithoutStateExt,
     http::{header, HeaderMap, StatusCode, Uri},
     response::{
-        sse::{Event, KeepAlive},
+        sse::{self, KeepAlive},
         Html, IntoResponse, Redirect, Sse,
     },
     routing::{get, post},
     BoxError, Error, Form, RequestExt, Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use lazy_static::lazy_static;
 //use serde::{Deserialize, Serialize};
 use tokio::sync::{
     mpsc::{channel, Receiver, Sender},
@@ -25,15 +24,13 @@ use std::{
     borrow::Borrow,
     collections::HashMap,
     convert::Infallible,
-    env,
     net::SocketAddr,
-    ops::Deref,
-    path::{Component, PathBuf},
+    ops::{Deref, DerefMut},
+    path::PathBuf,
     sync::Arc,
 };
 use time::Duration;
-use tokio::sync::Mutex;
-use tower_http::{cors::CorsLayer, set_header::request};
+use tower_http::{cors::CorsLayer, follow_redirect::policy::PolicyExt, set_header::request};
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
@@ -41,30 +38,57 @@ use tower_http::{
 use tower_sessions::{session_store, Expiry, MemoryStore, Session, SessionManagerLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use futures_util::{stream, Stream};
+use futures_util::{stream, Stream, StreamExt};
 //use tokio_stream::StreamExt as _;
 //use std::fs::File;
 use base64::prelude::*;
-use tokio_stream::{wrappers::ReceiverStream, StreamExt};
+use tokio_stream::wrappers::ReceiverStream;
 //use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
 //use tokio::io::{AsyncReadExt, AsyncWriteExt};
 //use tungstenite::{connect, Message};
 use bytes::Bytes;
+use std::collections::VecDeque;
 use tron_components as tron;
 
-#[allow(dead_code)]
 #[derive(Clone, Copy)]
 struct Ports {
     http: u16,
     https: u16,
 }
+#[derive(Clone)]
+struct SessionMessageQueue {
+    messages: Arc<std::sync::RwLock<VecDeque<Json<Value>>>>,
+}
+
+impl Stream for SessionMessageQueue {
+    type Item = Json<Value>;
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let mut msg = self.messages.write().unwrap();
+        if let Some(item) = msg.pop_front() {
+            println!("poll_next queue: {:?}", item);
+            std::task::Poll::Ready(Some(item))
+        } else {
+            std::task::Poll::Pending
+        }
+    }
+}
 
 type SessionApplicationStates =
     RwLock<HashMap<tower_sessions::session::Id, tron::ApplicationStates<'static>>>;
 
-type SessionApplicationSender = Arc<HashMap<tower_sessions::session::Id, Sender<String>>>;
+type SessionMessages = RwLock<HashMap<tower_sessions::session::Id, SessionMessageQueue>>;
 
-type SessionApplicationRecivers = Arc<HashMap<tower_sessions::session::Id, Receiver<String>>>;
+struct AppShareData {
+    app_states: SessionApplicationStates,
+    app_messages: SessionMessages,
+}
+
+// type SessionApplicationSender = Arc<HashMap<tower_sessions::session::Id, Sender<String>>>;
+
+// type SessionApplicationRecivers = Arc<HashMap<tower_sessions::session::Id, Receiver<String>>>;
 
 #[tokio::main]
 async fn main() {
@@ -102,8 +126,10 @@ async fn main() {
     .unwrap();
 
     // set app state
-    let app_states: SessionApplicationStates = RwLock::new(HashMap::default());
-
+    let app_share_data = AppShareData {
+        app_states: RwLock::new(HashMap::default()),
+        app_messages: RwLock::new(HashMap::default()),
+    };
     // build our application with a route
     let routes = Router::new()
         .route("/", get(index))
@@ -111,7 +137,7 @@ async fn main() {
         .route("/get_session", post(get_session))
         .route("/load_page", get(load_page))
         .route("/tron/:tronid", get(tron_entry).post(tron_entry))
-        .with_state(Arc::new(app_states));
+        .with_state(Arc::new(app_share_data));
     //.route("/button", get(tron::button));
 
     let app = Router::new()
@@ -142,13 +168,13 @@ async fn get_session(session: Session, _: Request) {
 }
 
 async fn load_page(
-    State(session_app_states): State<Arc<SessionApplicationStates>>,
+    State(app_share_data): State<Arc<AppShareData>>,
     session: Session,
 ) -> Html<String> {
     println!("session Id: {}", session.id().unwrap());
     let session_id = session.id().unwrap();
     {
-        let mut session_app_states = session_app_states.write().await;
+        let mut session_app_states = app_share_data.app_states.write().await;
         if !session_app_states.contains_key(&session_id) {
             let e = session_app_states
                 .entry(session_id)
@@ -166,8 +192,16 @@ async fn load_page(
                 c.insert(i, Box::new(btn));
             })
         }
+        let mut session_app_messages = app_share_data.app_messages.write().await;
+        if !session_app_messages.contains_key(&session_id) {
+            let e = session_app_messages
+                .entry(session_id)
+                .or_insert(SessionMessageQueue {
+                    messages: Arc::new(std::sync::RwLock::new(VecDeque::<Json<Value>>::new())),
+                });
+        }
     }
-    let session_app_state = session_app_states.read().await;
+    let session_app_state = app_share_data.app_states.read().await;
     let c = &session_app_state.get(&session_id).unwrap().components;
     Html::from(
         c.iter()
@@ -183,7 +217,7 @@ async fn load_page(
 // }
 
 async fn tron_entry(
-    State(session_app_states): State<Arc<SessionApplicationStates>>,
+    State(app_share_data): State<Arc<AppShareData>>,
     session: Session,
     _headers: HeaderMap,
     Path(tron_id): Path<tron::ComponentId>,
@@ -195,7 +229,7 @@ async fn tron_entry(
     // let body_bytes =  to_bytes(request.into_body(), usize::MAX).await.unwrap();
     println!("payload: {:?}", payload);
     let session_id = session.id().expect("The session is expired");
-    let mut session_app_states = session_app_states.write().await;
+    let mut session_app_states = app_share_data.app_states.write().await;
     let c = &mut session_app_states.get_mut(&session_id).unwrap().components;
 
     let e = c.get_mut(&tron_id).unwrap();
@@ -204,6 +238,15 @@ async fn tron_entry(
         _ => 0,
     };
     e.set_value(ComponentValue::String(format!("{}", v + 1)));
+
+    {
+        let messages = app_share_data.app_messages.write().await;
+        let mq = messages.get(&session_id).unwrap();
+        let mut mq = mq.messages.write().unwrap();
+        println!("write to msg queue: {:?}",payload );
+        mq.push_back(axum::Json(payload));
+    }
+
     e.render()
 }
 
@@ -243,12 +286,13 @@ async fn redirect_http_to_https(ports: Ports) {
 }
 
 async fn sse_event_handler(
-    State(session_app_states): State<Arc<SessionApplicationStates>>,
+    State(app_share_data): State<Arc<AppShareData>>,
     session: Session,
-) -> Sse<impl Stream<Item = Result<Event, Infallible>>> {
-    // A `Stream` that repeats an event every second
-    let stream = stream::repeat_with(|| Event::default().data("hi!"))
-        .map(Ok)
-        .throttle(std::time::Duration::from_secs(1));
+) -> Sse<impl Stream<Item = Result<sse::Event, Infallible>>> {
+    let session_id = session.id().expect("The session is expired");
+    let messages = app_share_data.app_messages.write().await;
+    let stream = messages.get(&session_id).unwrap().clone();
+    let stream = stream.map(|v| Ok(sse::Event::default().data(v.clone().to_string())));
+
     Sse::new(stream).keep_alive(KeepAlive::default())
 }

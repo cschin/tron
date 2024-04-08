@@ -14,7 +14,7 @@ use axum_server::tls_rustls::RustlsConfig;
 //use serde::{Deserialize, Serialize};
 use tokio::sync::{
     mpsc::{channel, Receiver, Sender},
-    RwLock,
+    Mutex, RwLock,
 };
 
 use serde_json::Value;
@@ -55,30 +55,15 @@ struct Ports {
     http: u16,
     https: u16,
 }
-#[derive(Clone)]
-struct SessionMessageQueue {
-    messages: Arc<std::sync::RwLock<VecDeque<Json<Value>>>>,
-}
-
-impl Stream for SessionMessageQueue {
-    type Item = Json<Value>;
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        let mut msg = self.messages.write().unwrap();
-        if let Some(item) = msg.pop_front() {
-            std::task::Poll::Ready(Some(item))
-        } else {
-            std::task::Poll::Pending
-        }
-    }
+struct SessionMessageChannel {
+    tx: Sender<Json<Value>>,
+    rx: Receiver<Json<Value>>,
 }
 
 type SessionApplicationStates =
     RwLock<HashMap<tower_sessions::session::Id, tron::ApplicationStates<'static>>>;
 
-type SessionMessages = RwLock<HashMap<tower_sessions::session::Id, SessionMessageQueue>>;
+type SessionMessages = RwLock<HashMap<tower_sessions::session::Id, SessionMessageChannel>>;
 
 struct AppShareData {
     app_states: SessionApplicationStates,
@@ -193,11 +178,10 @@ async fn load_page(
         }
         let mut session_app_messages = app_share_data.app_messages.write().await;
         if !session_app_messages.contains_key(&session_id) {
-            let e = session_app_messages
-                .entry(session_id)
-                .or_insert(SessionMessageQueue {
-                    messages: Arc::new(std::sync::RwLock::new(VecDeque::<Json<Value>>::new())),
-                });
+            let e = session_app_messages.entry(session_id).or_insert_with(|| {
+                let (tx, mut rx) = tokio::sync::mpsc::channel(16);
+                SessionMessageChannel { tx, rx }
+            });
         }
     }
     let session_app_state = app_share_data.app_states.read().await;
@@ -240,10 +224,10 @@ async fn tron_entry(
 
     {
         let messages = app_share_data.app_messages.write().await;
-        let mq = messages.get(&session_id).unwrap();
-        let mut mq = mq.messages.write().unwrap();
+        let mc = messages.get(&session_id).unwrap();
+        let tx = mc.tx.clone();
         println!("write to msg queue: {:?}", payload);
-        mq.push_back(axum::Json(payload));
+        tx.send(axum::Json(payload)).await;
     }
 
     e.render()
@@ -289,22 +273,11 @@ async fn sse_event_handler(
     session: Session,
 ) -> Sse<impl Stream<Item = Result<sse::Event, Infallible>>> {
     let session_id = session.id().expect("The session is expired");
-    let messages = app_share_data.app_messages.write().await;
-    let mq = messages.get(&session_id).unwrap().clone();
-    let stream = mq.map(|v| Ok(sse::Event::default().data(v.clone().to_string())));
-
-    Sse::new(stream).keep_alive(KeepAlive::default().interval(std::time::Duration::from_secs(1)))
+    let mut messages = app_share_data.app_messages.write().await;
+    let (_, rx_dummy) = tokio::sync::mpsc::channel::<Json<Value>>(16);
+    let rx = &mut messages.get_mut(&session_id).unwrap().rx;
+    let rx = std::mem::replace(rx, rx_dummy);
+    let stream = ReceiverStream::new(rx)
+        .map(|v| Ok(sse::Event::default().data(v.clone().to_string())));
+    Sse::new(stream).keep_alive(KeepAlive::default())
 }
-
-// use async_stream::stream;
-// async fn sse_event_handler(
-//     State(app_share_data): State<Arc<AppShareData>>,
-//     session: Session,
-// ) -> Sse<impl Stream<Item = Result<sse::Event, Infallible>>> {
-//     let session_id = session.id().expect("The session is expired");
-//     let messages = app_share_data.app_messages.write().await;
-//     let mq = messages.get(&session_id).unwrap().clone();
-//     let stream = mq.map(|v| Ok(sse::Event::default().data(v.clone().to_string())));
-
-//     Sse::new(stream).keep_alive(KeepAlive::default())
-// }

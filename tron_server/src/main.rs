@@ -57,7 +57,7 @@ struct Ports {
 }
 struct SessionMessageChannel {
     tx: Sender<Json<Value>>,
-    rx: Receiver<Json<Value>>,
+    rx: Option<Receiver<Json<Value>>>, // this will be moved out and replace by None
 }
 
 type SessionApplicationStates =
@@ -170,7 +170,7 @@ async fn load_page(
                     assets: HashMap::default(),
                 });
             let c = &mut e.components;
-            (0..10).for_each(|i| {
+            (0..2).for_each(|i| {
                 let mut btn = TnButton::new(i, format!("btn-{:02}", i), format!("{:02}", i));
                 btn.set_attribute("hx-post".to_string(), format!("/tron/{}", i));
                 btn.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
@@ -184,8 +184,8 @@ async fn load_page(
         let mut session_app_messages = app_share_data.app_messages.write().await;
         if !session_app_messages.contains_key(&session_id) {
             let e = session_app_messages.entry(session_id).or_insert_with(|| {
-                let (tx, mut rx) = tokio::sync::mpsc::channel(16);
-                SessionMessageChannel { tx, rx }
+                let (tx, rx) = tokio::sync::mpsc::channel(16);
+                SessionMessageChannel { tx, rx: Some(rx) }
             });
         }
     }
@@ -220,10 +220,21 @@ async fn tron_entry(
     } else {
         return Err(StatusCode::FORBIDDEN);
     };
+    {
+        let states = app_share_data.app_states.read().await;
+        if !states.contains_key(&session_id) {
+            return Err(StatusCode::FORBIDDEN);
+        }
+    }
+
     println!("payload: {:?}", payload);
+    if let serde_json::Value::Object(obj) = payload.clone() {
+        obj.iter().for_each(| (k, v) | {println!("{}:{}", k, v)});
+
+    }
+    
     let mut session_app_states = app_share_data.app_states.write().await;
     let c = &mut session_app_states.get_mut(&session_id).unwrap().components;
-
     let e = c.get_mut(&tron_id).unwrap();
     let v = match e.value() {
         ComponentValue::String(s) => s.parse::<u32>().unwrap(),
@@ -298,9 +309,8 @@ async fn sse_event_handler(
 
     let stream = {
         let mut channels = app_share_data.app_messages.write().await;
-        let (_, rx_dummy) = tokio::sync::mpsc::channel::<Json<Value>>(16);
-        let rx = &mut channels.get_mut(&session_id).unwrap().rx;
-        let rx = std::mem::replace(rx, rx_dummy);
+        let channel = channels.get_mut(&session_id).unwrap();
+        let rx = channel.rx.take().unwrap();
         ReceiverStream::new(rx).map(|v| Ok(sse::Event::default().data(v.clone().to_string())))
     };
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))

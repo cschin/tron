@@ -18,7 +18,7 @@ use tokio::sync::{
 };
 
 use serde_json::Value;
-use tron::{ApplicationStates, ComponentBaseTrait, ComponentTypes, ComponentValue, TnButton};
+use tron::{text::TnText, ApplicationStates, ComponentBaseTrait, ComponentTypes, ComponentValue, TnButton};
 //use std::sync::Mutex;
 use std::{
     borrow::Borrow,
@@ -154,9 +154,12 @@ async fn get_session(session: Session, _: Request) {
 async fn load_page(
     State(app_share_data): State<Arc<AppShareData>>,
     session: Session,
-) -> Html<String> {
-    println!("session Id: {}", session.id().unwrap());
-    let session_id = session.id().unwrap();
+) -> Result<Html<String>, StatusCode> {
+    let session_id = if let Some(session_id) = session.id() {
+        session_id
+    } else {
+        return Err(StatusCode::FORBIDDEN);
+    };
     {
         let mut session_app_states = app_share_data.app_states.write().await;
         if !session_app_states.contains_key(&session_id) {
@@ -167,14 +170,16 @@ async fn load_page(
                     assets: HashMap::default(),
                 });
             let c = &mut e.components;
-            (0..100).for_each(|i| {
+            (0..10).for_each(|i| {
                 let mut btn = TnButton::new(i, format!("btn-{:02}", i), format!("{:02}", i));
                 btn.set_attribute("hx-post".to_string(), format!("/tron/{}", i));
                 btn.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
                 btn.set_attribute("hx-target".to_string(), format!("#btn-{:02}", i));
                 btn.set_attribute("id".to_string(), format!("btn-{:02}", i));
                 c.insert(i, Box::new(btn));
-            })
+            });
+            let text = TnText::new(11, format!("text-{:02}", 11), "Text".to_string());
+            c.insert(11, Box::new(text));
         }
         let mut session_app_messages = app_share_data.app_messages.write().await;
         if !session_app_messages.contains_key(&session_id) {
@@ -186,12 +191,12 @@ async fn load_page(
     }
     let session_app_state = app_share_data.app_states.read().await;
     let c = &session_app_state.get(&session_id).unwrap().components;
-    Html::from(
+    Ok(Html::from(
         c.iter()
             .map(|(k, v)| v.render().0)
             .collect::<Vec<String>>()
             .join(" "),
-    )
+    ))
 }
 
 // async fn get_session(session: Session, _: Request) {
@@ -206,12 +211,16 @@ async fn tron_entry(
     Path(tron_id): Path<tron::ComponentId>,
     Json(payload): Json<Value>,
     //request: Request,
-) -> Html<String> {
+) -> Result<Html<String>, StatusCode> {
     // println!("req: {:?}", request);
     // println!("req body: {:?}", to_bytes(request.into_body(), usize::MAX).await );
     // let body_bytes =  to_bytes(request.into_body(), usize::MAX).await.unwrap();
+    let session_id = if let Some(session_id) = session.id() {
+        session_id
+    } else {
+        return Err(StatusCode::FORBIDDEN);
+    };
     println!("payload: {:?}", payload);
-    let session_id = session.id().expect("The session is expired");
     let mut session_app_states = app_share_data.app_states.write().await;
     let c = &mut session_app_states.get_mut(&session_id).unwrap().components;
 
@@ -227,10 +236,12 @@ async fn tron_entry(
         let mc = messages.get(&session_id).unwrap();
         let tx = mc.tx.clone();
         println!("write to msg queue: {:?}", payload);
-        tx.send(axum::Json(payload)).await;
+        if tx.send(axum::Json(payload)).await.is_err() {
+            println!("tx dropped");
+        }
     }
 
-    e.render()
+    Ok(e.render())
 }
 
 #[allow(dead_code)]
@@ -271,16 +282,26 @@ async fn redirect_http_to_https(ports: Ports) {
 async fn sse_event_handler(
     State(app_share_data): State<Arc<AppShareData>>,
     session: Session,
-) -> Sse<impl Stream<Item = Result<sse::Event, Infallible>>> {
+) -> Result<Sse<impl Stream<Item = Result<sse::Event, Infallible>>>, StatusCode> {
+    let session_id = if let Some(session_id) = session.id() {
+        session_id
+    } else {
+        return Err(StatusCode::FORBIDDEN);
+    };
+
+    {
+        let channels = app_share_data.app_messages.read().await;
+        if !channels.contains_key(&session_id) {
+            return Err(StatusCode::FORBIDDEN);
+        }
+    }
 
     let stream = {
-        let session_id = session.id().expect("The session is expired");
-        let mut messages = app_share_data.app_messages.write().await;
+        let mut channels = app_share_data.app_messages.write().await;
         let (_, rx_dummy) = tokio::sync::mpsc::channel::<Json<Value>>(16);
-        let rx = &mut messages.get_mut(&session_id).unwrap().rx;
+        let rx = &mut channels.get_mut(&session_id).unwrap().rx;
         let rx = std::mem::replace(rx, rx_dummy);
-        ReceiverStream::new(rx)
-        .map(|v| Ok(sse::Event::default().data(v.clone().to_string())))
+        ReceiverStream::new(rx).map(|v| Ok(sse::Event::default().data(v.clone().to_string())))
     };
-    Sse::new(stream).keep_alive(KeepAlive::default())
+    Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }

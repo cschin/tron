@@ -11,87 +11,55 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
     // Build the trait implementation
     let name = &ast.ident;
     let gen = quote! {
-        impl ComponentBaseTrait for #name {
+        impl<'a> ComponentBaseTrait<'a> for #name<'a> {
             fn id(&self) -> ComponentId {
-                self.component_base.id()
+                self.inner.id()
             }
             fn tron_id(&self) -> &String {
-                self.component_base.tron_id()
+                self.inner.tron_id()
             }
         
             fn attributes(&self) -> &ElmAttributes {
-                self.component_base.attributes()
-            }
-            fn children_targets(&self) -> &Option<Vec<u32>> {
-                self.component_base.children_targets()
+                self.inner.attributes()
             }
         
-            fn set_attribute(&mut self, key: String, val: String) -> &mut Self {
-                self.component_base
+            fn set_attribute(&mut self, key: String, val: String) {
+                self.inner
                     .attributes
                     .insert(key, val);
-                self
             }
         
             fn generate_attr_string(&self) -> String {
-                self.component_base
-                    .attributes
-                    .iter()
-                    .map(|(k, v)| format!(r#"{}="{}""#, k, v))
-                    .collect::<Vec<_>>()
-                    .join(" ")
-            }
-
-            fn set_attribute(&mut self, key: String, val: String) -> &mut Self {
-                self.attributes.insert(key, val);
-                self
-            }
-            
-            fn generate_attr_string(&self) -> String {
-                self.attributes
-                    .iter()
-                    .map(|(k, v)| format!(r#"{}="{}""#, k, v))
-                    .collect::<Vec<_>>()
-                    .join(" ")
+                self.inner.generate_attr_string()
             }
         
-            fn value(&self) -> &Option<V> {
-                &self.value
+            fn value(&self) -> &ComponentValue {
+                &self.inner.value
             }
-            fn set_value(&mut self, value: V) -> &Self {
-                self.value = Some(value);
-                self
+        
+            fn set_value(&mut self, new_value: ComponentValue) {
+                self.inner.value = new_value
             }
-            fn assets(&self) -> &Option<HashMap<String, A>> {
-                &self.assets
+        
+            fn state(&self) -> &ComponentState {
+                &self.inner.state
             }
+        
+            fn set_state(&mut self, new_state: ComponentState) {
+                self.inner.state = new_state;
+            }
+        
+            fn assets(&self) -> &Option<HashMap<String, ComponentAsset>> {
+                self.inner.assets() 
+            }
+        
             fn render(&self) -> Html<String> {
-                unimplemented!()
+                self.internal_render()
             }
-        }
-    };
-    gen.into()
-}
-
-
-/// Not working yet, we need to parse the AST to get the template type parameter
-#[proc_macro_derive(ComponentValue)]
-pub fn component_value_macro_derive(input: TokenStream) -> TokenStream {
-    // Construct a representation of Rust code as a syntax tree
-    // that we can manipulate
-    let ast: syn::DeriveInput = syn::parse(input).unwrap();
-
-    // Build the trait implementation
-    let name = &ast.ident;
-    let gen = quote! {
-        impl ComponentValueTrait<T> for #name {
-            fn value(&self) -> &Option<T> {
-                self.component_base.value()
+            fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>> {
+                self.inner.get_children()
             }
-            fn set_value(&mut self, value: T) -> &Self {
-                self.component_base.value = Some(value);
-                self
-            }
+        
         }
     };
     gen.into()

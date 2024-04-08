@@ -1,4 +1,5 @@
 pub mod button;
+pub mod text;
 
 use std::collections::HashMap;
 

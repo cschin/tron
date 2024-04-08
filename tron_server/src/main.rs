@@ -272,12 +272,15 @@ async fn sse_event_handler(
     State(app_share_data): State<Arc<AppShareData>>,
     session: Session,
 ) -> Sse<impl Stream<Item = Result<sse::Event, Infallible>>> {
-    let session_id = session.id().expect("The session is expired");
-    let mut messages = app_share_data.app_messages.write().await;
-    let (_, rx_dummy) = tokio::sync::mpsc::channel::<Json<Value>>(16);
-    let rx = &mut messages.get_mut(&session_id).unwrap().rx;
-    let rx = std::mem::replace(rx, rx_dummy);
-    let stream = ReceiverStream::new(rx)
-        .map(|v| Ok(sse::Event::default().data(v.clone().to_string())));
+
+    let stream = {
+        let session_id = session.id().expect("The session is expired");
+        let mut messages = app_share_data.app_messages.write().await;
+        let (_, rx_dummy) = tokio::sync::mpsc::channel::<Json<Value>>(16);
+        let rx = &mut messages.get_mut(&session_id).unwrap().rx;
+        let rx = std::mem::replace(rx, rx_dummy);
+        ReceiverStream::new(rx)
+        .map(|v| Ok(sse::Event::default().data(v.clone().to_string())))
+    };
     Sse::new(stream).keep_alive(KeepAlive::default())
 }

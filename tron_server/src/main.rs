@@ -157,7 +157,7 @@ async fn get_session(session: Session, _: Request) {
     println!("session Id: {}", session.id().unwrap());
 }
 
-async fn test_evt_task(tx: Sender<Json<Value>>) {
+async fn test_evt_task(app_share_data: Arc<AppShareData>,tx: Sender<Json<Value>>) {
     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
     let mut i = 0;
     loop {
@@ -225,7 +225,7 @@ async fn load_page(
             evt_target: "btn-00".to_string(),
             evt_type: "click".to_string(),
         };
-        let f = test_evt_task(tx);
+        let f = test_evt_task(app_share_data.clone(), tx); // check circular dependence
         let mut app_event_map = app_share_data.app_event_map.write().await;
         app_event_map.insert(evt, Some(Box::pin(f)));
     }

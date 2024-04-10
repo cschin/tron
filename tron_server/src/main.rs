@@ -18,7 +18,9 @@ use tokio::sync::{
 };
 
 use serde_json::Value;
-use tron::{text::TnText, ApplicationStates, ComponentBaseTrait, ComponentTypes, ComponentValue, TnButton};
+use tron::{
+    text::TnText, ApplicationStates, ComponentBaseTrait, ComponentTypes, ComponentValue, TnButton,
+};
 //use std::sync::Mutex;
 use std::{
     borrow::Borrow,
@@ -165,29 +167,24 @@ async fn load_page(
         if !session_app_states.contains_key(&session_id) {
             let e = session_app_states
                 .entry(session_id)
-                .or_insert(ApplicationStates {
-                    components: HashMap::default(),
-                    assets: HashMap::default(),
-                });
-            let c = &mut e.components;
+                .or_insert(ApplicationStates::default()); 
             (0..2).for_each(|i| {
                 let mut btn = TnButton::new(i, format!("btn-{:02}", i), format!("{:02}", i));
                 btn.set_attribute("hx-post".to_string(), format!("/tron/{}", i));
                 btn.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
                 btn.set_attribute("hx-target".to_string(), format!("#btn-{:02}", i));
                 btn.set_attribute("id".to_string(), format!("btn-{:02}", i));
-                c.insert(i, Box::new(btn));
+                e.add_component(btn);
             });
             let text = TnText::new(11, format!("text-{:02}", 11), "Text".to_string());
-            c.insert(11, Box::new(text));
+            e.add_component(text);
         }
         let mut session_app_messages = app_share_data.app_messages.write().await;
-        if !session_app_messages.contains_key(&session_id) {
-            let e = session_app_messages.entry(session_id).or_insert_with(|| {
-                let (tx, rx) = tokio::sync::mpsc::channel(16);
-                SessionMessageChannel { tx, rx: Some(rx) }
-            });
-        }
+        // we get new message channel for new session as the sse does not survived through reload
+        session_app_messages.insert(session_id, {
+            let (tx, rx) = tokio::sync::mpsc::channel(16);
+            SessionMessageChannel { tx, rx: Some(rx) }
+        });
     }
     let session_app_state = app_share_data.app_states.read().await;
     let c = &session_app_state.get(&session_id).unwrap().components;
@@ -203,6 +200,32 @@ async fn load_page(
 //     session.insert("session_set", true).await.unwrap();
 //     println!("{:?}", session.id());
 // }
+
+async fn match_event(evt_target: &str, evt_type: &str, payload: &Value) -> bool {
+    let mut matched_target = false;
+    let mut matched_type = false;
+    if let serde_json::Value::Object(obj) = payload.clone() {
+        for (k, v) in obj.clone().iter() {
+            if *k == "evt_target" {
+                if let Value::String(s) = v {
+                    if *s == evt_target {
+                        matched_target = true;
+                    }
+                }
+            }
+            if *k == "evt_type" {
+                if let Value::String(s) = v {
+                    if *s == evt_type {
+                        matched_type = true;
+                    }
+                }
+            }
+        }
+    }
+    let matched = matched_target && matched_type;
+    println!("matched: {}", matched);
+    matched
+}
 
 async fn tron_entry(
     State(app_share_data): State<Arc<AppShareData>>,
@@ -228,11 +251,43 @@ async fn tron_entry(
     }
 
     println!("payload: {:?}", payload);
-    if let serde_json::Value::Object(obj) = payload.clone() {
-        obj.iter().for_each(| (k, v) | {println!("{}:{}", k, v)});
 
-    }
-    
+    if match_event("btn-00", "click", &payload).await {
+        println!("event matched");
+        let tx = {
+            let messages = app_share_data.app_messages.read().await;
+            let mc = messages.get(&session_id).unwrap();
+            mc.tx.clone()
+        };
+        tokio::task::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
+            let mut i = 0;
+            loop {
+                let data = r#"
+                {
+                    "name": "John Doe",
+                    "age": 43,
+                    "phones": [
+                        "+44 1234567",
+                        "+44 2345678"
+                    ]
+                }"#;
+        
+                // Parse the string of data into serde_json::Value.
+                let v: Value = serde_json::from_str(data).unwrap();
+                i += 1;
+                interval.tick().await;
+                println!("loop triggered: {}", i);
+                if tx.send(axum::Json(v)).await.is_err() {
+                    println!("tx dropped");
+                }
+                if i > 10 {
+                    break;
+                };
+            }
+        });
+    };
+
     let mut session_app_states = app_share_data.app_states.write().await;
     let c = &mut session_app_states.get_mut(&session_id).unwrap().components;
     let e = c.get_mut(&tron_id).unwrap();
@@ -241,17 +296,6 @@ async fn tron_entry(
         _ => 0,
     };
     e.set_value(ComponentValue::String(format!("{}", v + 1)));
-
-    {
-        let messages = app_share_data.app_messages.write().await;
-        let mc = messages.get(&session_id).unwrap();
-        let tx = mc.tx.clone();
-        println!("write to msg queue: {:?}", payload);
-        if tx.send(axum::Json(payload)).await.is_err() {
-            println!("tx dropped");
-        }
-    }
-
     Ok(e.render())
 }
 

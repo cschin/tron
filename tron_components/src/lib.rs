@@ -1,7 +1,7 @@
 pub mod button;
 pub mod text;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, future::Future, pin::Pin, process::Output, task::{Context, Poll}};
 
 pub use button::TnButton;
 use rand::{thread_rng, Rng};
@@ -29,7 +29,9 @@ pub enum ComponentAsset {
 pub enum ComponentState {
     Ready,   // ready to receive new event on the UI end
     Pending, // UI event receive, server function dispatched, waiting for server to response
-    Update,  // server ready to send, change UI to update to receive server response
+    Update,  // server ready to send, change UI to update to receive server response, can repeate
+    Finish,  // no more new update to consider, will transition to Ready
+    Disable, // disabled, not interactive and not sending htmx get/post
 }
 #[derive(Debug)]
 pub struct ComponentBase<'a> {
@@ -49,6 +51,36 @@ pub enum ComponentTypes<'a> {
 pub struct ApplicationStates<'a> {
     pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
     pub assets: HashMap<String, Vec<u8>>,
+    tron_id_to_id: HashMap<String, u32>,
+}
+
+impl<'a> ApplicationStates<'a> {
+
+    pub fn new() -> Self {
+        ApplicationStates {
+            components: HashMap::default(),
+            assets: HashMap::default(),
+            tron_id_to_id: HashMap::default(),
+        }
+    }
+    
+    pub fn add_component(&mut self, new_component: impl ComponentBaseTrait<'a> + 'static) {
+        let tron_id = new_component.tron_id().clone(); 
+        let id = new_component.id();
+        self.components.insert(id, Box::new(new_component));
+        self.tron_id_to_id.insert(tron_id, id);
+    }
+
+    pub fn get_component_by_tron_id(&self, tron_id: &str) -> &Box<dyn ComponentBaseTrait<'a> + 'static> {
+        let id = self.tron_id_to_id.get(tron_id).unwrap();
+        self.components.get(id).unwrap()
+    }
+}
+
+impl<'a> Default for ApplicationStates<'a> {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 pub trait ComponentBaseTrait<'a>: Send + Sync {
@@ -156,10 +188,25 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
 
 // Event Dispatcher
 
-struct Event {
+struct TnEvent {
     evt_target: String,
-    evt_type: String // maybe use Enum
+    evt_type: String, // maybe use Enum
 }
+
+struct TnEventTask<'a> {
+    triggering_event: TnEvent,
+    app_state: &'a ApplicationStates<'a>,
+    output_component_tron_ids: Vec<String>, 
+}
+
+impl Future for TnEvent {
+    type Output = ();
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        todo!()
+    }
+}
+
+
 
 
 #[cfg(test)]

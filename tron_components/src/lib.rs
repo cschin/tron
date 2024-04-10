@@ -1,7 +1,7 @@
 pub mod button;
 pub mod text;
 
-use std::{collections::HashMap, future::Future, pin::Pin, process::Output, task::{Context, Poll}};
+use std::{collections::HashMap, future::Future, pin::Pin, process::Output, sync::Arc, task::{Context, Poll}};
 
 pub use button::TnButton;
 use rand::{thread_rng, Rng};
@@ -187,24 +187,15 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
 
 
 // Event Dispatcher
-
-struct TnEvent {
-    evt_target: String,
-    evt_type: String, // maybe use Enum
+#[derive(Eq, PartialEq, Hash)]
+pub struct TnEvent {
+    pub evt_target: String,
+    pub evt_type: String, // maybe use Enum
 }
 
-struct TnEventTask<'a> {
-    triggering_event: TnEvent,
-    app_state: &'a ApplicationStates<'a>,
-    output_component_tron_ids: Vec<String>, 
-}
+pub type TnEventTask = Option<Pin<Box<dyn Future<Output=()> + Sync + Send>>>;
 
-impl Future for TnEvent {
-    type Output = ();
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        todo!()
-    }
-}
+pub type TnEventMap = HashMap<TnEvent, TnEventTask>;
 
 
 

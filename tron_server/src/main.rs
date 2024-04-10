@@ -12,14 +12,18 @@ use axum::{
 };
 use axum_server::tls_rustls::RustlsConfig;
 //use serde::{Deserialize, Serialize};
-use tokio::sync::{
-    mpsc::{channel, Receiver, Sender},
-    Mutex, RwLock,
+use tokio::{
+    pin,
+    sync::{
+        mpsc::{channel, Receiver, Sender},
+        Mutex, RwLock,
+    },
 };
 
 use serde_json::Value;
 use tron::{
     text::TnText, ApplicationStates, ComponentBaseTrait, ComponentTypes, ComponentValue, TnButton,
+    TnEvent, TnEventMap, TnEventTask,
 };
 //use std::sync::Mutex;
 use std::{
@@ -29,6 +33,7 @@ use std::{
     net::SocketAddr,
     ops::{Deref, DerefMut},
     path::PathBuf,
+    pin::Pin,
     sync::Arc,
 };
 use time::Duration;
@@ -70,11 +75,8 @@ type SessionMessages = RwLock<HashMap<tower_sessions::session::Id, SessionMessag
 struct AppShareData {
     app_states: SessionApplicationStates,
     app_messages: SessionMessages,
+    app_event_map: RwLock<TnEventMap>,
 }
-
-// type SessionApplicationSender = Arc<HashMap<tower_sessions::session::Id, Sender<String>>>;
-
-// type SessionApplicationRecivers = Arc<HashMap<tower_sessions::session::Id, Receiver<String>>>;
 
 #[tokio::main]
 async fn main() {
@@ -115,7 +117,9 @@ async fn main() {
     let app_share_data = AppShareData {
         app_states: RwLock::new(HashMap::default()),
         app_messages: RwLock::new(HashMap::default()),
+        app_event_map: RwLock::new(TnEventMap::default()),
     };
+
     // build our application with a route
     let routes = Router::new()
         .route("/", get(index))
@@ -153,6 +157,34 @@ async fn get_session(session: Session, _: Request) {
     println!("session Id: {}", session.id().unwrap());
 }
 
+async fn test_evt_task(tx: Sender<Json<Value>>) {
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
+    let mut i = 0;
+    loop {
+        let data = r#"
+        {
+            "name": "John Doe",
+            "age": 43,
+            "phones": [
+                "+44 1234567",
+                "+44 2345678"
+            ]
+        }"#;
+
+        // Parse the string of data into serde_json::Value.
+        let v: Value = serde_json::from_str(data).unwrap();
+        i += 1;
+        interval.tick().await;
+        println!("loop triggered: {}", i);
+        if tx.send(axum::Json(v)).await.is_err() {
+            println!("tx dropped");
+        }
+        if i > 10 {
+            break;
+        };
+    }
+}
+
 async fn load_page(
     State(app_share_data): State<Arc<AppShareData>>,
     session: Session,
@@ -167,7 +199,7 @@ async fn load_page(
         if !session_app_states.contains_key(&session_id) {
             let e = session_app_states
                 .entry(session_id)
-                .or_insert(ApplicationStates::default()); 
+                .or_insert(ApplicationStates::default());
             (0..2).for_each(|i| {
                 let mut btn = TnButton::new(i, format!("btn-{:02}", i), format!("{:02}", i));
                 btn.set_attribute("hx-post".to_string(), format!("/tron/{}", i));
@@ -181,10 +213,21 @@ async fn load_page(
         }
         let mut session_app_messages = app_share_data.app_messages.write().await;
         // we get new message channel for new session as the sse does not survived through reload
+        let (tx, rx) = tokio::sync::mpsc::channel(16);
         session_app_messages.insert(session_id, {
-            let (tx, rx) = tokio::sync::mpsc::channel(16);
-            SessionMessageChannel { tx, rx: Some(rx) }
+            SessionMessageChannel {
+                tx: tx.clone(),
+                rx: Some(rx),
+            }
         });
+
+        let evt = TnEvent {
+            evt_target: "btn-00".to_string(),
+            evt_type: "click".to_string(),
+        };
+        let f = test_evt_task(tx);
+        let mut app_event_map = app_share_data.app_event_map.write().await;
+        app_event_map.insert(evt, Some(Box::pin(f)));
     }
     let session_app_state = app_share_data.app_states.read().await;
     let c = &session_app_state.get(&session_id).unwrap().components;
@@ -201,30 +244,28 @@ async fn load_page(
 //     println!("{:?}", session.id());
 // }
 
-async fn match_event(evt_target: &str, evt_type: &str, payload: &Value) -> bool {
-    let mut matched_target = false;
-    let mut matched_type = false;
+async fn match_event(payload: &Value) -> Option<(String, String)> {
+    let mut evt_target = String::default();
+    let mut evt_type = String::default();
     if let serde_json::Value::Object(obj) = payload.clone() {
         for (k, v) in obj.clone().iter() {
             if *k == "evt_target" {
                 if let Value::String(s) = v {
-                    if *s == evt_target {
-                        matched_target = true;
-                    }
+                    evt_target = s.clone();
                 }
             }
             if *k == "evt_type" {
                 if let Value::String(s) = v {
-                    if *s == evt_type {
-                        matched_type = true;
-                    }
+                    evt_type = s.clone();
                 }
             }
         }
     }
-    let matched = matched_target && matched_type;
-    println!("matched: {}", matched);
-    matched
+    if evt_target.is_empty() || evt_type.is_empty() {
+        None
+    } else {
+        Some((evt_target, evt_type))
+    }
 }
 
 async fn tron_entry(
@@ -252,40 +293,15 @@ async fn tron_entry(
 
     println!("payload: {:?}", payload);
 
-    if match_event("btn-00", "click", &payload).await {
+    if let Some((evt_target, evt_type)) = match_event(&payload).await {
         println!("event matched");
-        let tx = {
-            let messages = app_share_data.app_messages.read().await;
-            let mc = messages.get(&session_id).unwrap();
-            mc.tx.clone()
+        let evt = TnEvent {
+            evt_target,
+            evt_type,
         };
-        tokio::task::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
-            let mut i = 0;
-            loop {
-                let data = r#"
-                {
-                    "name": "John Doe",
-                    "age": 43,
-                    "phones": [
-                        "+44 1234567",
-                        "+44 2345678"
-                    ]
-                }"#;
-        
-                // Parse the string of data into serde_json::Value.
-                let v: Value = serde_json::from_str(data).unwrap();
-                i += 1;
-                interval.tick().await;
-                println!("loop triggered: {}", i);
-                if tx.send(axum::Json(v)).await.is_err() {
-                    println!("tx dropped");
-                }
-                if i > 10 {
-                    break;
-                };
-            }
-        });
+        let mut app_event_map = app_share_data.app_event_map.write().await;
+        let f = app_event_map.get_mut(&evt).unwrap().take();
+        tokio::task::spawn(f.unwrap());
     };
 
     let mut session_app_states = app_share_data.app_states.write().await;

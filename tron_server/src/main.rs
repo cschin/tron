@@ -18,8 +18,7 @@ use tokio::sync::{
 
 use serde_json::Value;
 use tron::{
-    text::TnText, ApplicationStates, ComponentBaseTrait, ComponentValue, TnButton, TnEvent,
-    TnEventActions,
+    text::TnText, ComponentBaseTrait, ComponentValue, Components, TnButton, TnEvent, TnEventActions,
 };
 //use std::sync::Mutex;
 use std::{
@@ -49,15 +48,16 @@ struct SessionMessageChannel {
     rx: Option<Receiver<Json<Value>>>, // this will be moved out and replaced by None
 }
 
-type SessionApplicationStates =
-    RwLock<HashMap<tower_sessions::session::Id, Arc<RwLock<tron::ApplicationStates<'static>>>>>;
+type SessionComponents =
+    RwLock<HashMap<tower_sessions::session::Id, Arc<RwLock<tron::Components<'static>>>>>;
 
-type SessionMessages = RwLock<HashMap<tower_sessions::session::Id, SessionMessageChannel>>;
+type SessionSeeChannels = RwLock<HashMap<tower_sessions::session::Id, SessionMessageChannel>>;
 
-struct AppShareData {
-    app_states: SessionApplicationStates,
-    app_sse_messages: SessionMessages,
-    app_event_action: Arc<RwLock<TnEventActions>>,
+type EventActions = Arc<RwLock<TnEventActions>>;
+struct AppData {
+    session_components: SessionComponents,
+    session_sse_channels: SessionSeeChannels,
+    event_action: EventActions,
 }
 
 #[tokio::main]
@@ -96,10 +96,10 @@ async fn main() {
     .unwrap();
 
     // set app state
-    let app_share_data = AppShareData {
-        app_states: RwLock::new(HashMap::default()),
-        app_sse_messages: RwLock::new(HashMap::default()),
-        app_event_action: Arc::new(RwLock::new(TnEventActions::default())),
+    let app_share_data = AppData {
+        session_components: RwLock::new(HashMap::default()),
+        session_sse_channels: RwLock::new(HashMap::default()),
+        event_action: Arc::new(RwLock::new(TnEventActions::default())),
     };
 
     // build our application with a route
@@ -140,7 +140,7 @@ async fn get_session(session: Session, _: Request) {
 }
 
 fn test_evt_task(
-    states: Arc<RwLock<ApplicationStates<'static>>>,
+    components: Arc<RwLock<Components<'static>>>,
     tx: Sender<Json<Value>>,
     event: TnEvent,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
@@ -151,8 +151,8 @@ fn test_evt_task(
         println!("Event: {:?}", event);
         loop {
             {
-                let mut states = states.write().await;
-                let c = states.get_mut_component_by_tron_id(&event.evt_target);
+                let mut components_guard = components.write().await;
+                let c = components_guard.get_mut_component_by_tron_id(&event.evt_target);
                 let v = match c.value() {
                     ComponentValue::String(s) => s.parse::<u32>().unwrap(),
                     _ => 0,
@@ -160,7 +160,7 @@ fn test_evt_task(
                 c.set_value(ComponentValue::String(format!("{:02}", v + 1)));
                 c.set_state(tron::ComponentState::Updating);
 
-                states
+                components_guard
                     .get_mut_component_by_tron_id("text-11")
                     .set_value(ComponentValue::String(format!("{:02}", v + 1)));
             }
@@ -189,8 +189,8 @@ fn test_evt_task(
             };
         }
         {
-            let mut states = states.write().await;
-            let c = states.get_mut_component_by_tron_id(&event.evt_target);
+            let mut components_guard = components.write().await;
+            let c = components_guard.get_mut_component_by_tron_id(&event.evt_target);
             c.set_state(tron::ComponentState::Ready);
             let data = format!(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"{}" }} }}"##,
@@ -205,26 +205,26 @@ fn test_evt_task(
     Box::pin(f())
 }
 
-fn get_default_session_app_states() -> Arc<RwLock<ApplicationStates<'static>>> {
-    let mut app_state = ApplicationStates::default();
+fn get_default_session_components() -> Arc<RwLock<Components<'static>>> {
+    let mut components = Components::default();
 
     for i in 0..10 {
         let mut btn = TnButton::new(i, format!("btn-{:02}", i), format!("{:02}", i));
         btn.set_attribute("hx-post".to_string(), format!("/tron/{}", i));
         btn.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
         btn.set_attribute("hx-target".to_string(), format!("#btn-{:02}", i));
-        app_state.add_component(btn);
+        components.add_component(btn);
     }
 
     let mut text = TnText::new(11, format!("text-{:02}", 11), "Text".to_string());
     text.set_attribute("hx-post".to_string(), format!("/tron/{}", 11));
     text.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
-    app_state.add_component(text);
+    components.add_component(text);
 
-    Arc::new(RwLock::new(app_state))
+    Arc::new(RwLock::new(components))
 }
 
-fn get_default_session_actions() -> TnEventActions {
+fn build_default_session_actions() -> TnEventActions {
     let mut actions = TnEventActions::default();
     for i in 0..10 {
         let evt = TnEvent {
@@ -238,7 +238,7 @@ fn get_default_session_actions() -> TnEventActions {
 }
 
 async fn load_page(
-    State(app_share_data): State<Arc<AppShareData>>,
+    State(app_data): State<Arc<AppData>>,
     session: Session,
 ) -> Result<Html<String>, StatusCode> {
     let session_id = if let Some(session_id) = session.id() {
@@ -248,19 +248,19 @@ async fn load_page(
     };
 
     {
-        let mut session_app_states = app_share_data.app_states.write().await;
+        let mut session_components = app_data.session_components.write().await;
 
-        if !session_app_states.contains_key(&session_id) {
-            let app_state = get_default_session_app_states();
-            session_app_states.entry(session_id).or_insert(app_state);
+        if !session_components.contains_key(&session_id) {
+            let components = get_default_session_components();
+            session_components.entry(session_id).or_insert(components);
         }
     }
 
     {
-        let mut session_app_sse_messages = app_share_data.app_sse_messages.write().await;
+        let mut session_app_sse_channels = app_data.session_sse_channels.write().await;
         // we get new message channel for new session as the sse does not survived through reload
         let (tx, rx) = tokio::sync::mpsc::channel(16);
-        session_app_sse_messages.insert(session_id, {
+        session_app_sse_channels.insert(session_id, {
             SessionMessageChannel {
                 tx: tx.clone(),
                 rx: Some(rx),
@@ -268,11 +268,11 @@ async fn load_page(
         });
     }
 
-    let mut app_event_action = app_share_data.app_event_action.write().await;
-    app_event_action.clone_from(&get_default_session_actions());
+    let mut app_event_action = app_data.event_action.write().await;
+    app_event_action.clone_from(&build_default_session_actions());
 
-    let session_app_state = app_share_data.app_states.read().await;
-    let components = &session_app_state
+    let session_components = app_data.session_components.read().await;
+    let components = &session_components
         .get(&session_id)
         .unwrap()
         .read()
@@ -324,7 +324,7 @@ async fn match_event(payload: &Value) -> Option<(String, String, String)> {
 }
 
 async fn tron_entry(
-    State(app_share_data): State<Arc<AppShareData>>,
+    State(app_data): State<Arc<AppData>>,
     session: Session,
     _headers: HeaderMap,
     Path(tron_id): Path<tron::ComponentId>,
@@ -341,8 +341,8 @@ async fn tron_entry(
         return Err(StatusCode::FORBIDDEN);
     };
     {
-        let states = app_share_data.app_states.read().await;
-        if !states.contains_key(&session_id) {
+        let components = app_data.session_components.read().await;
+        if !components.contains_key(&session_id) {
             return Err(StatusCode::FORBIDDEN);
         }
     }
@@ -359,33 +359,33 @@ async fn tron_entry(
 
         if evt.state == "ready" && evt.evt_type != "server_side_trigger" {
             {
-                let app_states = app_share_data.app_states.read().await;
-                let app_states = app_states.get(&session_id).unwrap().clone();
-                let mut app_states_guard = app_states.write().await;
+                let session_components_guard = app_data.session_components.read().await;
+                let session_components = session_components_guard.get(&session_id).unwrap().clone();
+                let mut components_guard = session_components.write().await;
                 let component =
-                    app_states_guard.get_mut_component_by_tron_id(&evt.evt_target.clone());
+                    components_guard.get_mut_component_by_tron_id(&evt.evt_target.clone());
                 component.set_state(tron::ComponentState::Pending);
             }
 
-            let app_states = app_share_data.app_states.read().await;
-            let app_states = app_states.get(&session_id).unwrap().clone();
+            let session_components = app_data.session_components.read().await;
+            let components = session_components.get(&session_id).unwrap().clone();
 
-            let app_messages = app_share_data.app_sse_messages.read().await;
-            let tx = app_messages.get(&session_id).unwrap().tx.clone();
+            let session_sse_channel_guard = app_data.session_sse_channels.read().await;
+            let tx = session_sse_channel_guard.get(&session_id).unwrap().tx.clone();
 
-            let app_event_action = app_share_data.app_event_action.clone();
-            let app_event_action = app_event_action.read().await;
-            let action_generator = app_event_action.get(&evt).unwrap().clone();
+            let event_action = app_data.event_action.clone();
+            let event_action_guard = event_action.read().await;
+            let action_generator = event_action_guard.get(&evt).unwrap().clone();
 
-            let action = action_generator(app_states, tx, evt.clone());
+            let action = action_generator(components, tx, evt.clone());
             tokio::task::spawn(action);
+            //action.await; // this won't allow two event triggered at the same time
         }
-        //action.await; // this won't allow two event triggered at the same time
     };
 
-    let session_app_states = app_share_data.app_states.read().await;
+    let session_components_guard = app_data.session_components.read().await;
 
-    let components = &session_app_states
+    let components = &session_components_guard
         .get(&session_id)
         .unwrap()
         .read()
@@ -433,7 +433,7 @@ async fn redirect_http_to_https(ports: Ports) {
 }
 
 async fn sse_event_handler(
-    State(app_share_data): State<Arc<AppShareData>>,
+    State(app_data): State<Arc<AppData>>,
     session: Session,
 ) -> Result<Sse<impl Stream<Item = Result<sse::Event, Infallible>>>, StatusCode> {
     let session_id = if let Some(session_id) = session.id() {
@@ -443,15 +443,15 @@ async fn sse_event_handler(
     };
 
     {
-        let channels = app_share_data.app_sse_messages.read().await;
-        if !channels.contains_key(&session_id) {
+        let channels_guard = app_data.session_sse_channels.read().await;
+        if !channels_guard.contains_key(&session_id) {
             return Err(StatusCode::FORBIDDEN);
         }
     }
 
     let stream = {
-        let mut channels = app_share_data.app_sse_messages.write().await;
-        let channel = channels.get_mut(&session_id).unwrap();
+        let mut channels_guard = app_data.session_sse_channels.write().await;
+        let channel = channels_guard.get_mut(&session_id).unwrap();
         let rx = channel.rx.take().unwrap();
         ReceiverStream::new(rx).map(|v| Ok(sse::Event::default().data(v.clone().to_string())))
     };

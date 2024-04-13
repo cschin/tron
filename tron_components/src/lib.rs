@@ -52,15 +52,15 @@ pub struct ComponentBase<'a> {
 pub enum ComponentTypes<'a> {
     TnButton(TnButton<'a>),
 }
-pub struct ApplicationStates<'a> {
+pub struct Components<'a> {
     pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
     pub assets: HashMap<String, Vec<u8>>,
     tron_id_to_id: HashMap<String, u32>,
 }
 
-impl<'a> ApplicationStates<'a> {
+impl<'a> Components<'a> {
     pub fn new() -> Self {
-        ApplicationStates {
+        Components {
             components: HashMap::default(),
             assets: HashMap::default(),
             tron_id_to_id: HashMap::default(),
@@ -91,7 +91,7 @@ impl<'a> ApplicationStates<'a> {
     }
 }
 
-impl<'a> Default for ApplicationStates<'a> {
+impl<'a> Default for Components<'a> {
     fn default() -> Self {
         Self::new()
     }
@@ -221,7 +221,7 @@ pub struct TnEvent {
 }
 use tokio::sync::{mpsc::Sender, RwLock};
 pub type ActionFn = fn(
-    Arc<RwLock<ApplicationStates<'static>>>,
+    Arc<RwLock<Components<'static>>>,
     Sender<axum::Json<serde_json::Value>>,
     event: TnEvent
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;

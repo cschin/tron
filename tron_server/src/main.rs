@@ -22,9 +22,9 @@ async fn main() {
     let app_share_data = AppData {
         session_components: RwLock::new(HashMap::default()),
         session_sse_channels: RwLock::new(HashMap::default()),
-        event_action: RwLock::new(TnEventActions::default()),
-        build_default_session_components: Arc::new(Box::new(build_default_session_components)),
-        build_default_session_actions: Arc::new(Box::new(build_default_session_actions)),
+        event_actions: RwLock::new(TnEventActions::default()),
+        build_session_components: Arc::new(Box::new(build_session_components)),
+        build_session_actions: Arc::new(Box::new(build_session_actions)),
     };
     tn_app::run(app_share_data).await
 }
@@ -95,7 +95,7 @@ fn test_evt_task(
     Box::pin(f())
 }
 
-fn build_default_session_components() -> Components<'static> {
+fn build_session_components() -> Components<'static> {
     let mut components = Components::default();
 
     for i in 0..10 {
@@ -115,7 +115,7 @@ fn build_default_session_components() -> Components<'static> {
     //Arc::new(RwLock::new(components))
 }
 
-fn build_default_session_actions() -> TnEventActions {
+fn build_session_actions() -> TnEventActions {
     let mut actions = TnEventActions::default();
     for i in 0..10 {
         let evt = TnEvent {

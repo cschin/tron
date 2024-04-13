@@ -51,9 +51,9 @@ pub type EventActions = RwLock<TnEventActions>;
 pub struct AppData {
     pub session_components: SessionComponents,
     pub session_sse_channels: SessionSeeChannels,
-    pub event_action: EventActions,
-    pub build_default_session_components: Arc<Box<dyn Fn() -> Components<'static> + Send + Sync>>,
-    pub build_default_session_actions: Arc<Box<dyn Fn() -> TnEventActions + Send + Sync>>,
+    pub event_actions: EventActions,
+    pub build_session_components: Arc<Box<dyn Fn() -> Components<'static> + Send + Sync>>,
+    pub build_session_actions: Arc<Box<dyn Fn() -> TnEventActions + Send + Sync>>,
 }
 
 pub async fn run(app_share_data: AppData) {
@@ -141,7 +141,7 @@ async fn load_page(
         let mut session_components = app_data.session_components.write().await;
 
         if !session_components.contains_key(&session_id) {
-            let components = Arc::new(RwLock::new((*app_data.build_default_session_components)()));
+            let components = Arc::new(RwLock::new((*app_data.build_session_components)()));
             session_components.entry(session_id).or_insert(components);
         }
     }
@@ -158,9 +158,9 @@ async fn load_page(
         });
     }
 
-    let mut app_event_action_guard = app_data.event_action.write().await;
-    let _ = (*app_data.build_default_session_actions)();
-    app_event_action_guard.clone_from(&(*app_data.build_default_session_actions)());
+    let mut app_event_action_guard = app_data.event_actions.write().await;
+    let _ = (*app_data.build_session_actions)();
+    app_event_action_guard.clone_from(&(*app_data.build_session_actions)());
 
     let session_components = app_data.session_components.read().await;
     let components = &session_components
@@ -248,7 +248,7 @@ async fn tron_entry(
             state,
         };
         let has_event_action = {
-            let event_action_guard = app_data.event_action.read().await;
+            let event_action_guard = app_data.event_actions.read().await;
             event_action_guard.contains_key(&evt)
         }; 
         if has_event_action {
@@ -271,7 +271,7 @@ async fn tron_entry(
                 .tx
                 .clone();
 
-            let event_action_guard = app_data.event_action.write().await;
+            let event_action_guard = app_data.event_actions.write().await;
             let action_generator = event_action_guard.get(&evt).unwrap().clone();
 
             let action = action_generator(components, tx, evt.clone());

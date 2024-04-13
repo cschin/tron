@@ -18,7 +18,12 @@
 
       // Listen for messages from the server
       eventSource.onmessage = function (event) {
-        console.log('New message from server:', event.data);
+        const event_data = JSON.parse(event.data);
+        const state = event_data["server_side_trigger"]["new_state"]; 
+        const target = event_data["server_side_trigger"]["target"]; 
+        console.log('New message from server:', event.data, target, state);
+        document.getElementById(target).setAttribute("state", state);
+        htmx.trigger("#"+target, "server_side_trigger", {});
       };
 
       // Listen for errors

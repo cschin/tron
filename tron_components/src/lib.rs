@@ -1,5 +1,3 @@
-#![feature(type_alias_impl_trait)]
-
 pub mod button;
 pub mod text;
 
@@ -35,9 +33,9 @@ pub enum ComponentAsset {
 pub enum ComponentState {
     Ready,   // ready to receive new event on the UI end
     Pending, // UI event receive, server function dispatched, waiting for server to response
-    Update,  // server ready to send, change UI to update to receive server response, can repeate
-    Finish,  // no more new update to consider, will transition to Ready
-    Disable, // disabled, not interactive and not sending htmx get/post
+    Updating,  // server ready to send, change UI to update to receive server response, can repeate
+    Finished,  // no more new update to consider, will transition to Ready
+    Disabled, // disabled, not interactive and not sending htmx get/post
 }
 #[derive(Debug)]
 pub struct ComponentBase<'a> {
@@ -116,11 +114,13 @@ pub trait ComponentBaseTrait<'a>: Send + Sync {
 
 impl<'a> ComponentBase<'a> {
     pub fn new(tag: ElmTag, id: ComponentId, tron_id: String) -> Self {
+        let mut attributes = HashMap::<String, String>::default();
+        attributes.insert("state".to_string(), "ready".to_string()); 
         Self {
             tag,
             id,
             tron_id,
-            attributes: HashMap::default(),
+            attributes,
             value: ComponentValue::None,
             assets: None,
             state: ComponentState::Ready,
@@ -182,6 +182,16 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
 
     fn set_state(&mut self, new_state: ComponentState) {
         self.state = new_state;
+        let state = match self.state {
+            ComponentState::Ready => "ready",
+            ComponentState::Pending => "pending",
+            ComponentState::Updating => "updating",
+            ComponentState::Finished => "finished",
+            ComponentState::Disabled => "disabled",
+        };
+        self
+            .attributes
+            .insert("state".into(), state.into());
     }
 
     fn state(&self) -> &ComponentState {
@@ -206,6 +216,7 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
 pub struct TnEvent {
     pub evt_target: String,
     pub evt_type: String, // maybe use Enum
+    pub state: String, // shoyld use the Component::State enum
 }
 use tokio::sync::{mpsc::Sender, RwLock};
 pub type ActionFn = fn(
@@ -213,9 +224,9 @@ pub type ActionFn = fn(
     Sender<axum::Json<serde_json::Value>>,
     event: TnEvent
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
-pub type TnEventFunction = Arc<ActionFn>;
+pub type TnEventTask = Arc<ActionFn>;
 
-pub type TnEventMap = HashMap<TnEvent, TnEventFunction>;
+pub type TnEventActions = HashMap<TnEvent, TnEventTask>;
 
 #[cfg(test)]
 mod tests {

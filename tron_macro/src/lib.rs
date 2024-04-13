@@ -1,6 +1,5 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{self, parse_macro_input, DeriveInput};
 
 #[proc_macro_derive(ComponentBase)]
 pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
@@ -34,19 +33,19 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             }
         
             fn value(&self) -> &ComponentValue {
-                &self.inner.value
+                &self.inner.value()
             }
         
             fn set_value(&mut self, new_value: ComponentValue) {
-                self.inner.value = new_value
+                self.inner.set_value(new_value);
             }
         
             fn state(&self) -> &ComponentState {
-                &self.inner.state
+                &self.inner.state()
             }
         
             fn set_state(&mut self, new_state: ComponentState) {
-                self.inner.state = new_state;
+                self.inner.set_state(new_state);
             }
         
             fn assets(&self) -> &Option<HashMap<String, ComponentAsset>> {

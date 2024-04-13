@@ -162,27 +162,39 @@ async fn get_session(session: Session, _: Request) {
 fn test_evt_task(
     states: Arc<RwLock<ApplicationStates<'static>>>,
     tx: Sender<Json<Value>>,
+    event: TnEvent,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = || async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(1));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(10));
         let mut i = 0;
         let mut states = states.write().await;
+
+        let c = states.get_mut_component_by_tron_id(&event.evt_target);
+
+        let v = match c.value() {
+            ComponentValue::String(s) => s.parse::<u32>().unwrap(),
+            _ => 0,
+        };
+
+        c.set_value(ComponentValue::String(format!("{:02}", v + 1)));
+
+        let c = states.get_mut_component_by_tron_id("text-11");
+        c.set_value(ComponentValue::String(format!("{:02}", v + 1)));
+        let data = format!(r#"{{ "set-value":{}, "target":"text-11"}}"#, i);
+        let v: Value = serde_json::from_str(data.as_str()).unwrap();
+        if tx.send(axum::Json(v)).await.is_err() {
+            println!("tx dropped");
+        }
+
         let states = &mut states.assets;
         states.insert("aaa".to_string(), vec![1]);
         println!("states: {:?}", states);
+        println!("Event: {:?}", event);
         loop {
-            let data = r#"
-        {
-            "name": "John Doe",
-            "age": 43,
-            "phones": [
-                "+44 1234567",
-                "+44 2345678"
-            ]
-        }"#;
-
+            let data = format!(r#"{{"test": "send i", "i": {}}}"#, i);
+            println!("data: {}", data);
             // Parse the string of data into serde_json::Value.
-            let v: Value = serde_json::from_str(data).unwrap();
+            let v: Value = serde_json::from_str(data.as_str()).unwrap();
             i += 1;
             interval.tick().await;
             println!("loop triggered: {}", i);
@@ -212,7 +224,7 @@ async fn load_page(
             let e = session_app_states
                 .entry(session_id)
                 .or_insert(Arc::new(RwLock::new(ApplicationStates::default())));
-            for i in 0..2 {
+            for i in 0..10 {
                 let mut btn = TnButton::new(i, format!("btn-{:02}", i), format!("{:02}", i));
                 btn.set_attribute("hx-post".to_string(), format!("/tron/{}", i));
                 btn.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
@@ -234,18 +246,17 @@ async fn load_page(
                 rx: Some(rx),
             }
         });
-
-        let evt = TnEvent {
-            evt_target: "btn-00".to_string(),
-            evt_type: "click".to_string(),
-        };
-        let e = session_app_states
-            .entry(session_id)
-            .or_insert(Arc::new(RwLock::new(ApplicationStates::default())));
-        let f = test_evt_task;
-        // let f = test_evt_task(app_share_data.app_states.clone(), tx); // check circular dependence
-        let mut app_event_action = app_share_data.app_event_action.write().await;
-        app_event_action.insert(evt, Arc::new(test_evt_task));
+        for i in 0..10 {
+            let evt = TnEvent {
+                evt_target: format!("btn-{:02}", i),
+                evt_type: "click".to_string(),
+            };
+            let e = session_app_states
+                .entry(session_id)
+                .or_insert(Arc::new(RwLock::new(ApplicationStates::default())));
+            let mut app_event_action = app_share_data.app_event_action.write().await;
+            app_event_action.insert(evt, Arc::new(test_evt_task));
+        }
     };
     let session_app_state = app_share_data.app_states.read().await;
     let c = session_app_state.get(&session_id).unwrap().read().await;
@@ -318,31 +329,34 @@ async fn tron_entry(
             evt_target,
             evt_type,
         };
+
+        let app_states = app_share_data.app_states.write().await;
+        let app_states = app_states.get(&session_id).unwrap().clone();
+
+        let app_messages = app_share_data.app_messages.read().await;
+        let tx = app_messages.get(&session_id).unwrap().tx.clone();
+
         let app_event_action = app_share_data.app_event_action.clone();
         let app_event_action = app_event_action.read().await;
         let action_future_generator = app_event_action.get(&evt).unwrap().clone();
-        let app_messages = app_share_data.app_messages.read().await;
-        let tx = app_messages.get(&session_id).unwrap().tx.clone();
-        let app_states = app_share_data.app_states.write().await;
-        let app_states = app_states.get(&session_id).unwrap().clone();
-        let action = action_future_generator(app_states, tx);
-        tokio::task::spawn(action);
+
+        let action = action_future_generator(app_states, tx, evt.clone());
+        //tokio::task::spawn(action);
+        action.await; // this won't allow two event triggered at the same time
     };
 
     let mut session_app_states = app_share_data.app_states.write().await;
-    let mut c = session_app_states
+
+    let components = &mut session_app_states
         .get_mut(&session_id)
         .unwrap()
         .write()
-        .await;
-    let c = &mut c.components;
-    let e = c.get_mut(&tron_id).unwrap();
-    let v = match e.value() {
-        ComponentValue::String(s) => s.parse::<u32>().unwrap(),
-        _ => 0,
-    };
-    e.set_value(ComponentValue::String(format!("{}", v + 1)));
-    Ok(e.render())
+        .await
+        .components;
+
+    let target = components.get_mut(&tron_id).unwrap();
+
+    Ok(target.render())
 }
 
 #[allow(dead_code)]

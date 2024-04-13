@@ -86,6 +86,14 @@ impl<'a> ApplicationStates<'a> {
         let id = self.tron_id_to_id.get(tron_id).unwrap();
         self.components.get(id).unwrap()
     }
+
+    pub fn get_mut_component_by_tron_id(
+        &mut self,
+        tron_id: &str,
+    ) -> &mut Box<dyn ComponentBaseTrait<'a> + 'static> {
+        let id = self.tron_id_to_id.get(tron_id).unwrap();
+        self.components.get_mut(id).unwrap()
+    }
 }
 
 impl<'a> Default for ApplicationStates<'a> {
@@ -197,16 +205,16 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
 }
 
 // Event Dispatcher
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug)]
 pub struct TnEvent {
     pub evt_target: String,
     pub evt_type: String, // maybe use Enum
 }
 use tokio::sync::{mpsc::Sender, RwLock};
-use tower_sessions::{session_store, Expiry, MemoryStore, Session, SessionManagerLayer};
 pub type ActionFn = fn(
     Arc<RwLock<ApplicationStates<'static>>>,
     Sender<axum::Json<serde_json::Value>>,
+    event: TnEvent
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
 pub type TnEventFunction = Arc<ActionFn>;
 

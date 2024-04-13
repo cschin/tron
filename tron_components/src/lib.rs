@@ -1,7 +1,16 @@
+#![feature(type_alias_impl_trait)]
+
 pub mod button;
 pub mod text;
 
-use std::{collections::HashMap, future::Future, pin::Pin, process::Output, sync::Arc, task::{Context, Poll}};
+use std::{
+    collections::{self, HashMap},
+    future::Future,
+    pin::Pin,
+    process::Output,
+    sync::Arc,
+    task::{Context, Poll},
+};
 
 pub use button::TnButton;
 use rand::{thread_rng, Rng};
@@ -55,7 +64,6 @@ pub struct ApplicationStates<'a> {
 }
 
 impl<'a> ApplicationStates<'a> {
-
     pub fn new() -> Self {
         ApplicationStates {
             components: HashMap::default(),
@@ -63,15 +71,18 @@ impl<'a> ApplicationStates<'a> {
             tron_id_to_id: HashMap::default(),
         }
     }
-    
+
     pub fn add_component(&mut self, new_component: impl ComponentBaseTrait<'a> + 'static) {
-        let tron_id = new_component.tron_id().clone(); 
+        let tron_id = new_component.tron_id().clone();
         let id = new_component.id();
         self.components.insert(id, Box::new(new_component));
         self.tron_id_to_id.insert(tron_id, id);
     }
 
-    pub fn get_component_by_tron_id(&self, tron_id: &str) -> &Box<dyn ComponentBaseTrait<'a> + 'static> {
+    pub fn get_component_by_tron_id(
+        &self,
+        tron_id: &str,
+    ) -> &Box<dyn ComponentBaseTrait<'a> + 'static> {
         let id = self.tron_id_to_id.get(tron_id).unwrap();
         self.components.get(id).unwrap()
     }
@@ -185,20 +196,21 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
     }
 }
 
-
 // Event Dispatcher
 #[derive(Eq, PartialEq, Hash)]
 pub struct TnEvent {
     pub evt_target: String,
     pub evt_type: String, // maybe use Enum
 }
+use tokio::sync::{mpsc::Sender, RwLock};
+use tower_sessions::{session_store, Expiry, MemoryStore, Session, SessionManagerLayer};
+pub type ActionFn = fn(
+    Arc<RwLock<ApplicationStates<'static>>>,
+    Sender<axum::Json<serde_json::Value>>,
+) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
+pub type TnEventFunction = Arc<ActionFn>;
 
-pub type TnEventTask = Option<Pin<Box<dyn Future<Output=()> + Sync + Send>>>;
-
-pub type TnEventMap = HashMap<TnEvent, TnEventTask>;
-
-
-
+pub type TnEventMap = HashMap<TnEvent, TnEventFunction>;
 
 #[cfg(test)]
 mod tests {

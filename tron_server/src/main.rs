@@ -1,62 +1,51 @@
 #![feature(impl_trait_in_fn_trait_return)]
 
 use axum::{
-    body::{to_bytes, Body},
-    extract::{Host, Json, Path, Query, Request, State},
+    extract::{Host, Json, Path, Request, State},
     handler::HandlerWithoutStateExt,
-    http::{header, HeaderMap, StatusCode, Uri},
+    http::{HeaderMap, StatusCode, Uri},
     response::{
         sse::{self, KeepAlive},
-        Html, IntoResponse, Redirect, Sse,
+        Html, Redirect, Sse,
     },
     routing::{get, post},
-    BoxError, Error, Form, RequestExt, Router,
+    BoxError, Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
 //use serde::{Deserialize, Serialize};
-use tokio::{
-    pin,
+use tokio::
     sync::{
-        mpsc::{channel, Receiver, Sender},
-        Mutex, RwLock,
-    },
-};
+        mpsc::{Receiver, Sender},
+        RwLock,
+    }
+;
 
 use serde_json::Value;
 use tron::{
-    text::TnText, ApplicationStates, ComponentBaseTrait, ComponentTypes, ComponentValue, TnButton,
+    text::TnText, ApplicationStates, ComponentBaseTrait, ComponentValue, TnButton,
     TnEvent, TnEventMap,
 };
 //use std::sync::Mutex;
 use std::{
-    borrow::Borrow,
     collections::HashMap,
     convert::Infallible,
     net::SocketAddr,
-    ops::{Deref, DerefMut},
     path::PathBuf,
     pin::Pin,
     sync::Arc,
 };
 use time::Duration;
-use tower_http::{cors::CorsLayer, follow_redirect::policy::PolicyExt, set_header::request};
+use tower_http::cors::CorsLayer;
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
-use tower_sessions::{session_store, Expiry, MemoryStore, Session, SessionManagerLayer};
+use tower_sessions::{Expiry, MemoryStore, Session, SessionManagerLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use futures_util::{stream, Future, Stream, StreamExt};
-//use tokio_stream::StreamExt as _;
-//use std::fs::File;
-use base64::prelude::*;
+use futures_util::{Future, Stream, StreamExt};
 use tokio_stream::wrappers::ReceiverStream;
-//use tokio_tungstenite::{connect_async, tungstenite::protocol::Message};
-//use tokio::io::{AsyncReadExt, AsyncWriteExt};
-//use tungstenite::{connect, Message};
-use bytes::Bytes;
-use std::collections::VecDeque;
+
 use tron_components as tron;
 
 #[derive(Clone, Copy)]
@@ -180,7 +169,7 @@ fn test_evt_task(
 
         let c = states.get_mut_component_by_tron_id("text-11");
         c.set_value(ComponentValue::String(format!("{:02}", v + 1)));
-        let data = format!(r#"{{ "set-value":{}, "target":"text-11"}}"#, i);
+        let data = format!(r#"{{ "set-value":{}, "target":"text-11"}}"#, v + 1);
         let v: Value = serde_json::from_str(data.as_str()).unwrap();
         if tx.send(axum::Json(v)).await.is_err() {
             println!("tx dropped");
@@ -251,7 +240,7 @@ async fn load_page(
                 evt_target: format!("btn-{:02}", i),
                 evt_type: "click".to_string(),
             };
-            let e = session_app_states
+            session_app_states
                 .entry(session_id)
                 .or_insert(Arc::new(RwLock::new(ApplicationStates::default())));
             let mut app_event_action = app_share_data.app_event_action.write().await;
@@ -263,7 +252,7 @@ async fn load_page(
     let c = &c.components;
     Ok(Html::from(
         c.iter()
-            .map(|(k, v)| v.render().0)
+            .map(|(_k, v)| v.render().0)
             .collect::<Vec<String>>()
             .join(" "),
     ))
@@ -281,12 +270,12 @@ async fn match_event(payload: &Value) -> Option<(String, String)> {
         for (k, v) in obj.clone().iter() {
             if *k == "evt_target" {
                 if let Value::String(s) = v {
-                    evt_target = s.clone();
+                    evt_target.clone_from(s);
                 }
             }
             if *k == "evt_type" {
                 if let Value::String(s) = v {
-                    evt_type = s.clone();
+                    evt_type.clone_from(s);
                 }
             }
         }

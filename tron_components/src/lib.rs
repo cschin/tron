@@ -4,12 +4,9 @@ pub mod button;
 pub mod text;
 
 use std::{
-    collections::{self, HashMap},
-    future::Future,
+    collections::HashMap,
     pin::Pin,
-    process::Output,
     sync::Arc,
-    task::{Context, Poll},
 };
 
 pub use button::TnButton;
@@ -82,9 +79,9 @@ impl<'a> ApplicationStates<'a> {
     pub fn get_component_by_tron_id(
         &self,
         tron_id: &str,
-    ) -> &Box<dyn ComponentBaseTrait<'a> + 'static> {
+    ) -> &(dyn ComponentBaseTrait<'a> + 'static) {
         let id = self.tron_id_to_id.get(tron_id).unwrap();
-        self.components.get(id).unwrap()
+        self.components.get(id).unwrap().as_ref()
     }
 
     pub fn get_mut_component_by_tron_id(

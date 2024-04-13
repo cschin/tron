@@ -50,9 +50,17 @@ fn test_evt_task(
                 c.set_value(ComponentValue::String(format!("{:02}", v + 1)));
                 c.set_state(ComponentState::Updating);
 
+                let origin_string = if let ComponentValue::String(origin_string) = components_guard
+                    .get_mut_component_by_tron_id("text-11")
+                    .value() {
+                        origin_string.clone()
+                    } else {
+                        "".to_string()
+                    };
+
                 components_guard
                     .get_mut_component_by_tron_id("text-11")
-                    .set_value(ComponentValue::String(format!("{:02}", v + 1)));
+                    .set_value(ComponentValue::String(format!("{}<br>{}--{:02}", origin_string, event.evt_target, v + 1)));
             }
 
             let data = format!(

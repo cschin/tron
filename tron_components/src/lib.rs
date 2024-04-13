@@ -225,9 +225,8 @@ pub type ActionFn = fn(
     Sender<axum::Json<serde_json::Value>>,
     event: TnEvent
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
-pub type TnEventTask = Arc<ActionFn>;
 
-pub type TnEventActions = HashMap<TnEvent, TnEventTask>;
+pub type TnEventActions = HashMap<TnEvent, Arc<ActionFn>>;
 
 #[cfg(test)]
 mod tests {

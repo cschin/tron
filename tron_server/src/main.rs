@@ -53,7 +53,7 @@ type SessionComponents =
 
 type SessionSeeChannels = RwLock<HashMap<tower_sessions::session::Id, SessionMessageChannel>>;
 
-type EventActions = Arc<RwLock<TnEventActions>>;
+type EventActions = RwLock<TnEventActions>;
 struct AppData {
     session_components: SessionComponents,
     session_sse_channels: SessionSeeChannels,
@@ -99,7 +99,7 @@ async fn main() {
     let app_share_data = AppData {
         session_components: RwLock::new(HashMap::default()),
         session_sse_channels: RwLock::new(HashMap::default()),
-        event_action: Arc::new(RwLock::new(TnEventActions::default())),
+        event_action: RwLock::new(TnEventActions::default()),
     };
 
     // build our application with a route
@@ -373,8 +373,7 @@ async fn tron_entry(
             let session_sse_channel_guard = app_data.session_sse_channels.read().await;
             let tx = session_sse_channel_guard.get(&session_id).unwrap().tx.clone();
 
-            let event_action = app_data.event_action.clone();
-            let event_action_guard = event_action.read().await;
+            let event_action_guard = app_data.event_action.write().await;
             let action_generator = event_action_guard.get(&evt).unwrap().clone();
 
             let action = action_generator(components, tx, evt.clone());

@@ -116,6 +116,7 @@ impl<'a> ComponentBase<'a> {
     pub fn new(tag: ElmTag, id: ComponentId, tron_id: String) -> Self {
         let mut attributes = HashMap::<String, String>::default();
         attributes.insert("state".to_string(), "ready".to_string()); 
+        attributes.insert("id".to_string(), tron_id.clone());
         Self {
             tag,
             id,

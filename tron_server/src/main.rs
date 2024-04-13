@@ -213,12 +213,10 @@ fn get_default_session_app_states() -> Arc<RwLock<ApplicationStates<'static>>> {
         btn.set_attribute("hx-post".to_string(), format!("/tron/{}", i));
         btn.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
         btn.set_attribute("hx-target".to_string(), format!("#btn-{:02}", i));
-        btn.set_attribute("id".to_string(), format!("btn-{:02}", i));
         app_state.add_component(btn);
     }
 
     let mut text = TnText::new(11, format!("text-{:02}", 11), "Text".to_string());
-    text.set_attribute("id".to_string(), format!("text-{:02}", 11));
     text.set_attribute("hx-post".to_string(), format!("/tron/{}", 11));
     text.set_attribute("hx-swap".to_string(), "outerHTML".to_string());
     app_state.add_component(text);

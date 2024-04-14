@@ -47,13 +47,21 @@ pub struct ComponentBase<'a> {
     pub children: Option<Vec<&'a ComponentBase<'a>>>, // general storage
 }
 
-pub enum ComponentTypes<'a> {
-    TnButton(TnButton<'a>),
+// pub enum ComponentTypes<'a> {
+//     TnButton(TnButton<'a>),
+// }
+
+enum ComponentLayout {
+    Row(Vec<ComponentLayout>),
+    Col(Vec<ComponentLayout>),
+    Components(Vec<String>)
 }
+
 pub struct Components<'a> {
     pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
     pub assets: HashMap<String, Vec<u8>>,
     tron_id_to_id: HashMap<String, u32>,
+    pub component_layout: Option<String>  // HTML string of the initial layout
 }
 
 impl<'a> Components<'a> {
@@ -62,6 +70,7 @@ impl<'a> Components<'a> {
             components: HashMap::default(),
             assets: HashMap::default(),
             tron_id_to_id: HashMap::default(),
+            component_layout: None
         }
     }
 
@@ -86,6 +95,11 @@ impl<'a> Components<'a> {
     ) -> &mut Box<dyn ComponentBaseTrait<'a> + 'static> {
         let id = self.tron_id_to_id.get(tron_id).unwrap();
         self.components.get_mut(id).unwrap()
+    }
+
+    pub fn render_to_string(&self, tron_id: &str) -> String {
+        let component = self.get_component_by_tron_id(tron_id);
+        component.render().0 
     }
 }
 
@@ -113,11 +127,14 @@ pub trait ComponentBaseTrait<'a>: Send + Sync {
 impl<'a> ComponentBase<'a> {
     pub fn new(tag: ElmTag, id: ComponentId, tron_id: String) -> Self {
         let mut attributes = HashMap::<String, String>::default();
-        attributes.insert("state".to_string(), "ready".to_string());
         attributes.insert("id".to_string(), tron_id.clone());
+        attributes.insert("hx-post".to_string(), format!("/tron/{}", id));
+        attributes.insert("hx-target".to_string(), format!("#{}", tron_id.clone()));
+        attributes.insert("hx-swap".to_string(), "outerHTML".to_string());
         attributes.insert("hx-vals".into(), 
         r##"js:{evt_target: event.currentTarget.id, evt_type:event.type, state: event.currentTarget.getAttribute('state')}"##.into());
         attributes.insert("hx-ext".into(), "json-enc".into());
+        attributes.insert("state".to_string(), "ready".to_string());
         Self {
             tag,
             id,

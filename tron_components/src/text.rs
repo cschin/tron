@@ -9,11 +9,14 @@ pub struct TnText<'a> {
 impl<'a> TnText<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base =
-            ComponentBase::new("div".to_string(), id, name);
-        component_base.value = ComponentValue::String(value);
-        component_base.attributes.insert("contenteditable".into(), 
+            ComponentBase::new("textarea".to_string(), id, name);
+        component_base.set_value(ComponentValue::String(value));
+        component_base.set_attribute("contenteditable".into(), 
                                          "true".into());
-        component_base.attributes.insert("hx-trigger".into(), "server_side_trigger".into());
+
+        component_base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
+        component_base.set_attribute("type".into(), "text".into());
+
         Self {inner: component_base}
     }
 }
@@ -22,7 +25,7 @@ impl<'a> Default for TnText<'a> {
     fn default() -> Self {
         Self {
             inner: ComponentBase {
-                value: ComponentValue::String("div".to_string()),
+                value: ComponentValue::String("input".to_string()),
                 .. Default::default() 
             }
         }

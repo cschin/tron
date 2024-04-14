@@ -163,25 +163,13 @@ async fn load_page(
     app_event_action_guard.clone_from(&(*app_data.build_session_actions)());
 
     let session_components = app_data.session_components.read().await;
-    let components = &session_components
-        .get(&session_id)
-        .unwrap()
-        .read()
-        .await
-        .components;
+    let components = &mut session_components.get(&session_id).unwrap().read().await;
 
-    Ok(Html::from({
-        let mut components = components
-            .iter()
-            .map(|(k, v)| (*k, v.render().0))
-            .collect::<Vec<(u32, String)>>();
-        components.sort();
-        components
-            .into_iter()
-            .map(|v| v.1)
-            .collect::<Vec<String>>()
-            .join("\n")
-    }))
+    if let Some(layout) = components.component_layout.as_ref() {
+        Ok(Html::from(layout.clone()))
+    } else {
+        Ok(Html::from("Layout render not set".to_string()))
+    }
 }
 
 async fn match_event(payload: &Value) -> Option<(String, String, String)> {
@@ -250,7 +238,7 @@ async fn tron_entry(
         let has_event_action = {
             let event_action_guard = app_data.event_actions.read().await;
             event_action_guard.contains_key(&evt)
-        }; 
+        };
         if has_event_action {
             {
                 let session_components_guard = app_data.session_components.read().await;

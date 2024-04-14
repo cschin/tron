@@ -9,12 +9,11 @@ use tokio::sync::{mpsc::Sender, RwLock};
 use serde_json::Value;
 
 use tron_components::{
-    text::TnText, ComponentBaseTrait, ComponentValue, Components, TnButton, TnEvent, TnEventActions,
-    ComponentState
+    ComponentBaseTrait, ComponentState, ComponentValue, Components, TnButton, TnEvent,
+    TnEventActions, TnText,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
-
 
 #[tokio::main]
 async fn main() {
@@ -35,7 +34,7 @@ fn test_evt_task(
     event: TnEvent,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = || async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(500));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
         let mut i = 0;
 
         println!("Event: {:?}", event);
@@ -52,15 +51,21 @@ fn test_evt_task(
 
                 let origin_string = if let ComponentValue::String(origin_string) = components_guard
                     .get_mut_component_by_tron_id("text-11")
-                    .value() {
-                        origin_string.clone()
-                    } else {
-                        "".to_string()
-                    };
+                    .value()
+                {
+                    origin_string.clone()
+                } else {
+                    "".to_string()
+                };
 
                 components_guard
                     .get_mut_component_by_tron_id("text-11")
-                    .set_value(ComponentValue::String(format!("{}<br>{}--{:02}", origin_string, event.evt_target, v + 1)));
+                    .set_value(ComponentValue::String(format!(
+                        "{}<br>{}--{:02}",
+                        origin_string,
+                        event.evt_target,
+                        v + 1
+                    )));
             }
 
             let data = format!(

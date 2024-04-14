@@ -11,10 +11,6 @@ impl<'a> TnText<'a> {
         let mut component_base =
             ComponentBase::new("div".to_string(), id, name);
         component_base.value = ComponentValue::String(value);
-        component_base.attributes.insert("hx-vals".into(), 
-                                         r##"js:{evt_target: event.currentTarget.id, evt_type:event.type, state: event.currentTarget.getAttribute('state')}"##.into());
-        component_base.attributes.insert("hx-ext".into(), 
-                                         "json-enc".into());
         component_base.attributes.insert("contenteditable".into(), 
                                          "true".into());
         component_base.attributes.insert("hx-trigger".into(), "server_side_trigger".into());

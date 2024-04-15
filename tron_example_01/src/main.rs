@@ -9,7 +9,7 @@ use serde_json::Value;
 use tracing::debug;
 use tron_components::{
     ComponentBaseTrait, ComponentState, ComponentValue, Components, TnButton, TnEvent,
-    TnEventActions, TnText,
+    TnEventActions, TnTextArea,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -119,7 +119,7 @@ fn build_session_components() -> Components<'static> {
         );
         btn.set_attribute(
             "class".to_string(),
-            "btn btn-outline btn-primary flex-1".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
         components.add_component(btn);
         component_id += 1;
@@ -128,7 +128,7 @@ fn build_session_components() -> Components<'static> {
         }
     }
 
-    let mut text = TnText::new(component_id, "text_out".to_string(), "Text".to_string());
+    let mut text = TnTextArea::new(component_id, "text_out".to_string(), "Text".to_string());
     text.set_attribute(
         "class".into(),
         "textarea textarea-bordered flex-1 min-h-80v".into(),

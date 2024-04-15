@@ -2,11 +2,11 @@ use super::*;
 use tron_macro::*;
 
 #[derive(ComponentBase)]
-pub struct TnText<'a> {
+pub struct TnTextArea<'a> {
     inner: ComponentBase<'a>
 }
 
-impl<'a> TnText<'a> {
+impl<'a> TnTextArea<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base =
             ComponentBase::new("textarea".to_string(), id, name);
@@ -21,7 +21,7 @@ impl<'a> TnText<'a> {
     }
 }
 
-impl<'a> Default for TnText<'a> {
+impl<'a> Default for TnTextArea<'a> {
     fn default() -> Self {
         Self {
             inner: ComponentBase {
@@ -32,7 +32,7 @@ impl<'a> Default for TnText<'a> {
     }
 }
 
-impl<'a> TnText<'a> {
+impl<'a> TnTextArea<'a> {
     pub fn internal_render(&self) -> Html<String> {
         Html::from(format!(
             r##"<{} {}>{}</{}>"##,

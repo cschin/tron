@@ -1,10 +1,10 @@
 pub mod button;
-pub mod text;
+pub mod textarea;
 
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 pub use button::TnButton;
-pub use text::TnText;
+pub use textarea::TnTextArea;
 
 use rand::{thread_rng, Rng};
 
@@ -51,11 +51,11 @@ pub struct ComponentBase<'a> {
 //     TnButton(TnButton<'a>),
 // }
 
-enum ComponentLayout {
-    Row(Vec<ComponentLayout>),
-    Col(Vec<ComponentLayout>),
-    Components(Vec<String>)
-}
+// enum ComponentLayout {
+//     Row(Vec<ComponentLayout>),
+//     Col(Vec<ComponentLayout>),
+//     Components(Vec<String>)
+// }
 
 pub struct Components<'a> {
     pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs

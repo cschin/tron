@@ -11,12 +11,12 @@ use axum::{
 };
 use axum_server::tls_rustls::RustlsConfig;
 //use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde_json::Value;
 use tokio::sync::{
     mpsc::{Receiver, Sender},
     RwLock,
 };
-
-use serde_json::Value;
 use tron_components::{ComponentId, ComponentState, Components, TnEvent, TnEventActions};
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
@@ -171,33 +171,28 @@ async fn load_page(
     }
 }
 
-async fn match_event(payload: &Value) -> Option<(String, String, String)> {
-    let mut evt_target = String::default();
-    let mut evt_type = String::default();
-    let mut state = String::default();
-    if let serde_json::Value::Object(obj) = payload.clone() {
-        for (k, v) in obj.clone().iter() {
-            if *k == "evt_target" {
-                if let Value::String(s) = v {
-                    evt_target.clone_from(s);
-                }
-            }
-            if *k == "evt_type" {
-                if let Value::String(s) = v {
-                    evt_type.clone_from(s);
-                }
-            }
-            if *k == "state" {
-                if let Value::String(s) = v {
-                    state.clone_from(s);
-                }
-            }
-        }
-    }
-    if evt_target.is_empty() || evt_type.is_empty() {
-        None
+#[derive(Clone, Debug, Deserialize)]
+struct EventData {
+    tn_event: TnEvent,
+    #[allow(dead_code)]
+    #[serde(default)]
+    e_value: Option<String>,
+    #[allow(dead_code)]
+    #[serde(default)]
+    e_data: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct TnEventExtend {
+    event_data: EventData,
+}
+
+async fn match_event(payload: &Value) -> Option<EventData> {
+    let r: Option<TnEventExtend> = serde_json::from_value(payload.clone()).unwrap_or(None);
+    if let Some(r) = r {
+        Some(r.event_data)
     } else {
-        Some((evt_target, evt_type, state))
+        None
     }
 }
 
@@ -212,7 +207,7 @@ async fn tron_entry(
     // println!("req: {:?}", request);
     // println!("req body: {:?}", to_bytes(request.into_body(), usize::MAX).await );
     // let body_bytes =  to_bytes(request.into_body(), usize::MAX).await.unwrap();
-    //println!("header: {:?}", _headers);
+    // println!("header: {:?}", _headers);
     let session_id = if let Some(session_id) = session.id() {
         session_id
     } else {
@@ -227,24 +222,32 @@ async fn tron_entry(
 
     println!("payload: {:?}", payload);
 
-    if let Some((evt_target, evt_type, state)) = match_event(&payload).await {
-        println!("event matched");
-        let evt = TnEvent {
-            evt_target,
-            evt_type,
-            state,
-        };
+    if let Some(event_data) = match_event(&payload).await {
+        println!("event matched, event_data: {:?}", event_data);
+        let evt = event_data.tn_event;
+        if evt.e_type == "change" {
+            if let Some(value) = event_data.e_value {
+                let session_components_guard = app_data.session_components.read().await;
+                let session_components = session_components_guard.get(&session_id).unwrap().clone();
+                let mut components_guard = session_components.write().await;
+                let component =
+                    components_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
+
+                component.set_value(tron_components::ComponentValue::String(value));
+            }
+        }
         let has_event_action = {
             let event_action_guard = app_data.event_actions.read().await;
             event_action_guard.contains_key(&evt)
         };
+
         if has_event_action {
             {
                 let session_components_guard = app_data.session_components.read().await;
                 let session_components = session_components_guard.get(&session_id).unwrap().clone();
                 let mut components_guard = session_components.write().await;
                 let component =
-                    components_guard.get_mut_component_by_tron_id(&evt.evt_target.clone());
+                    components_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
                 component.set_state(ComponentState::Pending);
             }
 

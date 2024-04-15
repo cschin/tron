@@ -8,8 +8,7 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    ComponentBaseTrait, ComponentState, ComponentValue, Components, TnButton, TnEvent,
-    TnEventActions, TnTextArea,
+    text::TnTextInput, ComponentBaseTrait, ComponentState, ComponentValue, Components, TnButton, TnEvent, TnEventActions, TnTextArea
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -40,7 +39,7 @@ fn test_evt_task(
         loop {
             {
                 let mut components_guard = components.write().await;
-                let c = components_guard.get_mut_component_by_tron_id(&event.evt_target);
+                let c = components_guard.get_mut_component_by_tron_id(&event.e_target);
                 let v = match c.value() {
                     ComponentValue::String(s) => s.parse::<u32>().unwrap(),
                     _ => 0,
@@ -49,7 +48,7 @@ fn test_evt_task(
                 c.set_state(ComponentState::Updating);
 
                 let origin_string = if let ComponentValue::String(origin_string) = components_guard
-                    .get_mut_component_by_tron_id("text_out")
+                    .get_mut_component_by_tron_id("textarea")
                     .value()
                 {
                     origin_string.clone()
@@ -58,18 +57,18 @@ fn test_evt_task(
                 };
 
                 components_guard
-                    .get_mut_component_by_tron_id("text_out")
+                    .get_mut_component_by_tron_id("textarea")
                     .set_value(ComponentValue::String(format!(
                         "{}\n{}--{:02};",
                         origin_string,
-                        event.evt_target,
+                        event.e_target,
                         v + 1
                     )));
             }
 
             let data = format!(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"updating" }} }}"##,
-                event.evt_target
+                event.e_target
             );
             let v: Value = serde_json::from_str(data.as_str()).unwrap();
             if tx.send(axum::Json(v)).await.is_err() {
@@ -77,7 +76,7 @@ fn test_evt_task(
             }
 
             let data =
-                r##"{"server_side_trigger": { "target":"text_out", "new_state":"ready" } }"##;
+                r##"{"server_side_trigger": { "target":"textarea", "new_state":"ready" } }"##;
             let v: Value = serde_json::from_str(data).unwrap();
             if tx.send(axum::Json(v)).await.is_err() {
                 debug!("tx dropped");
@@ -85,7 +84,7 @@ fn test_evt_task(
 
             i += 1;
             interval.tick().await;
-            debug!("loop triggered: {} {}", event.evt_target, i);
+            debug!("loop triggered: {} {}", event.e_target, i);
 
             if i > 9 {
                 break;
@@ -93,11 +92,11 @@ fn test_evt_task(
         }
         {
             let mut components_guard = components.write().await;
-            let c = components_guard.get_mut_component_by_tron_id(&event.evt_target);
+            let c = components_guard.get_mut_component_by_tron_id(&event.e_target);
             c.set_state(ComponentState::Ready);
             let data = format!(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"{}" }} }}"##,
-                event.evt_target, "ready"
+                event.e_target, "ready"
             );
             let v: Value = serde_json::from_str(data.as_str()).unwrap();
             if tx.send(axum::Json(v)).await.is_err() {
@@ -128,13 +127,23 @@ fn build_session_components() -> Components<'static> {
         }
     }
 
-    let mut text = TnTextArea::new(component_id, "text_out".to_string(), "Text".to_string());
-    text.set_attribute(
+    let mut textarea = TnTextArea::new(component_id, "textarea".to_string(), "".to_string());
+    textarea.set_attribute(
         "class".into(),
         "textarea textarea-bordered flex-1 min-h-80v".into(),
     );
-    text.set_attribute("hx-swap".into(), "outerHTML scroll:bottom focus-scroll:true".into());
-    components.add_component(text);
+    textarea.set_attribute("hx-swap".into(), "outerHTML scroll:bottom focus-scroll:true".into());
+    components.add_component(textarea);
+
+    component_id += 1;
+
+    let mut textinput = TnTextInput::new(component_id, "textinput".to_string(), "10".to_string());
+    textinput.set_attribute(
+        "class".into(),
+        "input w-full max-w-xs".into(),
+    );
+    textinput.set_attribute("hx-swap".into(), "outerHTML scroll:bottom focus-scroll:true".into());
+    components.add_component(textinput);
 
     components.component_layout = Some(layout(&components));
     components
@@ -146,9 +155,9 @@ fn build_session_actions() -> TnEventActions {
     let mut actions = TnEventActions::default();
     for i in 0..10 {
         let evt = TnEvent {
-            evt_target: format!("btn-{:02}", i),
-            evt_type: "click".to_string(),
-            state: "ready".to_string(),
+            e_target: format!("btn-{:02}", i),
+            e_type: "click".to_string(),
+            e_state: "ready".to_string(),
         };
         actions.insert(evt, Arc::new(test_evt_task));
     }
@@ -168,11 +177,19 @@ fn layout(components: &Components) -> String {
         html.push_str(r#"</div>"#);
     });
     html.push_str("</div>");
+
     html.push_str(r#"<div class="flex flex-row p-1">"#);
     html.push_str(r#"<div class="flex flex-row flex-1 min-h-80">"#);
-    html.push_str(components.render_to_string("text_out").as_str());
+    html.push_str(components.render_to_string("textarea").as_str());
     html.push_str("</div>");
     html.push_str("</div>"); 
+
+    html.push_str(r#"<div class="flex flex-row p-1">"#);
+    html.push_str(r#"<div class="flex flex-row flex-1 min-h-80">"#);
+    html.push_str(components.render_to_string("textinput").as_str());
+    html.push_str("</div>");
+    html.push_str("</div>"); 
+
     html.push_str("</div>"); 
     html
 }

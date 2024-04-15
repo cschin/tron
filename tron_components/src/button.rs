@@ -9,10 +9,9 @@ pub struct TnButton<'a> {
 impl<'a> TnButton<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base = ComponentBase::new("button".to_string(), id, name);
-        component_base.value = ComponentValue::String(value);
+        component_base.set_value(ComponentValue::String(value));
         component_base
-            .attributes
-            .insert("hx-trigger".into(), "click, server_side_trigger".into());
+            .set_attribute("hx-trigger".into(), "click, server_side_trigger".into());
 
         Self {
             inner: component_base,

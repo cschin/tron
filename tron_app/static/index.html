@@ -38,6 +38,31 @@
       // eventSource.close();
     });
 
+    // for input element, the value is stored in the attribute
+    function get_input_event(event) {
+      return {"tn_event": 
+                {"e_target": event.currentTarget.id, 
+                 "e_type": event.type, 
+                 "e_state": event.currentTarget.getAttribute('state')}, 
+              "e_value": document.getElementById(event.currentTarget.id).value};
+    };
+
+    function get_event(event) {
+      return {"tn_event": 
+                {"e_target": event.currentTarget.id, 
+                 "e_type": event.type, 
+                 "e_state": event.currentTarget.getAttribute('state')}}; 
+    };
+
+    // for non-input element, the value is stored in innerHTML
+    function get_event_with_value(event) {
+      return {"tn_event": 
+                {"e_target": event.currentTarget.id, 
+                 "e_type": event.type, 
+                 "e_state": event.currentTarget.getAttribute('state')}, 
+              "e_value": document.getElementById(event.currentTarget.id).innerHTML};
+    };
+
 
 
   </script>

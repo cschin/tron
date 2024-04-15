@@ -1,10 +1,10 @@
 pub mod button;
-pub mod textarea;
+pub mod text;
 
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 pub use button::TnButton;
-pub use textarea::TnTextArea;
+pub use text::TnTextArea;
 
 use rand::{thread_rng, Rng};
 
@@ -13,6 +13,8 @@ use axum::{body::Bytes, response::Html};
 pub type ComponentId = u32;
 pub type ElmAttributes = HashMap<String, String>;
 pub type ElmTag = String;
+
+use serde::Deserialize;
 
 #[derive(Debug)]
 pub enum ComponentValue {
@@ -61,7 +63,7 @@ pub struct Components<'a> {
     pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
     pub assets: HashMap<String, Vec<u8>>,
     tron_id_to_id: HashMap<String, u32>,
-    pub component_layout: Option<String>  // HTML string of the initial layout
+    pub component_layout: Option<String>, // HTML string of the initial layout
 }
 
 impl<'a> Components<'a> {
@@ -70,7 +72,7 @@ impl<'a> Components<'a> {
             components: HashMap::default(),
             assets: HashMap::default(),
             tron_id_to_id: HashMap::default(),
-            component_layout: None
+            component_layout: None,
         }
     }
 
@@ -99,7 +101,7 @@ impl<'a> Components<'a> {
 
     pub fn render_to_string(&self, tron_id: &str) -> String {
         let component = self.get_component_by_tron_id(tron_id);
-        component.render().0 
+        component.render().0
     }
 }
 
@@ -131,8 +133,11 @@ impl<'a> ComponentBase<'a> {
         attributes.insert("hx-post".to_string(), format!("/tron/{}", id));
         attributes.insert("hx-target".to_string(), format!("#{}", tron_id.clone()));
         attributes.insert("hx-swap".to_string(), "outerHTML".to_string());
-        attributes.insert("hx-vals".into(), 
-        r##"js:{evt_target: event.currentTarget.id, evt_type:event.type, state: event.currentTarget.getAttribute('state')}"##.into());
+
+        attributes.insert(
+            "hx-vals".into(),
+            r##"js:{event_data:get_event(event)}"##.into(),
+        );
         attributes.insert("hx-ext".into(), "json-enc".into());
         attributes.insert("state".to_string(), "ready".to_string());
         Self {
@@ -186,7 +191,7 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
     fn generate_attr_string(&self) -> String {
         self.attributes
             .iter()
-            .map(|(k, v)| format!(r#"{}="{}""#, k, v))
+            .map(|(k, v)| format!(r#"{}="{}""#, k, utils::html_escape_double_quote(v)))
             .collect::<Vec<_>>()
             .join(" ")
     }
@@ -227,13 +232,12 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
         &self.children
     }
 }
-
-// Event Dispatcher
-#[derive(Eq, PartialEq, Hash, Clone, Debug)]
+// For Event Dispatcher
+#[derive(Eq, PartialEq, Hash, Clone, Debug, Deserialize)]
 pub struct TnEvent {
-    pub evt_target: String,
-    pub evt_type: String, // maybe use Enum
-    pub state: String,    // shoyld use the Component::State enum
+    pub e_target: String,
+    pub e_type: String,  // maybe use Enum
+    pub e_state: String, // should use the Component::State enum
 }
 use tokio::sync::{mpsc::Sender, RwLock};
 pub type ActionFn = fn(
@@ -243,6 +247,20 @@ pub type ActionFn = fn(
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
 
 pub type TnEventActions = HashMap<TnEvent, Arc<ActionFn>>;
+
+pub mod utils {
+    pub fn html_escape_double_quote(input: &str) -> String {
+        let mut output = String::new();
+        for c in input.chars() {
+            if c == '"' {
+                output.push_str("&quot;");
+            } else {
+                output.push(c)
+            }
+        }
+        output
+    }
+}
 
 #[cfg(test)]
 mod tests {

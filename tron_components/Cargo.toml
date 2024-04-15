@@ -10,4 +10,3 @@ rand = "0.8.5"
 serde_json = "1.0.115"
 tokio = { version = "1.37.0", features = ["full"] }
 tron_macro = { path = "../tron_macro"}
-tower-sessions = "0.12.0"

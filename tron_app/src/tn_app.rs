@@ -139,11 +139,11 @@ async fn load_page(
 
     {
         let mut session_components = app_data.session_components.write().await;
-
-        if !session_components.contains_key(&session_id) {
-            let components = Arc::new(RwLock::new((*app_data.build_session_components)()));
-            session_components.entry(session_id).or_insert(components);
-        }
+        session_components
+            .entry(session_id)
+            .or_insert(Arc::new(
+                RwLock::new((*app_data.build_session_components)()),
+            ));
     }
 
     {
@@ -159,11 +159,10 @@ async fn load_page(
     }
 
     let mut app_event_action_guard = app_data.event_actions.write().await;
-    let _ = (*app_data.build_session_actions)();
     app_event_action_guard.clone_from(&(*app_data.build_session_actions)());
 
     let session_components = app_data.session_components.read().await;
-    let components = &mut session_components.get(&session_id).unwrap().read().await;
+    let components = &session_components.get(&session_id).unwrap().read().await;
 
     if let Some(layout) = components.component_layout.as_ref() {
         Ok(Html::from(layout.clone()))

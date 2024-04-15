@@ -1,6 +1,4 @@
-mod tn_app;
 use futures_util::Future;
-use tn_app::*;
 
 use axum::extract::Json;
 //use serde::{Deserialize, Serialize};
@@ -8,6 +6,7 @@ use tokio::sync::{mpsc::Sender, RwLock};
 
 use serde_json::Value;
 
+use tracing::debug;
 use tron_components::{
     ComponentBaseTrait, ComponentState, ComponentValue, Components, TnButton, TnEvent,
     TnEventActions, TnText,
@@ -18,14 +17,14 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 #[tokio::main]
 async fn main() {
     // set app state
-    let app_share_data = AppData {
+    let app_share_data = tron_app::AppData {
         session_components: RwLock::new(HashMap::default()),
         session_sse_channels: RwLock::new(HashMap::default()),
         event_actions: RwLock::new(TnEventActions::default()),
         build_session_components: Arc::new(Box::new(build_session_components)),
         build_session_actions: Arc::new(Box::new(build_session_actions)),
     };
-    tn_app::run(app_share_data).await
+    tron_app::run(app_share_data).await
 }
 
 fn test_evt_task(
@@ -37,7 +36,7 @@ fn test_evt_task(
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
         let mut i = 0;
 
-        println!("Event: {:?}", event);
+        debug!("Event: {:?}", event.clone());
         loop {
             {
                 let mut components_guard = components.write().await;
@@ -74,21 +73,21 @@ fn test_evt_task(
             );
             let v: Value = serde_json::from_str(data.as_str()).unwrap();
             if tx.send(axum::Json(v)).await.is_err() {
-                println!("tx dropped");
+                debug!("tx dropped");
             }
 
             let data =
                 r##"{"server_side_trigger": { "target":"text_out", "new_state":"ready" } }"##;
             let v: Value = serde_json::from_str(data).unwrap();
             if tx.send(axum::Json(v)).await.is_err() {
-                println!("tx dropped");
+                debug!("tx dropped");
             }
 
             i += 1;
             interval.tick().await;
-            println!("loop triggered: {} {}", event.evt_target, i);
+            debug!("loop triggered: {} {}", event.evt_target, i);
 
-            if i > 10 {
+            if i > 9 {
                 break;
             };
         }
@@ -157,21 +156,23 @@ fn build_session_actions() -> TnEventActions {
 }
 
 fn layout(components: &Components) -> String {
-    let mut HTML = r#"<div class="flex flex-row p-5">"#.to_string();
+    let mut html = r#"<div class="container mx-auto px-4">"#.to_string();
+    html.push_str(r#"<div class="flex flex-row p-1">"#);
     (0..10).for_each(|i| {
-        HTML.push_str(r#"<div class="flex flex-row p-1 flex-1">"#);
-        HTML.push_str(
+        html.push_str(r#"<div class="flex flex-row p-1 flex-1">"#);
+        html.push_str(
             components
                 .render_to_string(format!("btn-{:02}", i).as_str())
                 .as_str()
         );
-        HTML.push_str(r#"</div>"#);
+        html.push_str(r#"</div>"#);
     });
-    HTML.push_str("</div>");
-    HTML.push_str(r#"<div class="flex flex-row p-5">"#);
-    HTML.push_str(r#"<div class="flex flex-row flex-1 min-h-80">"#);
-    HTML.push_str(components.render_to_string("text_out").as_str());
-    HTML.push_str("</div>");
-    HTML.push_str("</div>"); 
-    HTML
+    html.push_str("</div>");
+    html.push_str(r#"<div class="flex flex-row p-1">"#);
+    html.push_str(r#"<div class="flex flex-row flex-1 min-h-80">"#);
+    html.push_str(components.render_to_string("text_out").as_str());
+    html.push_str("</div>");
+    html.push_str("</div>"); 
+    html.push_str("</div>"); 
+    html
 }

@@ -121,24 +121,33 @@ fn toggle_recording(
             }
         }
         {
-            let mut components_guard = components.write().await;
-            let recorder = components_guard.get_mut_component_by_tron_id("recorder");
             if let ComponentValue::String(value) = previous_rec_button_value {
                 match value.as_str() {
                     "Stop Recording" => {
-                        recorder.set_value(ComponentValue::String("Paused".into()));
-                        recorder.set_state(ComponentState::Updating);
-                        let msg = SseAudioRecorderTriggerMsg {
-                            server_side_trigger: TriggerData {
-                                target: "recorder".into(),
-                                new_state: "updating".into(),
-                            },
-                            audio_recorder_control: "stop".into(),
-                        };
-
-                        send_sse_msg_to_client(&tx, msg).await;
+                        {
+                            let mut components_guard = components.write().await;
+                            let recorder =
+                                components_guard.get_mut_component_by_tron_id("recorder");
+                            recorder.set_value(ComponentValue::String("Paused".into()));
+                            recorder.set_state(ComponentState::Updating);
+                            let msg = SseAudioRecorderTriggerMsg {
+                                server_side_trigger: TriggerData {
+                                    target: "recorder".into(),
+                                    new_state: "updating".into(),
+                                },
+                                audio_recorder_control: "stop".into(),
+                            };
+                            send_sse_msg_to_client(&tx, msg).await;
+                        }
+                        {
+                            let components_guard = components.read().await;
+                            let recorder = components_guard.get_component_by_tron_id("recorder");
+                            audio_recorder::write_audio_data_to_file(recorder);
+                        }
                     }
                     "Start Recording" => {
+                        let mut components_guard = components.write().await;
+                        let recorder = components_guard.get_mut_component_by_tron_id("recorder");
                         recorder.set_value(ComponentValue::String("Recording".into()));
                         recorder.set_state(ComponentState::Updating);
                         let msg = SseAudioRecorderTriggerMsg {

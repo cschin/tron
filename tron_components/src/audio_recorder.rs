@@ -52,17 +52,7 @@ impl<'a> TnAudioRecorder<'a> {
     }
 }
 
-// pub fn get_audio_data(comp: &'static mut Box<dyn ComponentBaseTrait<'static>>) -> &mut ComponentAsset {
-//     let e = comp
-//     .get_mut_assets()
-//     .unwrap()
-//     .entry("audio_data".into())
-//     .or_insert(ComponentAsset::Bytes(BytesMut::default()));
-//     e
-// }
-
-pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_bytes: Bytes){
-
+pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_bytes: Bytes) {
     let e = comp
         .get_mut_assets()
         .unwrap()
@@ -75,8 +65,24 @@ pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_by
         println!("new stream data size: {}", (*audio_data).len());
     }
 }
-pub fn clear_audio_data<'a>(comp: &'a mut Box<dyn ComponentBaseTrait<'a>>) {
 
+pub fn write_audio_data_to_file(comp: &dyn ComponentBaseTrait<'static>) {
+    let e = comp
+        .get_assets()
+        .as_ref()
+        .unwrap()
+        .get("audio_data")
+        .unwrap();
+
+    if let ComponentAsset::Bytes(audio_data) = e {
+        let uid = uuid::Uuid::new_v4();
+        let filename = std::path::Path::new("output").join(format!("{}.webm", uid));
+        let mut file = std::fs::File::create(filename.clone()).unwrap();
+        std::io::Write::write_all(&mut file, audio_data).unwrap();
+    }
+}
+
+pub fn clear_audio_data<'a>(comp: &'a mut Box<dyn ComponentBaseTrait<'a>>) {
     let e = comp
         .get_mut_assets()
         .unwrap()

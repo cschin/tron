@@ -218,11 +218,12 @@ async fn tron_entry(
         }
     }
 
-    println!("payload: {:?}", payload);
+    //println!("payload: {:?}", payload);
 
     if let Some(event_data) = match_event(&payload).await {
         println!("event matched, event_data: {:?}", event_data);
         let evt = event_data.tn_event;
+
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {
                 let session_components_guard = app_data.session_components.read().await;
@@ -234,6 +235,7 @@ async fn tron_entry(
                 component.set_value(tron_components::ComponentValue::String(value));
             }
         }
+
         let has_event_action = {
             let event_action_guard = app_data.event_actions.read().await;
             event_action_guard.contains_key(&evt)
@@ -246,8 +248,10 @@ async fn tron_entry(
                 let mut components_guard = session_components.write().await;
                 let component =
                     components_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
-                println!("pending set");
-                component.set_state(ComponentState::Pending);
+                // println!("pending set");
+                if *component.state() == ComponentState::Ready {
+                    component.set_state(ComponentState::Pending);
+                };
             }
 
             let session_components = app_data.session_components.read().await;
@@ -263,10 +267,10 @@ async fn tron_entry(
             let event_action_guard = app_data.event_actions.write().await;
             let (action_exec_method, action_generator) = event_action_guard.get(&evt).unwrap().clone();
 
-            let action = action_generator(components, tx, evt.clone());
+            let action = action_generator(components, tx, evt, payload);
             match action_exec_method {
-                ActionExecutionMethod::Spawn => {println!("spawn");tokio::task::spawn(action);},
-                ActionExecutionMethod::Await => {println!("await");action.await}
+                ActionExecutionMethod::Spawn => {tokio::task::spawn(action);},
+                ActionExecutionMethod::Await => {action.await}
             }
         }
     };
@@ -345,3 +349,4 @@ async fn sse_event_handler(
 
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
+

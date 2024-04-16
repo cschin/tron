@@ -1,13 +1,17 @@
 use askama::Template;
 use futures_util::Future;
 
-use axum::extract::Json;
+use axum::{body::Bytes, extract::Json};
+use serde::Deserialize;
 //use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc::Sender, RwLock};
-
+use base64::prelude::*;
 use serde_json::Value;
-
+use tokio::sync::{mpsc::Sender, RwLock};
+#[allow(unused_imports)]
 use tracing::debug;
+use tron_app::{
+    utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData,
+};
 use tron_components::*;
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -62,6 +66,7 @@ fn layout(components: &Components) -> String {
 
 fn build_session_actions() -> TnEventActions {
     let mut actions = TnEventActions::default();
+    // for processing rec button click
     let evt = TnEvent {
         e_target: "rec_button".into(),
         e_type: "click".into(),
@@ -71,6 +76,21 @@ fn build_session_actions() -> TnEventActions {
         evt,
         (ActionExecutionMethod::Await, Arc::new(toggle_recording)),
     );
+
+    // for processing the incoming audio stream data
+    let evt = TnEvent {
+        e_target: "recorder".into(),
+        e_type: "streaming".into(),
+        e_state: "updating".into(),
+    };
+    actions.insert(
+        evt,
+        (
+            ActionExecutionMethod::Await,
+            Arc::new(audio_input_stream_processing),
+        ),
+    );
+
     actions
 }
 
@@ -78,6 +98,7 @@ fn toggle_recording(
     components: Arc<RwLock<Components<'static>>>,
     tx: Sender<Json<Value>>,
     event: TnEvent,
+    _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = || async move {
         let previous_rec_button_value;
@@ -107,39 +128,80 @@ fn toggle_recording(
                     "Stop Recording" => {
                         recorder.set_value(ComponentValue::String("Paused".into()));
                         recorder.set_state(ComponentState::Updating);
-                        let data = format!(
-                            r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"ready" }} }}"##,
-                            "recorder" 
-                        );
-                        let v: Value = serde_json::from_str(&data).unwrap();
-                        if tx.send(axum::Json(v)).await.is_err() {
-                            debug!("tx dropped");
-                        }
+                        let msg = SseAudioRecorderTriggerMsg {
+                            server_side_trigger: TriggerData {
+                                target: "recorder".into(),
+                                new_state: "updating".into(),
+                            },
+                            audio_recorder_control: "stop".into(),
+                        };
+
+                        send_sse_msg_to_client(&tx, msg).await;
                     }
                     "Start Recording" => {
                         recorder.set_value(ComponentValue::String("Recording".into()));
                         recorder.set_state(ComponentState::Updating);
-                        let data = format!(
-                            r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"updating" }} }}"##,
-                            "recorder" 
-                        );
-                        let v: Value = serde_json::from_str(&data).unwrap();
-                        if tx.send(axum::Json(v)).await.is_err() {
-                            debug!("tx dropped");
-                        }
+                        let msg = SseAudioRecorderTriggerMsg {
+                            server_side_trigger: TriggerData {
+                                target: "recorder".into(),
+                                new_state: "updating".into(),
+                            },
+                            audio_recorder_control: "start".into(),
+                        };
+                        send_sse_msg_to_client(&tx, msg).await;
                     }
                     _ => {}
                 }
             }
         }
-        let data = format!(
-            r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"ready" }} }}"##,
-            event.e_target
-        );
-        let v: Value = serde_json::from_str(&data).unwrap();
-        if tx.send(axum::Json(v)).await.is_err() {
-            debug!("tx dropped");
-        }
+        let data = SseTriggerMsg {
+            server_side_trigger: TriggerData {
+                target: event.e_target,
+                new_state: "ready".into(),
+            },
+        };
+        send_sse_msg_to_client(&tx, data).await;
+    };
+
+    Box::pin(f())
+}
+
+#[derive(Clone, Debug, Deserialize)]
+struct AudioChunk {
+    audio_data: String,
+}
+
+fn audio_input_stream_processing(
+    components: Arc<RwLock<Components<'static>>>,
+    _tx: Sender<Json<Value>>,
+    event: TnEvent,
+    payload: Value,
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    let f = || async move {
+        let chunk: Option<AudioChunk> = serde_json::from_value(payload).unwrap_or(None);
+        if let Some(chunk) = chunk {
+            println!(
+                "stream, audio data received, len={}",
+                chunk.audio_data.len()
+            );
+
+            let id = {
+                let components_guard = components.read().await;
+                *components_guard.tron_id_to_id.get(&event.e_target).unwrap()
+            };
+
+            let b64data = chunk.audio_data.trim_end_matches('"');
+            let mut split = b64data.split(',');
+            let _head = split.next().unwrap();
+            let b64str = split.next().unwrap();
+            let chunk = Bytes::from(BASE64_STANDARD.decode(b64str).unwrap());
+
+            {
+                let mut components_guard = components.write().await;
+                let recorder = components_guard.components.get_mut(&id).unwrap();
+                audio_recorder::append_audio_data(recorder, chunk);
+            }
+        };
     };
 
     Box::pin(f())

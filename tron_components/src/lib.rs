@@ -6,11 +6,13 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
+use serde_json::Value;
 pub use text::TnTextArea;
 
 use rand::{thread_rng, Rng};
 
 use axum::{body::Bytes, response::Html};
+use bytes::BytesMut;
 
 pub type ComponentId = u32;
 pub type ElmAttributes = HashMap<String, String>;
@@ -28,10 +30,10 @@ pub enum ComponentAsset {
     None,
     VecU8(Vec<u8>),
     String(String),
-    Bytes(Bytes),
+    Bytes(BytesMut),
 }
 
-#[derive(Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ComponentState {
     Ready,    // ready to receive new event on the UI end
     Pending,  // UI event receive, server function dispatched, waiting for server to response
@@ -126,7 +128,8 @@ pub trait ComponentBaseTrait<'a>: Send + Sync {
     fn set_value(&mut self, value: ComponentValue);
     fn state(&self) -> &ComponentState;
     fn set_state(&mut self, state: ComponentState);
-    fn assets(&self) -> &Option<HashMap<String, ComponentAsset>>;
+    fn get_assets(&self) -> &Option<HashMap<String, ComponentAsset>>;
+    fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, ComponentAsset>>;
     fn render(&self) -> Html<String>;
     fn render_to_string(&self) -> String;
     fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>>;
@@ -226,10 +229,19 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
         &self.state
     }
 
-    fn assets(&self) -> &Option<HashMap<String, ComponentAsset>> {
+    fn get_assets(&self) -> &Option<HashMap<String, ComponentAsset>> {
         &self.assets
     }
 
+    fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, ComponentAsset>> {
+        if let Some(assets) = self.assets.as_mut() {
+            Some(assets)
+        } else  {
+            None
+        }
+    }
+
+    
     fn render(&self) -> Html<String> {
         unimplemented!()
     }
@@ -254,6 +266,7 @@ pub type ActionFn = fn(
     Arc<RwLock<Components<'static>>>,
     Sender<axum::Json<serde_json::Value>>,
     event: TnEvent,
+    payload: Value,
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
 
 #[derive(Clone)]

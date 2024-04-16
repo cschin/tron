@@ -23,10 +23,10 @@
         const event_data = JSON.parse(event.data);
         const state = event_data["server_side_trigger"]["new_state"];
         const target = event_data["server_side_trigger"]["target"];
-        if ("start_recording_audio" in event_data) {
+        if ("audio_recorder_control" in event_data && event_data["audio_recorder_control"] == "start" ) {
           recording_audio("#" + target);
         };
-        if ("stop_recording_audio" in event_data) {
+        if ("audio_recorder_control" in event_data && event_data["audio_recorder_control"] == "stop" )  {
           stop_recording();
         }
         console.log('New message from server:', event.data, target, state);
@@ -90,6 +90,10 @@
             };
         });
     };
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Your browser does not support audio recording.");
+    }
 
     let mediaRecorder;
 

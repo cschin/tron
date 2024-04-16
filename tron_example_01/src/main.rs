@@ -1,3 +1,4 @@
+use askama::Template;
 use futures_util::Future;
 
 use axum::extract::Json;
@@ -8,7 +9,8 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    text::TnTextInput, ComponentBaseTrait, ComponentState, ComponentValue, Components, TnButton, TnEvent, TnEventActions, TnTextArea
+    text::TnTextInput, ActionExecutionMethod, ComponentBaseTrait, ComponentState, ComponentValue,
+    Components, TnButton, TnEvent, TnEventActions, TnTextArea,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -22,6 +24,7 @@ async fn main() {
         event_actions: RwLock::new(TnEventActions::default()),
         build_session_components: Arc::new(Box::new(build_session_components)),
         build_session_actions: Arc::new(Box::new(build_session_actions)),
+        build_layout: Arc::new(Box::new(layout)),
     };
     tron_app::run(app_share_data).await
 }
@@ -59,7 +62,7 @@ fn test_evt_task(
                 components_guard
                     .get_mut_component_by_tron_id("textarea")
                     .set_value(ComponentValue::String(format!(
-                        "{}\n{}--{:02};",
+                        "{}\n {} -- {:02};",
                         origin_string,
                         event.e_target,
                         v + 1
@@ -127,25 +130,27 @@ fn build_session_components() -> Components<'static> {
         }
     }
 
-    let mut textarea = TnTextArea::new(component_id, "textarea".to_string(), "".to_string());
+    let mut textarea = TnTextArea::new(component_id, "textarea".into(), "".into());
     textarea.set_attribute(
         "class".into(),
         "textarea textarea-bordered flex-1 min-h-80v".into(),
     );
-    textarea.set_attribute("hx-swap".into(), "outerHTML scroll:bottom focus-scroll:true".into());
+    textarea.set_attribute(
+        "hx-swap".into(),
+        "outerHTML scroll:bottom focus-scroll:true".into(),
+    );
     components.add_component(textarea);
 
     component_id += 1;
 
-    let mut textinput = TnTextInput::new(component_id, "textinput".to_string(), "10".to_string());
+    let mut textinput = TnTextInput::new(component_id, "textinput".into(), "10".into());
+    textinput.set_attribute("class".into(), "input w-full max-w-xs".into());
     textinput.set_attribute(
-        "class".into(),
-        "input w-full max-w-xs".into(),
+        "hx-swap".into(),
+        "outerHTML scroll:bottom focus-scroll:true".into(),
     );
-    textinput.set_attribute("hx-swap".into(), "outerHTML scroll:bottom focus-scroll:true".into());
     components.add_component(textinput);
 
-    components.component_layout = Some(layout(&components));
     components
 
     //Arc::new(RwLock::new(components))
@@ -159,37 +164,37 @@ fn build_session_actions() -> TnEventActions {
             e_type: "click".to_string(),
             e_state: "ready".to_string(),
         };
-        actions.insert(evt, Arc::new(test_evt_task));
+        actions.insert(evt, (ActionExecutionMethod::Spawn, Arc::new(test_evt_task)));
     }
     actions
 }
 
+#[derive(Template)] // this will generate the code...
+#[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
+struct AppPageTemplate {
+    buttons: Vec<String>,
+    textarea: String,
+    textinput: String,
+}
+
 fn layout(components: &Components) -> String {
-    let mut html = r#"<div class="container mx-auto px-4">"#.to_string();
-    html.push_str(r#"<div class="flex flex-row p-1">"#);
-    (0..10).for_each(|i| {
-        html.push_str(r#"<div class="flex flex-row p-1 flex-1">"#);
-        html.push_str(
+    let buttons = (0..10)
+        .map(|i| {
             components
-                .render_to_string(format!("btn-{:02}", i).as_str())
-                .as_str()
-        );
-        html.push_str(r#"</div>"#);
-    });
-    html.push_str("</div>");
-
-    html.push_str(r#"<div class="flex flex-row p-1">"#);
-    html.push_str(r#"<div class="flex flex-row flex-1 min-h-80">"#);
-    html.push_str(components.render_to_string("textarea").as_str());
-    html.push_str("</div>");
-    html.push_str("</div>"); 
-
-    html.push_str(r#"<div class="flex flex-row p-1">"#);
-    html.push_str(r#"<div class="flex flex-row flex-1 min-h-80">"#);
-    html.push_str(components.render_to_string("textinput").as_str());
-    html.push_str("</div>");
-    html.push_str("</div>"); 
-
-    html.push_str("</div>"); 
-    html
+                .get_component_by_tron_id(format!("btn-{:02}", i).as_str())
+                .render_to_string()
+        })
+        .collect::<Vec<String>>();
+    let textarea = components
+        .get_component_by_tron_id("textarea")
+        .render_to_string();
+    let textinput = components
+        .get_component_by_tron_id("textinput")
+        .render_to_string();
+    let html = AppPageTemplate {
+        buttons,
+        textarea,
+        textinput,
+    };
+    html.render().unwrap()
 }

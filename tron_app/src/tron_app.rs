@@ -17,7 +17,7 @@ use tokio::sync::{
     mpsc::{Receiver, Sender},
     RwLock,
 };
-use tron_components::{ComponentId, ComponentState, Components, TnEvent, TnEventActions};
+use tron_components::{ActionExecutionMethod, ComponentId, ComponentState, Components, TnEvent, TnEventActions};
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
 use time::Duration;
@@ -54,6 +54,7 @@ pub struct AppData {
     pub event_actions: EventActions,
     pub build_session_components: Arc<Box<dyn Fn() -> Components<'static> + Send + Sync>>,
     pub build_session_actions: Arc<Box<dyn Fn() -> TnEventActions + Send + Sync>>,
+    pub build_layout: Arc<Box<dyn Fn(&Components<'static>) -> String + Send + Sync>>
 }
 
 pub async fn run(app_share_data: AppData) {
@@ -164,11 +165,8 @@ async fn load_page(
     let session_components = app_data.session_components.read().await;
     let components = &session_components.get(&session_id).unwrap().read().await;
 
-    if let Some(layout) = components.component_layout.as_ref() {
-        Ok(Html::from(layout.clone()))
-    } else {
-        Ok(Html::from("Layout render not set".to_string()))
-    }
+    Ok( Html::from((*app_data.build_layout)(components) ))
+
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -248,6 +246,7 @@ async fn tron_entry(
                 let mut components_guard = session_components.write().await;
                 let component =
                     components_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
+                println!("pending set");
                 component.set_state(ComponentState::Pending);
             }
 
@@ -262,11 +261,13 @@ async fn tron_entry(
                 .clone();
 
             let event_action_guard = app_data.event_actions.write().await;
-            let action_generator = event_action_guard.get(&evt).unwrap().clone();
+            let (action_exec_method, action_generator) = event_action_guard.get(&evt).unwrap().clone();
 
             let action = action_generator(components, tx, evt.clone());
-            tokio::task::spawn(action);
-            //action.await; // this won't allow two event triggered at the same time
+            match action_exec_method {
+                ActionExecutionMethod::Spawn => {println!("spawn");tokio::task::spawn(action);},
+                ActionExecutionMethod::Await => {println!("await");action.await}
+            }
         }
     };
 
@@ -280,7 +281,6 @@ async fn tron_entry(
         .components;
 
     let target = components.get(&tron_id).unwrap();
-
     Ok(target.render())
 }
 

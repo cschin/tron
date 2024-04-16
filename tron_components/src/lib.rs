@@ -1,8 +1,10 @@
+pub mod audio_recorder;
 pub mod button;
 pub mod text;
 
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 
+pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
 pub use text::TnTextArea;
 
@@ -16,12 +18,12 @@ pub type ElmTag = String;
 
 use serde::Deserialize;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ComponentValue {
     None,
     String(String),
 }
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ComponentAsset {
     None,
     VecU8(Vec<u8>),
@@ -29,7 +31,7 @@ pub enum ComponentAsset {
     Bytes(Bytes),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ComponentState {
     Ready,    // ready to receive new event on the UI end
     Pending,  // UI event receive, server function dispatched, waiting for server to response
@@ -62,8 +64,7 @@ pub struct ComponentBase<'a> {
 pub struct Components<'a> {
     pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
     pub assets: HashMap<String, Vec<u8>>,
-    tron_id_to_id: HashMap<String, u32>,
-    pub component_layout: Option<String>, // HTML string of the initial layout
+    pub tron_id_to_id: HashMap<String, u32>,
 }
 
 impl<'a> Components<'a> {
@@ -72,7 +73,6 @@ impl<'a> Components<'a> {
             components: HashMap::default(),
             assets: HashMap::default(),
             tron_id_to_id: HashMap::default(),
-            component_layout: None,
         }
     }
 
@@ -87,7 +87,10 @@ impl<'a> Components<'a> {
         &self,
         tron_id: &str,
     ) -> &(dyn ComponentBaseTrait<'a> + 'static) {
-        let id = self.tron_id_to_id.get(tron_id).unwrap();
+        let id = self
+            .tron_id_to_id
+            .get(tron_id)
+            .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id));
         self.components.get(id).unwrap().as_ref()
     }
 
@@ -96,7 +99,9 @@ impl<'a> Components<'a> {
         tron_id: &str,
     ) -> &mut Box<dyn ComponentBaseTrait<'a> + 'static> {
         let id = self.tron_id_to_id.get(tron_id).unwrap();
-        self.components.get_mut(id).unwrap()
+        self.components
+            .get_mut(id)
+            .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id))
     }
 
     pub fn render_to_string(&self, tron_id: &str) -> String {
@@ -123,16 +128,17 @@ pub trait ComponentBaseTrait<'a>: Send + Sync {
     fn set_state(&mut self, state: ComponentState);
     fn assets(&self) -> &Option<HashMap<String, ComponentAsset>>;
     fn render(&self) -> Html<String>;
+    fn render_to_string(&self) -> String;
     fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>>;
 }
 
 impl<'a> ComponentBase<'a> {
-    pub fn new(tag: ElmTag, id: ComponentId, tron_id: String) -> Self {
+    pub fn new(tag: String, id: ComponentId, tron_id: String) -> Self {
         let mut attributes = HashMap::<String, String>::default();
-        attributes.insert("id".to_string(), tron_id.clone());
+        attributes.insert("id".into(), tron_id.clone());
         attributes.insert("hx-post".to_string(), format!("/tron/{}", id));
-        attributes.insert("hx-target".to_string(), format!("#{}", tron_id.clone()));
-        attributes.insert("hx-swap".to_string(), "outerHTML".to_string());
+        attributes.insert("hx-target".to_string(), format!("#{}", tron_id));
+        attributes.insert("hx-swap".to_string(), "outerHTML".into());
 
         attributes.insert(
             "hx-vals".into(),
@@ -228,6 +234,10 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
         unimplemented!()
     }
 
+    fn render_to_string(&self) -> String {
+        self.render().0
+    }
+
     fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>> {
         &self.children
     }
@@ -246,7 +256,13 @@ pub type ActionFn = fn(
     event: TnEvent,
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
 
-pub type TnEventActions = HashMap<TnEvent, Arc<ActionFn>>;
+#[derive(Clone)]
+pub enum ActionExecutionMethod {
+    Spawn,
+    Await,
+}
+
+pub type TnEventActions = HashMap<TnEvent, (ActionExecutionMethod, Arc<ActionFn>)>;
 
 pub mod utils {
     pub fn html_escape_double_quote(input: &str) -> String {
@@ -268,7 +284,7 @@ mod tests {
 
     #[test]
     fn test_simple_button() {
-        let mut btn = TnButton::new(12, "12".to_string(), "12".to_string());
+        let mut btn = TnButton::new(12, "12".into(), "12".into());
         btn.set_attribute("hx-get".to_string(), format!("/tron/{}", 12));
         //println!("{}", btn.generate_hx_attr_string());
     }

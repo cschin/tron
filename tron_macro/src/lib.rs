@@ -55,6 +55,11 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             fn render(&self) -> Html<String> {
                 self.internal_render()
             }
+
+            fn render_to_string(&self) -> String {
+                self.render().0
+            }
+
             fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>> {
                 self.inner.get_children()
             }

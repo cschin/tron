@@ -9,7 +9,7 @@ pub struct TnTextArea<'a> {
 impl<'a> TnTextArea<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base =
-            ComponentBase::new("textarea".to_string(), id, name);
+            ComponentBase::new("textarea".into(), id, name);
         component_base.set_value(ComponentValue::String(value));
         component_base.set_attribute("contenteditable".into(), 
                                          "true".into());
@@ -58,8 +58,8 @@ pub struct TnTextInput<'a> {
 impl<'a> TnTextInput<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base =
-            ComponentBase::new("input".to_string(), id, name);
-        component_base.set_value(ComponentValue::String(value));
+            ComponentBase::new("input".into(), id, name);
+        component_base.set_value(ComponentValue::String(value.to_string()));
         component_base.set_attribute("contenteditable".into(), 
                                          "true".into());
 

@@ -48,13 +48,17 @@ pub type SessionComponents =
 pub type SessionSeeChannels = RwLock<HashMap<tower_sessions::session::Id, SessionMessageChannel>>;
 
 pub type EventActions = RwLock<TnEventActions>;
+
+type ComponentBuilder = dyn Fn() -> Components<'static> + Send + Sync;
+type ActionFunctionTemplate = dyn Fn() -> TnEventActions + Send + Sync; 
+type LayoutFunction = dyn Fn(&Components<'static>) -> String + Send + Sync;
 pub struct AppData {
     pub session_components: SessionComponents,
     pub session_sse_channels: SessionSeeChannels,
     pub event_actions: EventActions,
-    pub build_session_components: Arc<Box<dyn Fn() -> Components<'static> + Send + Sync>>,
-    pub build_session_actions: Arc<Box<dyn Fn() -> TnEventActions + Send + Sync>>,
-    pub build_layout: Arc<Box<dyn Fn(&Components<'static>) -> String + Send + Sync>>
+    pub build_session_components: Arc<Box<ComponentBuilder>>,
+    pub build_session_actions: Arc<Box<ActionFunctionTemplate>>,
+    pub build_layout: Arc<Box<LayoutFunction>>
 }
 
 pub async fn run(app_share_data: AppData) {

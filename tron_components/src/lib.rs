@@ -231,7 +231,7 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
 
     fn get_assets(&self) -> Option<&HashMap<String, ComponentAsset>> {
         if let Some(assets) = self.assets.as_ref() {
-            Some(&assets)
+            Some(assets)
         } else {
             None
         }

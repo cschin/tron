@@ -14,3 +14,4 @@ tron_components = { path = "../tron_components" }
 tron_app = {path = "../tron_app"}
 base64 = "0.22.0"
 askama = "0.12.1"
+uuid = { version = "1.8.0", features = ["v4"] }

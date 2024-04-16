@@ -52,17 +52,26 @@ impl<'a> TnAudioRecorder<'a> {
     }
 }
 
-pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_bytes: Bytes) {
-    let e = comp
+pub fn get_mut_audio_asset<'a>(comp:&'a mut Box<dyn ComponentBaseTrait<'static>> ) -> &'a mut ComponentAsset {
+    comp
         .get_mut_assets()
         .unwrap()
         .entry("audio_data".into())
-        .or_insert(ComponentAsset::Bytes(BytesMut::default()));
+        .or_insert(ComponentAsset::Bytes(BytesMut::default()))
+} 
 
-    //let e = get_audio_data(comp);
+pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_bytes: Bytes) {
+    let e = get_mut_audio_asset(comp);
     if let ComponentAsset::Bytes(audio_data) = e {
         (*audio_data).extend_from_slice(&new_bytes);
         println!("new stream data size: {}", (*audio_data).len());
+    }
+}
+
+pub fn clear_audio_data(comp: & mut Box<dyn ComponentBaseTrait<'static>>) {
+    let e = get_mut_audio_asset(comp);
+    if let ComponentAsset::Bytes(audio_data) = e {
+        (*audio_data).clear();
     }
 }
 
@@ -82,14 +91,3 @@ pub fn write_audio_data_to_file(comp: &dyn ComponentBaseTrait<'static>) {
     }
 }
 
-pub fn clear_audio_data<'a>(comp: &'a mut Box<dyn ComponentBaseTrait<'a>>) {
-    let e = comp
-        .get_mut_assets()
-        .unwrap()
-        .entry("audio_data".into())
-        .or_insert(ComponentAsset::Bytes(BytesMut::default()));
-
-    if let ComponentAsset::Bytes(audio_data) = e {
-        (*audio_data).clear();
-    }
-}

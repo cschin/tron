@@ -240,12 +240,11 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, ComponentAsset>> {
         if let Some(assets) = self.assets.as_mut() {
             Some(assets)
-        } else  {
+        } else {
             None
         }
     }
 
-    
     fn render(&self) -> Html<String> {
         unimplemented!()
     }

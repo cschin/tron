@@ -17,7 +17,9 @@ use tokio::sync::{
     mpsc::{Receiver, Sender},
     RwLock,
 };
-use tron_components::{ActionExecutionMethod, ComponentId, ComponentState, Components, TnEvent, TnEventActions};
+use tron_components::{
+    ActionExecutionMethod, ComponentId, ComponentState, Components, TnEvent, TnEventActions,
+};
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
 use time::Duration;
@@ -50,7 +52,7 @@ pub type SessionSeeChannels = RwLock<HashMap<tower_sessions::session::Id, Sessio
 pub type EventActions = RwLock<TnEventActions>;
 
 type ComponentBuilder = dyn Fn() -> Components<'static> + Send + Sync;
-type ActionFunctionTemplate = dyn Fn() -> TnEventActions + Send + Sync; 
+type ActionFunctionTemplate = dyn Fn() -> TnEventActions + Send + Sync;
 type LayoutFunction = dyn Fn(&Components<'static>) -> String + Send + Sync;
 pub struct AppData {
     pub session_components: SessionComponents,
@@ -58,7 +60,7 @@ pub struct AppData {
     pub event_actions: EventActions,
     pub build_session_components: Arc<Box<ComponentBuilder>>,
     pub build_session_actions: Arc<Box<ActionFunctionTemplate>>,
-    pub build_layout: Arc<Box<LayoutFunction>>
+    pub build_layout: Arc<Box<LayoutFunction>>,
 }
 
 pub async fn run(app_share_data: AppData) {
@@ -169,8 +171,7 @@ async fn load_page(
     let session_components = app_data.session_components.read().await;
     let components = &session_components.get(&session_id).unwrap().read().await;
 
-    Ok( Html::from((*app_data.build_layout)(components) ))
-
+    Ok(Html::from((*app_data.build_layout)(components)))
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -269,12 +270,15 @@ async fn tron_entry(
                 .clone();
 
             let event_action_guard = app_data.event_actions.write().await;
-            let (action_exec_method, action_generator) = event_action_guard.get(&evt).unwrap().clone();
+            let (action_exec_method, action_generator) =
+                event_action_guard.get(&evt).unwrap().clone();
 
             let action = action_generator(components, tx, evt, payload);
             match action_exec_method {
-                ActionExecutionMethod::Spawn => {tokio::task::spawn(action);},
-                ActionExecutionMethod::Await => {action.await}
+                ActionExecutionMethod::Spawn => {
+                    tokio::task::spawn(action);
+                }
+                ActionExecutionMethod::Await => action.await,
             }
         }
     };
@@ -353,4 +357,3 @@ async fn sse_event_handler(
 
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
-

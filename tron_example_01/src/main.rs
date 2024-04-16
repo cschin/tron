@@ -33,7 +33,7 @@ fn test_evt_task(
     components: Arc<RwLock<Components<'static>>>,
     tx: Sender<Json<Value>>,
     event: TnEvent,
-    _payload: Value
+    _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = || async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));

@@ -24,12 +24,12 @@ async fn main() {
         event_actions: RwLock::new(TnEventActions::default()),
         build_session_components: Arc::new(Box::new(build_session_components)),
         build_session_actions: Arc::new(Box::new(build_session_actions)),
-        build_layout: Arc::new(Box::new(layout))
+        build_layout: Arc::new(Box::new(layout)),
     };
     tron_app::run(app_share_data).await
 }
 
-fn build_session_components()  -> Components<'static> {     
+fn build_session_components() -> Components<'static> {
     let mut components = Components::default();
     components
 }
@@ -37,7 +37,6 @@ fn build_session_components()  -> Components<'static> {
 fn layout(components: &Components) -> String {
     "This is an template, please fill in the components and how to layout them.".into()
 }
-
 
 fn build_session_actions() -> TnEventActions {
     let mut actions = TnEventActions::default();
@@ -48,5 +47,6 @@ fn test_event_action(
     components: Arc<RwLock<Components<'static>>>,
     tx: Sender<Json<Value>>,
     event: TnEvent,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {todo!()}
-
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    todo!()
+}

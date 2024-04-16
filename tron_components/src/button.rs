@@ -10,8 +10,7 @@ impl<'a> TnButton<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base = ComponentBase::new("button".into(), id, name);
         component_base.set_value(ComponentValue::String(value));
-        component_base
-            .set_attribute("hx-trigger".into(), "click, server_side_trigger".into());
+        component_base.set_attribute("hx-trigger".into(), "click, server_side_trigger".into());
 
         Self {
             inner: component_base,

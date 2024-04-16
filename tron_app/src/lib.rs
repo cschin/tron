@@ -26,7 +26,6 @@ pub mod utils {
     use tokio::sync::mpsc::Sender;
     use tracing::debug;
 
-
     pub async fn send_sse_msg_to_client(tx: &Sender<Json<Value>>, data: impl Serialize) {
         let json_value = serde_json::to_value(data).unwrap();
         if tx.send(axum::Json(json_value)).await.is_err() {

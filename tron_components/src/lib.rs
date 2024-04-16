@@ -128,11 +128,11 @@ pub trait ComponentBaseTrait<'a>: Send + Sync {
     fn set_value(&mut self, value: ComponentValue);
     fn state(&self) -> &ComponentState;
     fn set_state(&mut self, state: ComponentState);
-    fn get_assets(&self) -> &Option<HashMap<String, ComponentAsset>>;
+    fn get_assets(&self) -> Option<&HashMap<String, ComponentAsset>>;
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, ComponentAsset>>;
     fn render(&self) -> Html<String>;
     fn render_to_string(&self) -> String;
-    fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>>;
+    fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>>;
 }
 
 impl<'a> ComponentBase<'a> {
@@ -229,8 +229,12 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
         &self.state
     }
 
-    fn get_assets(&self) -> &Option<HashMap<String, ComponentAsset>> {
-        &self.assets
+    fn get_assets(&self) -> Option<&HashMap<String, ComponentAsset>> {
+        if let Some(assets) = self.assets.as_ref() {
+            Some(&assets)
+        } else {
+            None
+        }
     }
 
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, ComponentAsset>> {
@@ -250,8 +254,12 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
         self.render().0
     }
 
-    fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>> {
-        &self.children
+    fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>> {
+        if let Some(children) = self.children.as_ref() {
+            Some(children)
+        } else {
+            None
+        }
     }
 }
 // For Event Dispatcher

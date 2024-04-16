@@ -48,7 +48,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.inner.set_state(new_state);
             }
         
-            fn get_assets(&self) -> &Option<HashMap<String, ComponentAsset>> {
+            fn get_assets(&self) -> Option<&HashMap<String, ComponentAsset>> {
                 self.inner.get_assets() 
             }
 
@@ -65,7 +65,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.render().0
             }
 
-            fn get_children(&self) -> &Option<Vec<&'a ComponentBase<'a>>> {
+            fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>> {
                 self.inner.get_children()
             }
         

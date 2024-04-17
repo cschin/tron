@@ -10,7 +10,7 @@ use serde_json::Value;
 use tracing::debug;
 use tron_components::{
     text::TnTextInput, ActionExecutionMethod, ComponentBaseTrait, ComponentState, ComponentValue,
-    Components, TnButton, TnEvent, TnEventActions, TnTextArea,
+    Context, TnButton, TnEvent, TnEventActions, TnTextArea,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -19,10 +19,10 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 async fn main() {
     // set app state
     let app_share_data = tron_app::AppData {
-        session_components: RwLock::new(HashMap::default()),
+        session_context: RwLock::new(HashMap::default()),
         session_sse_channels: RwLock::new(HashMap::default()),
         event_actions: RwLock::new(TnEventActions::default()),
-        build_session_components: Arc::new(Box::new(build_session_components)),
+        build_session_context: Arc::new(Box::new(build_session_context)),
         build_session_actions: Arc::new(Box::new(build_session_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
@@ -30,7 +30,7 @@ async fn main() {
 }
 
 fn test_evt_task(
-    components: Arc<RwLock<Components<'static>>>,
+    context: Arc<RwLock<Context<'static>>>,
     tx: Sender<Json<Value>>,
     event: TnEvent,
     _payload: Value,
@@ -42,8 +42,8 @@ fn test_evt_task(
         debug!("Event: {:?}", event.clone());
         loop {
             {
-                let mut components_guard = components.write().await;
-                let c = components_guard.get_mut_component_by_tron_id(&event.e_target);
+                let mut context_guard = context.write().await;
+                let c = context_guard.get_mut_component_by_tron_id(&event.e_target);
                 let v = match c.value() {
                     ComponentValue::String(s) => s.parse::<u32>().unwrap(),
                     _ => 0,
@@ -51,7 +51,7 @@ fn test_evt_task(
                 c.set_value(ComponentValue::String(format!("{:02}", v + 1)));
                 c.set_state(ComponentState::Updating);
 
-                let origin_string = if let ComponentValue::String(origin_string) = components_guard
+                let origin_string = if let ComponentValue::String(origin_string) = context_guard
                     .get_mut_component_by_tron_id("textarea")
                     .value()
                 {
@@ -60,7 +60,7 @@ fn test_evt_task(
                     "".to_string()
                 };
 
-                components_guard
+                context_guard
                     .get_mut_component_by_tron_id("textarea")
                     .set_value(ComponentValue::String(format!(
                         "{}\n {} -- {:02};",
@@ -95,8 +95,8 @@ fn test_evt_task(
             };
         }
         {
-            let mut components_guard = components.write().await;
-            let c = components_guard.get_mut_component_by_tron_id(&event.e_target);
+            let mut context_guard = context.write().await;
+            let c = context_guard.get_mut_component_by_tron_id(&event.e_target);
             c.set_state(ComponentState::Ready);
             let data = format!(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"{}" }} }}"##,
@@ -111,8 +111,8 @@ fn test_evt_task(
     Box::pin(f())
 }
 
-fn build_session_components() -> Components<'static> {
-    let mut components = Components::default();
+fn build_session_context() -> Context<'static> {
+    let mut components = Context::default();
     let mut component_id = 0_u32;
     loop {
         let mut btn = TnButton::new(
@@ -178,18 +178,18 @@ struct AppPageTemplate {
     textinput: String,
 }
 
-fn layout(components: &Components) -> String {
+fn layout(context: &Context) -> String {
     let buttons = (0..10)
         .map(|i| {
-            components
+            context
                 .get_component_by_tron_id(format!("btn-{:02}", i).as_str())
                 .render_to_string()
         })
         .collect::<Vec<String>>();
-    let textarea = components
+    let textarea = context
         .get_component_by_tron_id("textarea")
         .render_to_string();
-    let textinput = components
+    let textinput = context
         .get_component_by_tron_id("textinput")
         .render_to_string();
     let html = AppPageTemplate {

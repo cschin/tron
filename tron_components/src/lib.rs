@@ -2,7 +2,8 @@ pub mod audio_recorder;
 pub mod button;
 pub mod text;
 
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{collections::{HashMap, VecDeque}, pin::Pin, sync::Arc};
+use tokio::sync::oneshot;
 
 pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
@@ -63,18 +64,28 @@ pub struct ComponentBase<'a> {
 //     Components(Vec<String>)
 // }
 
-pub struct Components<'a> {
-    pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
-    pub assets: HashMap<String, Vec<u8>>,
-    pub tron_id_to_id: HashMap<String, u32>,
+#[derive(Debug)]
+pub struct TranscriptRequest {
+    pub request: String,
+    pub response: oneshot::Sender<String>,
 }
 
-impl<'a> Components<'a> {
+pub struct Context<'a> {
+    pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
+    pub stream_data: HashMap<String, (String, VecDeque<BytesMut>)>, 
+    pub assets: HashMap<String, Vec<u8>>,
+    pub tron_id_to_id: HashMap<String, u32>,
+    pub services: HashMap<String, Sender<TranscriptRequest>>, 
+}
+
+impl<'a> Context<'a> {
     pub fn new() -> Self {
-        Components {
+        Context {
             components: HashMap::default(),
             assets: HashMap::default(),
             tron_id_to_id: HashMap::default(),
+            stream_data: HashMap::default(), 
+            services: HashMap::default(),  
         }
     }
 
@@ -112,7 +123,7 @@ impl<'a> Components<'a> {
     }
 }
 
-impl<'a> Default for Components<'a> {
+impl<'a> Default for Context<'a> {
     fn default() -> Self {
         Self::new()
     }
@@ -270,7 +281,7 @@ pub struct TnEvent {
 }
 use tokio::sync::{mpsc::Sender, RwLock};
 pub type ActionFn = fn(
-    Arc<RwLock<Components<'static>>>,
+    Arc<RwLock<Context<'static>>>,
     Sender<axum::Json<serde_json::Value>>,
     event: TnEvent,
     payload: Value,

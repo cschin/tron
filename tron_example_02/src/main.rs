@@ -227,13 +227,13 @@ fn audio_input_stream_processing(
             {
                 let context_guard = context.read().await;
                 let trx_srv = context_guard.services.get("transcript_service").unwrap();
-                let (tx, mut rx) = oneshot::channel::<String>();
+                let (tx, rx) = oneshot::channel::<String>();
                 let trx_req = TranscriptRequest {
                     request: "Here I am".into(),
                     response: tx 
                 };
                 let _ = trx_srv.send(trx_req).await;
-                if let Ok(out) = rx.try_recv() {
+                if let Ok(out) = rx.await {
                     println!("returned string: {}", out );
                 };
             }

@@ -56,19 +56,10 @@ pub struct ComponentBase<'a> {
     pub children: Option<Vec<&'a ComponentBase<'a>>>, // general storage
 }
 
-// pub enum ComponentTypes<'a> {
-//     TnButton(TnButton<'a>),
-// }
-
-// enum ComponentLayout {
-//     Row(Vec<ComponentLayout>),
-//     Col(Vec<ComponentLayout>),
-//     Components(Vec<String>)
-// }
-
 #[derive(Debug)]
-pub struct TranscriptRequest {
+pub struct ServiceRequestMessage {
     pub request: String,
+    pub payload: Vec<u8>,
     pub response: oneshot::Sender<String>,
 }
 
@@ -77,7 +68,7 @@ pub struct Context<'a> {
     pub stream_data: HashMap<String, (String, VecDeque<BytesMut>)>, 
     pub assets: HashMap<String, Vec<u8>>,
     pub tron_id_to_id: HashMap<String, u32>,
-    pub services: HashMap<String, Sender<TranscriptRequest>>, 
+    pub services: HashMap<String, Sender<ServiceRequestMessage>>, 
 }
 
 impl<'a> Context<'a> {

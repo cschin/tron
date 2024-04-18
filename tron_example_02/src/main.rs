@@ -41,7 +41,7 @@ async fn main() {
 }
 
 fn build_session_context() -> Context<'static> {
-    let mut context = Context::default();
+    let mut context = Context::<'static>::default();
     let mut component_id = 0_u32;
     let mut btn = TnButton::new(component_id, "rec_button".into(), "Start Recording".into());
     btn.set_attribute(
@@ -63,7 +63,7 @@ fn build_session_context() -> Context<'static> {
 
     // add service
     {
-        let (tx, rx) = tokio::sync::mpsc::channel::<TranscriptRequest>(1);
+        let (tx, rx) = tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
         context
             .services
             .insert("transcript_service".into(), tx.clone());
@@ -167,8 +167,9 @@ fn toggle_recording(
                             recorder.set_value(ComponentValue::String("Paused".into()));
                             recorder.set_state(ComponentState::Updating);
                             let mut delay =
-                                tokio::time::interval(tokio::time::Duration::from_millis(1000));
-                            delay.tick().await;
+                                tokio::time::interval(tokio::time::Duration::from_millis(300));
+                            delay.tick().await; //The first tick completes immediately.
+                            delay.tick().await; //wait a bit for all data stream transferred
                             let msg = SseAudioRecorderTriggerMsg {
                                 server_side_trigger: TriggerData {
                                     target: "recorder".into(),
@@ -278,11 +279,12 @@ fn audio_input_stream_processing(
                 let context_guard = context.read().await;
                 let trx_srv = context_guard.services.get("transcript_service").unwrap();
                 let (tx, rx) = oneshot::channel::<String>();
-                let trx_req = TranscriptRequest {
+                let trx_req_msg = ServiceRequestMessage {
                     request: "Here I am".into(),
+                    payload: Vec::default(),
                     response: tx,
                 };
-                let _ = trx_srv.send(trx_req).await;
+                let _ = trx_srv.send(trx_req_msg).await;
                 if let Ok(out) = rx.await {
                     println!("returned string: {}", out);
                 };
@@ -293,7 +295,7 @@ fn audio_input_stream_processing(
     Box::pin(f)
 }
 
-async fn transcript_service(mut rx: Receiver<TranscriptRequest>) {
+async fn transcript_service(mut rx: Receiver<ServiceRequestMessage>) {
     while let Some(req) = rx.recv().await {
         println!("req received: {}", req.request);
         let _ = req.response.send("the response".to_string());

@@ -5,6 +5,7 @@ use axum::{body::Bytes, extract::Json};
 use serde::Deserialize;
 //use serde::{Deserialize, Serialize};
 use base64::prelude::*;
+use bytes::{BufMut, BytesMut};
 use serde_json::Value;
 use tokio::sync::{
     mpsc::{Receiver, Sender},
@@ -13,12 +14,15 @@ use tokio::sync::{
 #[allow(unused_imports)]
 use tracing::debug;
 use tron_app::{
-    utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg,
-    TriggerData,
+    utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData,
 };
 use tron_components::*;
 //use std::sync::Mutex;
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{
+    collections::{HashMap, VecDeque},
+    pin::Pin,
+    sync::Arc,
+};
 use tokio::sync::oneshot;
 
 #[tokio::main]
@@ -52,11 +56,25 @@ fn build_session_context() -> Context<'static> {
     recorder.set_attribute("class".to_string(), "flex-1".to_string());
     context.add_component(recorder);
 
+    component_id += 1;
+    let mut player = TnAudioPlayer::new(component_id, "player".to_string(), "Paused".to_string());
+    player.set_attribute("class".to_string(), "flex-1".to_string());
+    context.add_component(player);
+
+    // add service
     {
         let (tx, rx) = tokio::sync::mpsc::channel::<TranscriptRequest>(1);
-        context.services.insert("transcript_service".into(), tx.clone());
+        context
+            .services
+            .insert("transcript_service".into(), tx.clone());
         //services_guide.insert("transcript_service".into(), tx.clone());
         tokio::task::spawn(transcript_service(rx));
+    }
+
+    {
+        context
+            .stream_data
+            .insert("player".into(), ("audio/webm".into(), VecDeque::default()));
     }
 
     //components.component_layout = Some(layout(&components));
@@ -68,12 +86,18 @@ fn build_session_context() -> Context<'static> {
 struct AppPageTemplate {
     btn: String,
     recorder: String,
+    player: String,
 }
 
 fn layout(context: &Context<'static>) -> String {
     let btn = context.render_to_string("rec_button");
     let recorder = context.render_to_string("recorder");
-    let html = AppPageTemplate { btn, recorder };
+    let player = context.render_to_string("player");
+    let html = AppPageTemplate {
+        btn,
+        recorder,
+        player,
+    };
     html.render().unwrap()
 }
 
@@ -139,10 +163,12 @@ fn toggle_recording(
                     "Stop Recording" => {
                         {
                             let mut context_guard = context.write().await;
-                            let recorder =
-                                context_guard.get_mut_component_by_tron_id("recorder");
+                            let recorder = context_guard.get_mut_component_by_tron_id("recorder");
                             recorder.set_value(ComponentValue::String("Paused".into()));
                             recorder.set_state(ComponentState::Updating);
+                            let mut delay =
+                                tokio::time::interval(tokio::time::Duration::from_millis(1000));
+                            delay.tick().await;
                             let msg = SseAudioRecorderTriggerMsg {
                                 server_side_trigger: TriggerData {
                                     target: "recorder".into(),
@@ -157,12 +183,30 @@ fn toggle_recording(
                             let recorder = context_guard.get_component_by_tron_id("recorder");
                             audio_recorder::write_audio_data_to_file(recorder);
                         }
+                        let msg = SseTriggerMsg {
+                            server_side_trigger: TriggerData {
+                                target: "player".into(),
+                                new_state: "ready".into(),
+                            },
+                        };
+                        send_sse_msg_to_client(&tx, msg).await;
                     }
                     "Start Recording" => {
-                        let mut context_guard = context.write().await;
-                        let recorder = context_guard.get_mut_component_by_tron_id("recorder");
-                        recorder.set_value(ComponentValue::String("Recording".into()));
-                        recorder.set_state(ComponentState::Updating);
+                        {
+                            let mut context_guard = context.write().await;
+                            let recorder = context_guard.get_mut_component_by_tron_id("recorder");
+                            recorder.set_value(ComponentValue::String("Recording".into()));
+                            recorder.set_state(ComponentState::Updating);
+                        }
+                        {
+                            let mut context_guard = context.write().await;
+                            context_guard
+                                .stream_data
+                                .get_mut("player")
+                                .unwrap()
+                                .1
+                                .clear(); // clear the stream buffer
+                        }
                         let msg = SseAudioRecorderTriggerMsg {
                             server_side_trigger: TriggerData {
                                 target: "recorder".into(),
@@ -176,13 +220,13 @@ fn toggle_recording(
                 }
             }
         }
-        let data = SseTriggerMsg {
+        let msg = SseTriggerMsg {
             server_side_trigger: TriggerData {
                 target: event.e_target,
                 new_state: "ready".into(),
             },
         };
-        send_sse_msg_to_client(&tx, data).await;
+        send_sse_msg_to_client(&tx, msg).await;
     };
 
     Box::pin(f)
@@ -221,8 +265,14 @@ fn audio_input_stream_processing(
             {
                 let mut context_guard = context.write().await;
                 let recorder = context_guard.components.get_mut(&id).unwrap();
-                audio_recorder::append_audio_data(recorder, chunk);
-                //service();
+                audio_recorder::append_audio_data(recorder, chunk.clone());
+            }
+            {
+                let mut context_guard = context.write().await;
+                let player_data = context_guard.stream_data.get_mut("player").unwrap();
+                let mut data = BytesMut::new();
+                data.put(&chunk[..]);
+                player_data.1.push_back(data);
             }
             {
                 let context_guard = context.read().await;
@@ -230,11 +280,11 @@ fn audio_input_stream_processing(
                 let (tx, rx) = oneshot::channel::<String>();
                 let trx_req = TranscriptRequest {
                     request: "Here I am".into(),
-                    response: tx 
+                    response: tx,
                 };
                 let _ = trx_srv.send(trx_req).await;
                 if let Ok(out) = rx.await {
-                    println!("returned string: {}", out );
+                    println!("returned string: {}", out);
                 };
             }
         };
@@ -246,6 +296,6 @@ fn audio_input_stream_processing(
 async fn transcript_service(mut rx: Receiver<TranscriptRequest>) {
     while let Some(req) = rx.recv().await {
         println!("req received: {}", req.request);
-        let _ =req.response.send("the response".to_string());
+        let _ = req.response.send("the response".to_string());
     }
 }

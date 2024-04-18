@@ -1,4 +1,5 @@
 pub mod audio_recorder;
+pub mod audio_player;
 pub mod button;
 pub mod text;
 
@@ -6,6 +7,7 @@ use std::{collections::{HashMap, VecDeque}, pin::Pin, sync::Arc};
 use tokio::sync::oneshot;
 
 pub use audio_recorder::TnAudioRecorder;
+pub use audio_player::TnAudioPlayer;
 pub use button::TnButton;
 use serde_json::Value;
 pub use text::TnTextArea;

@@ -8,15 +8,11 @@ pub struct TnAudioPlayer<'a> {
 
 impl<'a> TnAudioPlayer<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
-        let mut component_base = ComponentBase::new("audio".to_string(), id, name);
+        let mut component_base = ComponentBase::new("audio".to_string(), id, name.clone());
         component_base.set_value(ComponentValue::String(value));
-        component_base.set_attribute("hx-post".into(), format!("/tron/streaming/{}", id));
+        component_base.set_attribute("src".into(), format!("/tron_streaming/{}", name));
+        component_base.set_attribute("type".into(), "audio/webm".into());
         component_base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        component_base.assets = Some(HashMap::<String, ComponentAsset>::default());
-        component_base.assets.as_mut().unwrap().insert(
-            "channels".into(),
-            ComponentAsset::Bytes(BytesMut::default()),
-        );
         Self {
             inner: component_base,
         }
@@ -37,7 +33,7 @@ impl<'a> Default for TnAudioPlayer<'a> {
 impl<'a> TnAudioPlayer<'a> {
     pub fn internal_render(&self) -> Html<String> {
         Html::from(format!(
-            r##"<{} {}>{}</{}>"##,
+            r##"<{} {} controls autoplay>{}</{}>"##,
             self.inner.tag,
             self.generate_attr_string(),
             match self.value() {

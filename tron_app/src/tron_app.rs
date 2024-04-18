@@ -105,7 +105,7 @@ pub async fn run(app_share_data: AppData) {
         .route("/load_page", get(load_page))
         .route("/tron/:tron_id", get(tron_entry).post(tron_entry))
         .route(
-            "/tron_stream/:stream_id",
+            "/tron_streaming/:stream_id",
             get(tron_stream).post(tron_stream),
         )
         .with_state(Arc::new(app_share_data));
@@ -365,12 +365,12 @@ async fn tron_stream(
     session: Session,
     _headers: HeaderMap,
     Path(stream_id): Path<String>,
-    Json(_payload): Json<Value>,
+    //Json(_payload): Json<Value>,
     // request: Request,
 ) -> impl IntoResponse {
+    println!("streaming with id: {}", stream_id);
     let default_header = [
-        (header::CONTENT_TYPE, "text/plain".to_string()),
-        (header::CONTENT_LENGTH, "".to_string()),
+        (header::CONTENT_TYPE, "application/json".to_string()),
         (header::TRANSFER_ENCODING, "chunked".to_string()),
         (
             header::CACHE_CONTROL,
@@ -394,8 +394,8 @@ async fn tron_stream(
     {
         let context_guard = app_data.session_context.read().await;
         let context = context_guard.get(&session_id).unwrap().read().await;
-        let channels = &context.stream_data;
-        if !channels.contains_key(&stream_id) {
+        let stream_data = &context.stream_data;
+        if !stream_data.contains_key(&stream_id) {
             return (StatusCode::NOT_FOUND, default_header, Body::default());
         }
     }
@@ -406,7 +406,7 @@ async fn tron_stream(
         let channels = &mut context.stream_data;
 
         let (protocol, data_queue) = channels.get_mut(&stream_id).unwrap();
-        let data_queue = data_queue.clone();
+        let data_queue = data_queue.iter().cloned().collect::<Vec<_>>();
         (protocol.clone(), data_queue)
     };
     let header = [
@@ -417,14 +417,19 @@ async fn tron_stream(
         ),
         (header::TRANSFER_ENCODING, "chunked".to_string()),
         (header::PRAGMA, "no-cache".to_string()),
-        (header::TRANSFER_ENCODING, "chunked".to_string()),
     ];
 
     let data_queue = data_queue
         .into_iter()
-        .map(|bytes| -> Result<Vec<u8>, axum::Error> { Ok(bytes.to_vec()) })
+        .map(|bytes| -> Result<Vec<u8>, axum::Error> {Ok(bytes.to_vec()) })
         .collect::<Vec<_>>();
+
+    if data_queue.is_empty() {
+        return (StatusCode::NOT_FOUND, default_header, Body::default());
+    }
+
     let data_queue = futures_util::stream::iter(data_queue);
-    (StatusCode::OK, header, Body::from_stream(data_queue))
-    //todo!()
+     
+    let body = Body::from_stream(data_queue); 
+    (StatusCode::OK, header, body)
 }

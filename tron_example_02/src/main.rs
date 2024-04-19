@@ -183,6 +183,7 @@ fn toggle_recording(
             let mut components_guard = context_guard.components.write().await;
             let rec_button = components_guard.get_mut(&rec_button_id).unwrap();
             previous_rec_button_value = (*rec_button.value()).clone();
+            
             if let ComponentValue::String(value) = rec_button.value() {
                 match value.as_str() {
                     "Stop Recording" => {
@@ -202,12 +203,14 @@ fn toggle_recording(
                 match value.as_str() {
                     "Stop Recording" => {
                         {
-                            let context_guard = context.read().await;
-                            let mut components_guard = context_guard.components.write().await;
-                            let recorder_id = context_guard.get_component_id("recorder");
-                            let recorder = components_guard.get_mut(&recorder_id).unwrap();
-                            recorder.set_value(ComponentValue::String("Paused".into()));
-                            recorder.set_state(ComponentState::Updating);
+                            context_set_value_for(
+                                &context,
+                                "recorder",
+                                ComponentValue::String("Paused".into()),
+                            )
+                            .await;
+                            context_set_state_for(&context, "recorder", ComponentState::Updating)
+                                .await;
                             let mut delay =
                                 tokio::time::interval(tokio::time::Duration::from_millis(300));
                             delay.tick().await; //The first tick completes immediately.
@@ -221,6 +224,7 @@ fn toggle_recording(
                             };
                             send_sse_msg_to_client(&sse_tx, msg).await;
                         }
+
                         {
                             let context_guard = context.read().await;
                             let components_guard = context_guard.components.read().await;
@@ -228,6 +232,7 @@ fn toggle_recording(
                             let recorder = components_guard.get(&recorder_id).unwrap().as_ref();
                             audio_recorder::write_audio_data_to_file(recorder);
                         }
+                        
                         let msg = SseTriggerMsg {
                             server_side_trigger: TriggerData {
                                 target: "player".into(),
@@ -237,14 +242,14 @@ fn toggle_recording(
                         send_sse_msg_to_client(&sse_tx, msg).await;
                     }
                     "Start Recording" => {
-                        {
-                            let context_guard = context.read().await;
-                            let recorder_id = context_guard.get_component_id("recorder");
-                            let mut components_guard = context_guard.components.write().await;
-                            let recorder = components_guard.get_mut(&recorder_id).unwrap();
-                            recorder.set_value(ComponentValue::String("Recording".into()));
-                            recorder.set_state(ComponentState::Updating);
-                        }
+                        context_set_value_for(
+                            &context,
+                            "recorder",
+                            ComponentValue::String("Recording".into()),
+                        )
+                        .await;
+                        context_set_state_for(&context, "recorder", ComponentState::Updating).await;
+
                         {
                             let context_guard = context.write().await;
                             let mut stream_data_guard = context_guard.stream_data.write().await;

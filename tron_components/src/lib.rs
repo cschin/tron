@@ -130,6 +130,36 @@ impl<'a> Context<'a> {
     }
 }
 
+
+pub async fn context_set_value_for(locked_context: &Arc<RwLock<Context<'static>>>, tron_id: &str, v: ComponentValue) {
+    let context_guard = locked_context.read().await;
+    let mut components_guard = context_guard.components.write().await;
+    let component_id = context_guard.get_component_id(tron_id);
+    let component = components_guard.get_mut(&component_id).unwrap();
+    component.set_value(v);
+}
+
+pub async fn context_set_state_for(locked_context: &Arc<RwLock<Context<'static>>>, tron_id: &str, s: ComponentState) {
+    let context_guard = locked_context.read().await;
+    let mut components_guard = context_guard.components.write().await;
+    let component_id = context_guard.get_component_id(tron_id);
+    let component = components_guard.get_mut(&component_id).unwrap();
+    component.set_state(s);
+}
+
+pub async fn context_get_value_for(locked_context: &Arc<RwLock<Context<'static>>>, tron_id: &str) -> ComponentValue {
+    let value =  {
+        let context_guard = locked_context.read().await;
+        let components_guard = context_guard.components.read().await;
+        let component_id = context_guard.get_component_id(tron_id);
+        let components_guard =  
+        components_guard.get(&component_id).unwrap();
+        components_guard.value().clone()
+    }; 
+    value
+}
+
+
 impl<'a> Default for Context<'a> {
     fn default() -> Self {
         Self::new()

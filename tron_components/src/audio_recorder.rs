@@ -15,10 +15,10 @@ impl<'a> TnAudioRecorder<'a> {
             "hx-vals".into(),
             r##"js:{event_data:get_event(event), audio_data: event.detail.audio_data, streaming: event.detail.streaming}"##.into(),
         );
-        component_base.assets = Some(HashMap::<String, ComponentAsset>::default());
+        component_base.assets = Some(HashMap::<String, TnAsset>::default());
         component_base.assets.as_mut().unwrap().insert(
             "audio_data".into(),
-            ComponentAsset::Bytes(BytesMut::default()),
+            TnAsset::Bytes(BytesMut::default()),
         );
         Self {
             inner: component_base,
@@ -54,16 +54,16 @@ impl<'a> TnAudioRecorder<'a> {
 
 pub fn get_mut_audio_asset<'a>(
     comp: &'a mut Box<dyn ComponentBaseTrait<'static>>,
-) -> &'a mut ComponentAsset {
+) -> &'a mut TnAsset {
     comp.get_mut_assets()
         .unwrap()
         .entry("audio_data".into())
-        .or_insert(ComponentAsset::Bytes(BytesMut::default()))
+        .or_insert(TnAsset::Bytes(BytesMut::default()))
 }
 
 pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_bytes: Bytes) {
     let e = get_mut_audio_asset(comp);
-    if let ComponentAsset::Bytes(audio_data) = e {
+    if let TnAsset::Bytes(audio_data) = e {
         (*audio_data).extend_from_slice(&new_bytes);
         println!("new stream data size: {}", (*audio_data).len());
     }
@@ -71,7 +71,7 @@ pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_by
 
 pub fn clear_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>) {
     let e = get_mut_audio_asset(comp);
-    if let ComponentAsset::Bytes(audio_data) = e {
+    if let TnAsset::Bytes(audio_data) = e {
         (*audio_data).clear();
     }
 }
@@ -84,7 +84,7 @@ pub fn write_audio_data_to_file(comp: &dyn ComponentBaseTrait<'static>) {
         .get("audio_data")
         .unwrap();
 
-    if let ComponentAsset::Bytes(audio_data) = e {
+    if let TnAsset::Bytes(audio_data) = e {
         let uid = uuid::Uuid::new_v4();
         let filename = std::path::Path::new("output").join(format!("{}.webm", uid));
         let mut file = std::fs::File::create(filename.clone()).unwrap();

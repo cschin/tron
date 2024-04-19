@@ -16,3 +16,6 @@ base64 = "0.22.0"
 askama = "0.12.1"
 uuid = { version = "1.8.0", features = ["v4"] }
 bytes = "1.6.0"
+deepgram = { path ="/Users/cschin/Sandbox/html_audio/deepgram-rust-sdk/" }
+lazy_static = "1.4.0"
+tokio-stream = "0.1.15"

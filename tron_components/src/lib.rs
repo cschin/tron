@@ -1,13 +1,18 @@
-pub mod audio_recorder;
 pub mod audio_player;
+pub mod audio_recorder;
 pub mod button;
 pub mod text;
 
-use std::{collections::{HashMap, VecDeque}, pin::Pin, sync::Arc};
-use tokio::sync::oneshot;
+use std::{
+    collections::{HashMap, VecDeque},
+    pin::Pin,
+    sync::Arc,
+};
+use tokio::sync::mpsc::Receiver;
+use tokio::sync::{oneshot, Mutex};
 
-pub use audio_recorder::TnAudioRecorder;
 pub use audio_player::TnAudioPlayer;
+pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
 use serde_json::Value;
 pub use text::TnTextArea;
@@ -29,7 +34,7 @@ pub enum ComponentValue {
     String(String),
 }
 #[derive(Debug, Clone)]
-pub enum ComponentAsset {
+pub enum TnAsset {
     None,
     VecU8(Vec<u8>),
     String(String),
@@ -51,7 +56,7 @@ pub struct ComponentBase<'a> {
     pub tron_id: String,
     pub attributes: ElmAttributes,
     pub value: ComponentValue,
-    pub assets: Option<HashMap<String, ComponentAsset>>,
+    pub assets: Option<HashMap<String, TnAsset>>,
     pub state: ComponentState,
     pub children: Option<Vec<&'a ComponentBase<'a>>>, // general storage
 }
@@ -63,22 +68,34 @@ pub struct ServiceRequestMessage {
     pub response: oneshot::Sender<String>,
 }
 
+#[derive(Debug)]
+pub struct ServiceResponseMessage {
+    pub response: String,
+    pub payload: Vec<u8>,
+}
+
 pub struct Context<'a> {
     pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
-    pub stream_data: HashMap<String, (String, VecDeque<BytesMut>)>, 
-    pub assets: HashMap<String, Vec<u8>>,
+    pub stream_data: HashMap<String, (String, VecDeque<BytesMut>)>,
+    pub assets: Arc<RwLock<HashMap<String, Vec<TnAsset>>>>,
     pub tron_id_to_id: HashMap<String, u32>,
-    pub services: HashMap<String, Sender<ServiceRequestMessage>>, 
+    pub services: HashMap<
+        String,
+        (
+            Sender<ServiceRequestMessage>,
+            Mutex<Option<Receiver<ServiceResponseMessage>>>,
+        ),
+    >,
 }
 
 impl<'a> Context<'a> {
     pub fn new() -> Self {
         Context {
             components: HashMap::default(),
-            assets: HashMap::default(),
+            assets: Arc::new(RwLock::new(HashMap::default())),
             tron_id_to_id: HashMap::default(),
-            stream_data: HashMap::default(), 
-            services: HashMap::default(),  
+            stream_data: HashMap::default(),
+            services: HashMap::default(),
         }
     }
 
@@ -132,8 +149,8 @@ pub trait ComponentBaseTrait<'a>: Send + Sync {
     fn set_value(&mut self, value: ComponentValue);
     fn state(&self) -> &ComponentState;
     fn set_state(&mut self, state: ComponentState);
-    fn get_assets(&self) -> Option<&HashMap<String, ComponentAsset>>;
-    fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, ComponentAsset>>;
+    fn get_assets(&self) -> Option<&HashMap<String, TnAsset>>;
+    fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
     fn render(&self) -> Html<String>;
     fn render_to_string(&self) -> String;
     fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>>;
@@ -233,7 +250,7 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
         &self.state
     }
 
-    fn get_assets(&self) -> Option<&HashMap<String, ComponentAsset>> {
+    fn get_assets(&self) -> Option<&HashMap<String, TnAsset>> {
         if let Some(assets) = self.assets.as_ref() {
             Some(assets)
         } else {
@@ -241,7 +258,7 @@ impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
         }
     }
 
-    fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, ComponentAsset>> {
+    fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>> {
         if let Some(assets) = self.assets.as_mut() {
             Some(assets)
         } else {

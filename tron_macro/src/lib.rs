@@ -48,12 +48,12 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.inner.set_state(new_state);
             }
 
-            fn get_assets(&self) -> Option<&HashMap<String, ComponentAsset>> {
+            fn get_assets(&self) -> Option<&HashMap<String, TnAsset>> {
                 self.inner.get_assets()
             }
 
 
-            fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, ComponentAsset>> {
+            fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>> {
                 self.inner.get_mut_assets()
             }
 

@@ -8,8 +8,7 @@ use base64::prelude::*;
 use bytes::{BufMut, BytesMut};
 use serde_json::Value;
 use tokio::sync::{
-    mpsc::{Receiver, Sender},
-    RwLock,
+    mpsc::{Receiver, Sender}, Mutex, RwLock
 };
 #[allow(unused_imports)]
 use tracing::debug;
@@ -18,12 +17,20 @@ use tron_app::{
 };
 use tron_components::*;
 //use std::sync::Mutex;
+use futures_util::StreamExt;
+use lazy_static::lazy_static;
 use std::{
     collections::{HashMap, VecDeque},
     pin::Pin,
     sync::Arc,
 };
 use tokio::sync::oneshot;
+use tokio_stream::wrappers::ReceiverStream;
+
+lazy_static! {
+    static ref DG: deepgram::Deepgram =
+        deepgram::Deepgram::new(std::env::var("DG_API_KEY").unwrap());
+}
 
 #[tokio::main]
 async fn main() {
@@ -63,12 +70,24 @@ fn build_session_context() -> Context<'static> {
 
     // add service
     {
-        let (tx, rx) = tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
-        context
-            .services
-            .insert("transcript_service".into(), tx.clone());
+        let (request_tx, request_rx) = tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
+        let (response_tx, mut response_rx) = tokio::sync::mpsc::channel::<ServiceResponseMessage>(1);
+        context.services.insert(
+            "transcript_service".into(),
+            (request_tx.clone(), Mutex::new(None)),
+        );
         //services_guide.insert("transcript_service".into(), tx.clone());
-        tokio::task::spawn(transcript_service(rx));
+        tokio::task::spawn(transcript_service(request_rx, response_tx));
+        let assets = context.assets.clone();
+        tokio::task::spawn(async move { 
+            while  let Some(response) = response_rx.recv().await {
+                let transcript = response.payload;
+                let mut assets_guard = assets.write().await;
+                let e = assets_guard.entry("transcript".into()).or_default();
+                (*e).push(TnAsset::String(String::from_utf8_lossy(&transcript).to_string()));
+                //println!("recorded transcript: {}", String::from_utf8((*e).clone()).unwrap());
+            }
+        });
     }
 
     {
@@ -277,11 +296,11 @@ fn audio_input_stream_processing(
             }
             {
                 let context_guard = context.read().await;
-                let trx_srv = context_guard.services.get("transcript_service").unwrap();
+                let (trx_srv, _) = context_guard.services.get("transcript_service").unwrap();
                 let (tx, rx) = oneshot::channel::<String>();
                 let trx_req_msg = ServiceRequestMessage {
-                    request: "Here I am".into(),
-                    payload: Vec::default(),
+                    request: "sending audio:".into(),
+                    payload: chunk.to_vec(),
                     response: tx,
                 };
                 let _ = trx_srv.send(trx_req_msg).await;
@@ -295,9 +314,91 @@ fn audio_input_stream_processing(
     Box::pin(f)
 }
 
-async fn transcript_service(mut rx: Receiver<ServiceRequestMessage>) {
-    while let Some(req) = rx.recv().await {
-        println!("req received: {}", req.request);
-        let _ = req.response.send("the response".to_string());
+async fn transcript_service(
+    mut rx: Receiver<ServiceRequestMessage>,
+    tx: Sender<ServiceResponseMessage>,
+) {
+    let (audio_tx, audio_rx) = tokio::sync::mpsc::channel::<Result<Bytes, axum::Error>>(1);
+    let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<(String, bool)>(1);
+
+    tokio::spawn(dg_trx(audio_rx, transcript_tx));
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    tokio::spawn(async move {
+        while let Some(req) = rx.recv().await {
+            println!(
+                "req received: {}, payload: {}",
+                req.request,
+                req.payload.len()
+            );
+            let _ = audio_tx.send(Ok(Bytes::from_iter(req.payload))).await;
+            let _ = req.response.send("audio sent to trx service".to_string());
+        }
+    });
+    while let Some(trx_rtn) = transcript_rx.recv().await {
+        println!("trx_rtn: {}", trx_rtn.0);
+        let _ = tx.send(ServiceResponseMessage { response: "response".to_string(), payload: trx_rtn.0.as_bytes().to_vec() }).await;
     }
+}
+
+use deepgram::transcription::live::StreamResponse::{TerminalResponse, TranscriptResponse};
+async fn dg_trx(
+    audio_rx: Receiver<Result<Bytes, axum::Error>>,
+    transcript_tx: Sender<(String, bool)>,
+) -> Result<(), deepgram::DeepgramError> {
+    let data_stream = ReceiverStream::new(audio_rx);
+    let dg_trx = DG.transcription();
+
+    let mut results = dg_trx
+        .stream_request()
+        .stream(data_stream)
+        .start()
+        .await
+        .unwrap();
+    loop {
+        if let Some(result) = results.next().await {
+            match result {
+                Ok(r) => match r {
+                    TranscriptResponse {
+                        duration,
+                        is_final,
+                        speech_final,
+                        channel,
+                    } => {
+                        println!("duration: {}", duration);
+                        println!("is_final; {}", is_final);
+                        println!("speech_final: {}", speech_final);
+                        let transcript = channel.alternatives[0].transcript.clone();
+                        println!("{:?}", channel);
+                        transcript_tx
+                            .send((transcript, speech_final))
+                            .await
+                            .expect("transcript send fail");
+                    }
+                    TerminalResponse {
+                        request_id,
+                        created,
+                        duration,
+                        channels,
+                    } => {
+                        println!("terminal request_id {:?}", request_id);
+                        println!("terminal created {:?}", created);
+                        println!("terminal duration {:?}", duration);
+                        println!("terminal channels {:?}", channels);
+                        break;
+                    }
+                },
+                Err(e) => {
+                    println!("Err {:?}", e);
+                    return Err(e);
+                }
+            }
+        } else {
+            println!("session listener loop end, last results:: {:?}", results);
+            break;
+        }
+    }
+
+    println!("session listener final end");
+
+    Ok(())
 }

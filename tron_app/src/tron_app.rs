@@ -21,7 +21,7 @@ use tron_components::{
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
 use time::Duration;
-use tower_http::{cors::CorsLayer, follow_redirect::policy::PolicyExt};
+use tower_http::cors::CorsLayer;
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
@@ -145,10 +145,12 @@ async fn load_page(
         let e = session_contexts
             .entry(session_id)
             .or_insert(Arc::new(RwLock::new(context)));
-        let mut context_guard = e.write().await;
-        let (tx, rx) = tokio::sync::mpsc::channel(16);
-        context_guard.sse_channels =
-            Arc::new(RwLock::new(Some(SseMessageChannel { tx, rx: Some(rx) })));
+        {
+            let context_guard = e.read().await;
+            let (tx, rx) = tokio::sync::mpsc::channel(16);
+            let mut sse_channels_guard = context_guard.sse_channels.write().await;
+            *sse_channels_guard = Some(SseMessageChannel { tx, rx: Some(rx) });
+        }
     };
 
     let mut app_event_action_guard = app_data.event_actions.write().await;
@@ -236,7 +238,7 @@ async fn tron_entry(
             {
                 let session_context_guard = app_data.session_context.read().await;
                 let session_context = session_context_guard.get(&session_id).unwrap().clone();
-                let mut context_guard = session_context.write().await;
+                let context_guard = session_context.write().await;
                 let id = context_guard.get_component_id(&evt.e_target.clone());
                 let mut components_guard = context_guard.components.write().await;
                 let component = components_guard.get_mut(&id).unwrap();

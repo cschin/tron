@@ -1,5 +1,5 @@
 use askama::Template;
-use futures_util::Future;
+use futures_util::{stream, Future};
 
 use axum::body::Bytes;
 use serde::Deserialize;
@@ -80,12 +80,22 @@ fn build_session_context() -> Context<'static> {
         tokio::task::spawn(transcript_service(request_rx, response_tx));
         let assets = context.assets.clone();
         //let stream_data = context.stream_data.clone();
-        //let sse_tx = context.sse_channels.as_ref().unwrap().tx.clone();
+        let sse_tx = context.sse_channels.clone();
         tokio::task::spawn(async move {
-            //let sse_tx = sse_tx;
+            let sse_tx = sse_tx;
+            //let stream_data = stream_data;
+
+            {
+                println!("set lock");
+                let sse_tx_guard = sse_tx.read().await;
+                println!("debug: sse_tx_is_none: {}", sse_tx_guard.is_none());
+            }
             //let _ = sse_tx.send("value".to_string()).await;
             while let Some(response) = response_rx.recv().await {
                 if let TnAsset::String(transcript) = response.payload {
+                    println!("set lock");
+                    let sse_tx_guard = sse_tx.read().await;
+                    println!("debug: sse_tx_is_none: {}", sse_tx_guard.is_none());
                     let mut assets_guard = assets.write().await;
                     let e = assets_guard.entry("transcript".into()).or_default();
                     println!("recorded transcript: {:?}", transcript);
@@ -96,10 +106,9 @@ fn build_session_context() -> Context<'static> {
     }
 
     {
-        let mut stream_data_guard = context
-            .stream_data.blocking_write();
-        
-            stream_data_guard.insert("player".into(), ("audio/webm".into(), VecDeque::default()));
+        let mut stream_data_guard = context.stream_data.blocking_write();
+
+        stream_data_guard.insert("player".into(), ("audio/webm".into(), VecDeque::default()));
     }
 
     //components.component_layout = Some(layout(&components));
@@ -169,7 +178,6 @@ fn toggle_recording(
             channel_guard.as_ref().unwrap().tx.clone()
         };
         {
-            
             let context_guard = context.read().await;
             let rec_button_id = context_guard.get_component_id(&event.e_target);
             let mut components_guard = context_guard.components.write().await;
@@ -239,12 +247,9 @@ fn toggle_recording(
                         }
                         {
                             let context_guard = context.write().await;
-                            let mut stream_data_guard = context_guard.stream_data.write().await; 
-                            stream_data_guard
-                                .get_mut("player")
-                                .unwrap()
-                                .1
-                                .clear(); // clear the stream buffer
+                            let mut stream_data_guard = context_guard.stream_data.write().await;
+                            stream_data_guard.get_mut("player").unwrap().1.clear();
+                            // clear the stream buffer
                         }
                         let msg = SseAudioRecorderTriggerMsg {
                             server_side_trigger: TriggerData {
@@ -338,7 +343,6 @@ async fn transcript_service(
     mut rx: Receiver<ServiceRequestMessage>,
     tx: Sender<ServiceResponseMessage>,
 ) {
-
     let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<String>(1);
     tokio::spawn(async move {
         loop {

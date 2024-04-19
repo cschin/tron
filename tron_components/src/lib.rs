@@ -39,7 +39,7 @@ pub enum TnAsset {
     VecU8(Vec<u8>),
     String(String),
     Bytes(BytesMut),
-    Value(Value) //json
+    Value(Value), //json
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -97,16 +97,13 @@ pub struct Context<'a> {
 
 impl<'a> Context<'a> {
     pub fn new() -> Self {
-        
-
         Context {
             components: Arc::new(RwLock::new(HashMap::default())),
             assets: Arc::new(RwLock::new(HashMap::default())),
             tron_id_to_id: HashMap::default(),
             stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
-            sse_channels: Arc::new(RwLock::new(None))
-           
+            sse_channels: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -118,16 +115,12 @@ impl<'a> Context<'a> {
         self.tron_id_to_id.insert(tron_id, id);
     }
 
-    pub fn get_component_id(
-        &self,
-        tron_id: &str,
-    ) -> u32 {
+    pub fn get_component_id(&self, tron_id: &str) -> u32 {
         *self
             .tron_id_to_id
             .get(tron_id)
             .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id))
     }
-
 
     pub fn render_to_string(&self, tron_id: &str) -> String {
         let id = self.get_component_id(tron_id);

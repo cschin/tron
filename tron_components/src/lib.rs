@@ -39,6 +39,7 @@ pub enum TnAsset {
     VecU8(Vec<u8>),
     String(String),
     Bytes(BytesMut),
+    Value(Value) //json
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -64,14 +65,14 @@ pub struct ComponentBase<'a> {
 #[derive(Debug)]
 pub struct ServiceRequestMessage {
     pub request: String,
-    pub payload: Vec<u8>,
+    pub payload: TnAsset,
     pub response: oneshot::Sender<String>,
 }
 
 #[derive(Debug)]
 pub struct ServiceResponseMessage {
     pub response: String,
-    pub payload: Vec<u8>,
+    pub payload: TnAsset,
 }
 
 pub struct Context<'a> {

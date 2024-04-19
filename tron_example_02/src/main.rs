@@ -77,10 +77,13 @@ fn build_session_context() -> Context<'static> {
             "transcript_service".into(),
             (request_tx.clone(), Mutex::new(None)),
         );
-        //services_guide.insert("transcript_service".into(), tx.clone());
         tokio::task::spawn(transcript_service(request_rx, response_tx));
         let assets = context.assets.clone();
+        //let stream_data = context.stream_data.clone();
+        let sse_tx = context.sse_channels.as_ref().unwrap().tx.clone();
         tokio::task::spawn(async move {
+            let sse_tx = sse_tx;
+            let _ = sse_tx.send("value".to_string()).await;
             while let Some(response) = response_rx.recv().await {
                 if let TnAsset::String(transcript) = response.payload {
                     let mut assets_guard = assets.write().await;
@@ -93,9 +96,10 @@ fn build_session_context() -> Context<'static> {
     }
 
     {
-        context
-            .stream_data
-            .insert("player".into(), ("audio/webm".into(), VecDeque::default()));
+        let mut stream_data_guard = context
+            .stream_data.blocking_write();
+        
+            stream_data_guard.insert("player".into(), ("audio/webm".into(), VecDeque::default()));
     }
 
     //components.component_layout = Some(layout(&components));
@@ -161,9 +165,8 @@ fn toggle_recording(
         let previous_rec_button_value;
         let sse_tx = {
             let context_guard = context.read().await;
-            context_guard.sse_channels.tx.clone()
+            context_guard.sse_channels.as_ref().unwrap().tx.clone()
         };
-
         {
             
             let mut context_guard = context.write().await;
@@ -226,9 +229,9 @@ fn toggle_recording(
                             recorder.set_state(ComponentState::Updating);
                         }
                         {
-                            let mut context_guard = context.write().await;
-                            context_guard
-                                .stream_data
+                            let context_guard = context.write().await;
+                            let mut stream_data_guard = context_guard.stream_data.write().await; 
+                            stream_data_guard
                                 .get_mut("player")
                                 .unwrap()
                                 .1
@@ -294,8 +297,9 @@ fn audio_input_stream_processing(
                 audio_recorder::append_audio_data(recorder, chunk.clone());
             }
             {
-                let mut context_guard = context.write().await;
-                let player_data = context_guard.stream_data.get_mut("player").unwrap();
+                let context_guard = context.write().await;
+                let mut stream_data_guard = context_guard.stream_data.write().await;
+                let player_data = stream_data_guard.get_mut("player").unwrap();
                 let mut data = BytesMut::new();
                 data.put(&chunk[..]);
                 player_data.1.push_back(data);

@@ -82,7 +82,7 @@ pub struct SseMessageChannel {
 
 pub struct Context<'a> {
     pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
-    pub stream_data: HashMap<String, (String, VecDeque<BytesMut>)>,
+    pub stream_data: Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>,
     pub assets: Arc<RwLock<HashMap<String, Vec<TnAsset>>>>,
     pub tron_id_to_id: HashMap<String, u32>,
     pub services: HashMap<
@@ -92,20 +92,20 @@ pub struct Context<'a> {
             Mutex<Option<Receiver<ServiceResponseMessage>>>,
         ),
     >,
-    pub sse_channels: SseMessageChannel,
+    pub sse_channels: Option<SseMessageChannel>,
 }
 
 impl<'a> Context<'a> {
     pub fn new() -> Self {
-        let (tx, rx) = tokio::sync::mpsc::channel(16);
+        
 
         Context {
             components: HashMap::default(),
             assets: Arc::new(RwLock::new(HashMap::default())),
             tron_id_to_id: HashMap::default(),
-            stream_data: HashMap::default(),
+            stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
-            sse_channels: SseMessageChannel {tx, rx:Some(rx)} 
+            sse_channels: None
            
         }
     }

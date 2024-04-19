@@ -13,12 +13,10 @@ use axum::{
 use axum_server::tls_rustls::RustlsConfig;
 use serde::Deserialize;
 use serde_json::Value;
-use tokio::sync::{
-    mpsc::{Receiver, Sender},
-    RwLock,
-};
+use tokio::sync::RwLock;
 use tron_components::{
-    ActionExecutionMethod, ComponentId, ComponentState, Context, TnEvent, TnEventActions,
+    ActionExecutionMethod, ComponentId, ComponentState, Context, SseMessageChannel, TnEvent,
+    TnEventActions,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
@@ -41,7 +39,6 @@ struct Ports {
 
 pub type SessionContext =
     RwLock<HashMap<tower_sessions::session::Id, Arc<RwLock<Context<'static>>>>>;
-
 
 pub type EventActions = RwLock<TnEventActions>;
 
@@ -143,12 +140,15 @@ async fn load_page(
     };
 
     {
+        let context = tokio::task::block_in_place(|| (*app_data.build_session_context)());
         let mut session_contexts = app_data.session_context.write().await;
-        session_contexts
+        let e = session_contexts
             .entry(session_id)
-            .or_insert(Arc::new(RwLock::new((*app_data.build_session_context)())));
-    }
-
+            .or_insert(Arc::new(RwLock::new(context)));
+        let mut context_guard = e.write().await;
+        let (tx, rx) = tokio::sync::mpsc::channel(16);
+        context_guard.sse_channels = Some(SseMessageChannel { tx, rx: Some(rx) });
+    };
 
     let mut app_event_action_guard = app_data.event_actions.write().await;
     app_event_action_guard.clone_from(&(*app_data.build_session_actions)());
@@ -219,8 +219,7 @@ async fn tron_entry(
                 let session_context_guard = app_data.session_context.read().await;
                 let session_context = session_context_guard.get(&session_id).unwrap().clone();
                 let mut context_guard = session_context.write().await;
-                let component =
-                    context_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
+                let component = context_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
 
                 component.set_value(tron_components::ComponentValue::String(value));
             }
@@ -236,8 +235,7 @@ async fn tron_entry(
                 let session_context_guard = app_data.session_context.read().await;
                 let session_context = session_context_guard.get(&session_id).unwrap().clone();
                 let mut context_guard = session_context.write().await;
-                let component =
-                    context_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
+                let component = context_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
                 // println!("pending set");
                 if *component.state() == ComponentState::Ready {
                     component.set_state(ComponentState::Pending);
@@ -330,7 +328,7 @@ async fn sse_event_handler(
         let mut session_guard = app_data.session_context.write().await;
         let mut context_guard = session_guard.get_mut(&session_id).unwrap().write().await;
         let channel = &mut context_guard.sse_channels;
-        let rx = channel.rx.take().unwrap();
+        let rx = channel.as_mut().unwrap().rx.take().unwrap();
         ReceiverStream::new(rx).map(|v| Ok(sse::Event::default().data(v.clone())))
     };
 
@@ -369,18 +367,19 @@ async fn tron_stream(
     }
 
     {
-        let context_guard = app_data.session_context.read().await;
-        let context = context_guard.get(&session_id).unwrap().read().await;
-        let stream_data = &context.stream_data;
-        if !stream_data.contains_key(&stream_id) {
+        let session_guard = app_data.session_context.read().await;
+        let context_guard = session_guard.get(&session_id).unwrap().read().await;
+        let stream_data_guard = &context_guard.stream_data.read().await;
+        if !stream_data_guard.contains_key(&stream_id) {
             return (StatusCode::NOT_FOUND, default_header, Body::default());
         }
     }
 
     let (protocol, data_queue) = {
-        let context_guard = app_data.session_context.read().await;
-        let mut context = context_guard.get(&session_id).unwrap().write().await;
-        let channels = &mut context.stream_data;
+        let session_guard = app_data.session_context.read().await;
+        let context_guard = session_guard.get(&session_id).unwrap().write().await;
+        let mut channels = context_guard.stream_data.write().await;
+        //let channels = &mut stream_data_guard.stream_data;
 
         let (protocol, data_queue) = channels.get_mut(&stream_id).unwrap();
         let data_queue = data_queue.iter().cloned().collect::<Vec<_>>();
@@ -398,7 +397,7 @@ async fn tron_stream(
 
     let data_queue = data_queue
         .into_iter()
-        .map(|bytes| -> Result<Vec<u8>, axum::Error> {Ok(bytes.to_vec()) })
+        .map(|bytes| -> Result<Vec<u8>, axum::Error> { Ok(bytes.to_vec()) })
         .collect::<Vec<_>>();
 
     if data_queue.is_empty() {
@@ -406,7 +405,7 @@ async fn tron_stream(
     }
 
     let data_queue = futures_util::stream::iter(data_queue);
-     
-    let body = Body::from_stream(data_queue); 
+
+    let body = Body::from_stream(data_queue);
     (StatusCode::OK, header, body)
 }

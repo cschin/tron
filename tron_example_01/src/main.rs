@@ -38,7 +38,7 @@ fn test_evt_task(
         let mut i = 0;
         let sse_tx = {
             let context_guard = context.read().await;
-            context_guard.sse_channels.tx.clone()
+            context_guard.sse_channels.as_ref().unwrap().tx.clone()
         };
 
         debug!("Event: {:?}", event.clone());

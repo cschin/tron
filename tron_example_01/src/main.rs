@@ -1,9 +1,8 @@
 use askama::Template;
 use futures_util::Future;
 
-use axum::extract::Json;
 //use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc::Sender, RwLock};
+use tokio::sync::RwLock;
 
 use serde_json::Value;
 
@@ -20,7 +19,6 @@ async fn main() {
     // set app state
     let app_share_data = tron_app::AppData {
         session_context: RwLock::new(HashMap::default()),
-        session_sse_channels: RwLock::new(HashMap::default()),
         event_actions: RwLock::new(TnEventActions::default()),
         build_session_context: Arc::new(Box::new(build_session_context)),
         build_session_actions: Arc::new(Box::new(build_session_actions)),
@@ -31,13 +29,17 @@ async fn main() {
 
 fn test_evt_task(
     context: Arc<RwLock<Context<'static>>>,
-    tx: Sender<Json<Value>>,
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    
     let f = || async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
         let mut i = 0;
+        let sse_tx = {
+            let context_guard = context.read().await;
+            context_guard.sse_channels.tx.clone()
+        };
 
         debug!("Event: {:?}", event.clone());
         loop {
@@ -74,15 +76,13 @@ fn test_evt_task(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"updating" }} }}"##,
                 event.e_target
             );
-            let v: Value = serde_json::from_str(data.as_str()).unwrap();
-            if tx.send(axum::Json(v)).await.is_err() {
+            if sse_tx.send(data).await.is_err() {
                 debug!("tx dropped");
             }
 
             let data =
-                r##"{"server_side_trigger": { "target":"textarea", "new_state":"ready" } }"##;
-            let v: Value = serde_json::from_str(data).unwrap();
-            if tx.send(axum::Json(v)).await.is_err() {
+                r##"{"server_side_trigger": { "target":"textarea", "new_state":"ready" } }"##.to_string();
+            if sse_tx.send(data).await.is_err() {
                 debug!("tx dropped");
             }
 
@@ -102,8 +102,7 @@ fn test_evt_task(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"{}" }} }}"##,
                 event.e_target, "ready"
             );
-            let v: Value = serde_json::from_str(data.as_str()).unwrap();
-            if tx.send(axum::Json(v)).await.is_err() {
+            if sse_tx.send(data).await.is_err() {
                 println!("tx dropped");
             }
         }

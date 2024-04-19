@@ -1,14 +1,15 @@
 use askama::Template;
 use futures_util::Future;
 
-use axum::{body::Bytes, extract::Json};
+use axum::body::Bytes;
 use serde::Deserialize;
 //use serde::{Deserialize, Serialize};
 use base64::prelude::*;
 use bytes::{BufMut, BytesMut};
 use serde_json::Value;
 use tokio::sync::{
-    mpsc::{Receiver, Sender}, Mutex, RwLock
+    mpsc::{Receiver, Sender},
+    Mutex, RwLock,
 };
 #[allow(unused_imports)]
 use tracing::debug;
@@ -37,7 +38,6 @@ async fn main() {
     // set app state
     let app_share_data = tron_app::AppData {
         session_context: RwLock::new(HashMap::default()),
-        session_sse_channels: RwLock::new(HashMap::default()),
         event_actions: RwLock::new(TnEventActions::default()),
         build_session_context: Arc::new(Box::new(build_session_context)),
         build_session_actions: Arc::new(Box::new(build_session_actions)),
@@ -71,7 +71,8 @@ fn build_session_context() -> Context<'static> {
     // add service
     {
         let (request_tx, request_rx) = tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
-        let (response_tx, mut response_rx) = tokio::sync::mpsc::channel::<ServiceResponseMessage>(1);
+        let (response_tx, mut response_rx) =
+            tokio::sync::mpsc::channel::<ServiceResponseMessage>(1);
         context.services.insert(
             "transcript_service".into(),
             (request_tx.clone(), Mutex::new(None)),
@@ -79,13 +80,14 @@ fn build_session_context() -> Context<'static> {
         //services_guide.insert("transcript_service".into(), tx.clone());
         tokio::task::spawn(transcript_service(request_rx, response_tx));
         let assets = context.assets.clone();
-        tokio::task::spawn(async move { 
-            while  let Some(response) = response_rx.recv().await {
-                let transcript = response.payload;
-                let mut assets_guard = assets.write().await;
-                let e = assets_guard.entry("transcript".into()).or_default();
-                (*e).push(TnAsset::String(String::from_utf8_lossy(&transcript).to_string()));
-                //println!("recorded transcript: {}", String::from_utf8((*e).clone()).unwrap());
+        tokio::task::spawn(async move {
+            while let Some(response) = response_rx.recv().await {
+                if let TnAsset::String(transcript) = response.payload {
+                    let mut assets_guard = assets.write().await;
+                    let e = assets_guard.entry("transcript".into()).or_default();
+                    println!("recorded transcript: {:?}", transcript);
+                    (*e).push(TnAsset::String(transcript));
+                }
             }
         });
     }
@@ -152,13 +154,18 @@ fn build_session_actions() -> TnEventActions {
 
 fn toggle_recording(
     context: Arc<RwLock<Context<'static>>>,
-    tx: Sender<Json<Value>>,
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
         let previous_rec_button_value;
+        let sse_tx = {
+            let context_guard = context.read().await;
+            context_guard.sse_channels.tx.clone()
+        };
+
         {
+            
             let mut context_guard = context.write().await;
             let rec_button = context_guard.get_mut_component_by_tron_id(&event.e_target);
             previous_rec_button_value = (*rec_button.value()).clone();
@@ -196,7 +203,7 @@ fn toggle_recording(
                                 },
                                 audio_recorder_control: "stop".into(),
                             };
-                            send_sse_msg_to_client(&tx, msg).await;
+                            send_sse_msg_to_client(&sse_tx, msg).await;
                         }
                         {
                             let context_guard = context.read().await;
@@ -209,7 +216,7 @@ fn toggle_recording(
                                 new_state: "ready".into(),
                             },
                         };
-                        send_sse_msg_to_client(&tx, msg).await;
+                        send_sse_msg_to_client(&sse_tx, msg).await;
                     }
                     "Start Recording" => {
                         {
@@ -234,7 +241,7 @@ fn toggle_recording(
                             },
                             audio_recorder_control: "start".into(),
                         };
-                        send_sse_msg_to_client(&tx, msg).await;
+                        send_sse_msg_to_client(&sse_tx, msg).await;
                     }
                     _ => {}
                 }
@@ -246,7 +253,7 @@ fn toggle_recording(
                 new_state: "ready".into(),
             },
         };
-        send_sse_msg_to_client(&tx, msg).await;
+        send_sse_msg_to_client(&sse_tx, msg).await;
     };
 
     Box::pin(f)
@@ -259,7 +266,6 @@ struct AudioChunk {
 
 fn audio_input_stream_processing(
     context: Arc<RwLock<Context<'static>>>,
-    _tx: Sender<Json<Value>>,
     event: TnEvent,
     payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
@@ -300,7 +306,7 @@ fn audio_input_stream_processing(
                 let (tx, rx) = oneshot::channel::<String>();
                 let trx_req_msg = ServiceRequestMessage {
                     request: "sending audio:".into(),
-                    payload: chunk.to_vec(),
+                    payload: TnAsset::VecU8(chunk.to_vec()),
                     response: tx,
                 };
                 let _ = trx_srv.send(trx_req_msg).await;
@@ -318,34 +324,45 @@ async fn transcript_service(
     mut rx: Receiver<ServiceRequestMessage>,
     tx: Sender<ServiceResponseMessage>,
 ) {
-    let (audio_tx, audio_rx) = tokio::sync::mpsc::channel::<Result<Bytes, axum::Error>>(1);
-    let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<(String, bool)>(1);
 
-    tokio::spawn(dg_trx(audio_rx, transcript_tx));
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<String>(1);
     tokio::spawn(async move {
-        while let Some(req) = rx.recv().await {
-            println!(
-                "req received: {}, payload: {}",
-                req.request,
-                req.payload.len()
-            );
-            let _ = audio_tx.send(Ok(Bytes::from_iter(req.payload))).await;
-            let _ = req.response.send("audio sent to trx service".to_string());
+        loop {
+            println!("restart dg_trx");
+            let (audio_tx, audio_rx) = tokio::sync::mpsc::channel::<Result<Bytes, axum::Error>>(1);
+            let handle = tokio::spawn(dg_trx(audio_rx, transcript_tx.clone()));
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            while let Some(req) = rx.recv().await {
+                if let TnAsset::VecU8(payload) = req.payload {
+                    println!("req received: {}, payload: {}", req.request, payload.len());
+                    let _ = audio_tx.send(Ok(Bytes::from_iter(payload))).await;
+                    let _ = req.response.send("audio sent to trx service".to_string());
+                }
+                if handle.is_finished() {
+                    break;
+                }
+            }
         }
     });
     while let Some(trx_rtn) = transcript_rx.recv().await {
-        println!("trx_rtn: {}", trx_rtn.0);
-        let _ = tx.send(ServiceResponseMessage { response: "response".to_string(), payload: trx_rtn.0.as_bytes().to_vec() }).await;
+        println!("trx_rtn: {}", trx_rtn);
+        let _ = tx
+            .send(ServiceResponseMessage {
+                response: "response".to_string(),
+                payload: TnAsset::String(trx_rtn),
+            })
+            .await;
     }
 }
 
 use deepgram::transcription::live::StreamResponse::{TerminalResponse, TranscriptResponse};
 async fn dg_trx(
     audio_rx: Receiver<Result<Bytes, axum::Error>>,
-    transcript_tx: Sender<(String, bool)>,
+    transcript_tx: Sender<String>,
 ) -> Result<(), deepgram::DeepgramError> {
     let data_stream = ReceiverStream::new(audio_rx);
+    //let DG: deepgram::Deepgram =
+    //    deepgram::Deepgram::new(std::env::var("DG_API_KEY").unwrap());
     let dg_trx = DG.transcription();
 
     let mut results = dg_trx
@@ -367,10 +384,11 @@ async fn dg_trx(
                         println!("duration: {}", duration);
                         println!("is_final; {}", is_final);
                         println!("speech_final: {}", speech_final);
-                        let transcript = channel.alternatives[0].transcript.clone();
-                        println!("{:?}", channel);
+                        let transcript =
+                            serde_json::to_string(&(duration, is_final, speech_final, channel))
+                                .unwrap();
                         transcript_tx
-                            .send((transcript, speech_final))
+                            .send(transcript)
                             .await
                             .expect("transcript send fail");
                     }

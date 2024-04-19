@@ -75,6 +75,11 @@ pub struct ServiceResponseMessage {
     pub payload: TnAsset,
 }
 
+pub struct SseMessageChannel {
+    pub tx: Sender<String>,
+    pub rx: Option<Receiver<String>>, // this will be moved out and replaced by None
+}
+
 pub struct Context<'a> {
     pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
     pub stream_data: HashMap<String, (String, VecDeque<BytesMut>)>,
@@ -87,16 +92,21 @@ pub struct Context<'a> {
             Mutex<Option<Receiver<ServiceResponseMessage>>>,
         ),
     >,
+    pub sse_channels: SseMessageChannel,
 }
 
 impl<'a> Context<'a> {
     pub fn new() -> Self {
+        let (tx, rx) = tokio::sync::mpsc::channel(16);
+
         Context {
             components: HashMap::default(),
             assets: Arc::new(RwLock::new(HashMap::default())),
             tron_id_to_id: HashMap::default(),
             stream_data: HashMap::default(),
             services: HashMap::default(),
+            sse_channels: SseMessageChannel {tx, rx:Some(rx)} 
+           
         }
     }
 
@@ -293,7 +303,6 @@ pub struct TnEvent {
 use tokio::sync::{mpsc::Sender, RwLock};
 pub type ActionFn = fn(
     Arc<RwLock<Context<'static>>>,
-    Sender<axum::Json<serde_json::Value>>,
     event: TnEvent,
     payload: Value,
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;

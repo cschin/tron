@@ -38,15 +38,10 @@ struct Ports {
     http: u16,
     https: u16,
 }
-pub struct SessionMessageChannel {
-    tx: Sender<Json<Value>>,
-    rx: Option<Receiver<Json<Value>>>, // this will be moved out and replaced by None
-}
 
 pub type SessionContext =
     RwLock<HashMap<tower_sessions::session::Id, Arc<RwLock<Context<'static>>>>>;
 
-pub type SessionSeeChannels = RwLock<HashMap<tower_sessions::session::Id, SessionMessageChannel>>;
 
 pub type EventActions = RwLock<TnEventActions>;
 
@@ -56,7 +51,6 @@ type LayoutFunction = dyn Fn(&Context<'static>) -> String + Send + Sync;
 
 pub struct AppData {
     pub session_context: SessionContext,
-    pub session_sse_channels: SessionSeeChannels,
     pub event_actions: EventActions,
     pub build_session_context: Arc<Box<ContextBuilder>>,
     pub build_session_actions: Arc<Box<ActionFunctionTemplate>>,
@@ -155,17 +149,6 @@ async fn load_page(
             .or_insert(Arc::new(RwLock::new((*app_data.build_session_context)())));
     }
 
-    {
-        let mut session_app_sse_channels = app_data.session_sse_channels.write().await;
-        // we get new message channel for new session as the sse does not survived through reload
-        let (tx, rx) = tokio::sync::mpsc::channel(16);
-        session_app_sse_channels.insert(session_id, {
-            SessionMessageChannel {
-                tx: tx.clone(),
-                rx: Some(rx),
-            }
-        });
-    }
 
     let mut app_event_action_guard = app_data.event_actions.write().await;
     app_event_action_guard.clone_from(&(*app_data.build_session_actions)());
@@ -264,18 +247,11 @@ async fn tron_entry(
             let context_guard = app_data.session_context.read().await;
             let context = context_guard.get(&session_id).unwrap().clone();
 
-            let session_sse_channel_guard = app_data.session_sse_channels.read().await;
-            let tx = session_sse_channel_guard
-                .get(&session_id)
-                .unwrap()
-                .tx
-                .clone();
-
             let event_action_guard = app_data.event_actions.write().await;
             let (action_exec_method, action_generator) =
                 event_action_guard.get(&evt).unwrap().clone();
 
-            let action = action_generator(context, tx, evt, payload);
+            let action = action_generator(context, evt, payload);
             match action_exec_method {
                 ActionExecutionMethod::Spawn => {
                     tokio::task::spawn(action);
@@ -344,17 +320,18 @@ async fn sse_event_handler(
     };
 
     {
-        let channels_guard = app_data.session_sse_channels.read().await;
-        if !channels_guard.contains_key(&session_id) {
+        let context_guard = app_data.session_context.read().await;
+        if !context_guard.contains_key(&session_id) {
             return Err(StatusCode::FORBIDDEN);
         }
     }
 
     let stream = {
-        let mut channels_guard = app_data.session_sse_channels.write().await;
-        let channel = channels_guard.get_mut(&session_id).unwrap();
+        let mut session_guard = app_data.session_context.write().await;
+        let mut context_guard = session_guard.get_mut(&session_id).unwrap().write().await;
+        let channel = &mut context_guard.sse_channels;
         let rx = channel.rx.take().unwrap();
-        ReceiverStream::new(rx).map(|v| Ok(sse::Event::default().data(v.clone().to_string())))
+        ReceiverStream::new(rx).map(|v| Ok(sse::Event::default().data(v.clone())))
     };
 
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))

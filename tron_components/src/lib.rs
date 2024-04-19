@@ -84,6 +84,7 @@ pub struct Context<'a> {
     pub components: Arc<RwLock<HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>>>, // component ID mapped to Component structs
     pub stream_data: Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>,
     pub assets: Arc<RwLock<HashMap<String, Vec<TnAsset>>>>,
+    pub sse_channels: Arc<RwLock<Option<SseMessageChannel>>>,
     pub tron_id_to_id: HashMap<String, u32>,
     pub services: HashMap<
         String,
@@ -92,7 +93,6 @@ pub struct Context<'a> {
             Mutex<Option<Receiver<ServiceResponseMessage>>>,
         ),
     >,
-    pub sse_channels: Option<SseMessageChannel>,
 }
 
 impl<'a> Context<'a> {
@@ -105,7 +105,7 @@ impl<'a> Context<'a> {
             tron_id_to_id: HashMap::default(),
             stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
-            sse_channels: None
+            sse_channels: Arc::new(RwLock::new(None))
            
         }
     }

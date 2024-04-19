@@ -147,7 +147,8 @@ async fn load_page(
             .or_insert(Arc::new(RwLock::new(context)));
         let mut context_guard = e.write().await;
         let (tx, rx) = tokio::sync::mpsc::channel(16);
-        context_guard.sse_channels = Some(SseMessageChannel { tx, rx: Some(rx) });
+        context_guard.sse_channels =
+            Arc::new(RwLock::new(Some(SseMessageChannel { tx, rx: Some(rx) })));
     };
 
     let mut app_event_action_guard = app_data.event_actions.write().await;
@@ -155,7 +156,7 @@ async fn load_page(
 
     let session_components = app_data.session_context.read().await;
     let components = &session_components.get(&session_id).unwrap().read().await;
-    let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(components) );
+    let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(components));
     Ok(Html::from(layout))
 }
 
@@ -330,9 +331,9 @@ async fn sse_event_handler(
 
     let stream = {
         let mut session_guard = app_data.session_context.write().await;
-        let mut context_guard = session_guard.get_mut(&session_id).unwrap().write().await;
-        let channel = &mut context_guard.sse_channels;
-        let rx = channel.as_mut().unwrap().rx.take().unwrap();
+        let context_guard = session_guard.get_mut(&session_id).unwrap().write().await;
+        let mut channel_guard = context_guard.sse_channels.write().await;
+        let rx = channel_guard.as_mut().unwrap().rx.take().unwrap();
         ReceiverStream::new(rx).map(|v| Ok(sse::Event::default().data(v.clone())))
     };
 

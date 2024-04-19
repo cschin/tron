@@ -165,7 +165,8 @@ fn toggle_recording(
         let previous_rec_button_value;
         let sse_tx = {
             let context_guard = context.read().await;
-            context_guard.sse_channels.as_ref().unwrap().tx.clone()
+            let channel_guard = context_guard.sse_channels.read().await;
+            channel_guard.as_ref().unwrap().tx.clone()
         };
         {
             

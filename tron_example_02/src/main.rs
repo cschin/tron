@@ -80,10 +80,10 @@ fn build_session_context() -> Context<'static> {
         tokio::task::spawn(transcript_service(request_rx, response_tx));
         let assets = context.assets.clone();
         //let stream_data = context.stream_data.clone();
-        let sse_tx = context.sse_channels.as_ref().unwrap().tx.clone();
+        //let sse_tx = context.sse_channels.as_ref().unwrap().tx.clone();
         tokio::task::spawn(async move {
-            let sse_tx = sse_tx;
-            let _ = sse_tx.send("value".to_string()).await;
+            //let sse_tx = sse_tx;
+            //let _ = sse_tx.send("value".to_string()).await;
             while let Some(response) = response_rx.recv().await {
                 if let TnAsset::String(transcript) = response.payload {
                     let mut assets_guard = assets.write().await;
@@ -169,8 +169,10 @@ fn toggle_recording(
         };
         {
             
-            let mut context_guard = context.write().await;
-            let rec_button = context_guard.get_mut_component_by_tron_id(&event.e_target);
+            let context_guard = context.read().await;
+            let rec_button_id = context_guard.get_component_id(&event.e_target);
+            let mut components_guard = context_guard.components.write().await;
+            let rec_button = components_guard.get_mut(&rec_button_id).unwrap();
             previous_rec_button_value = (*rec_button.value()).clone();
             if let ComponentValue::String(value) = rec_button.value() {
                 match value.as_str() {
@@ -191,8 +193,10 @@ fn toggle_recording(
                 match value.as_str() {
                     "Stop Recording" => {
                         {
-                            let mut context_guard = context.write().await;
-                            let recorder = context_guard.get_mut_component_by_tron_id("recorder");
+                            let context_guard = context.read().await;
+                            let mut components_guard = context_guard.components.write().await;
+                            let recorder_id = context_guard.get_component_id("recorder");
+                            let recorder = components_guard.get_mut(&recorder_id).unwrap();
                             recorder.set_value(ComponentValue::String("Paused".into()));
                             recorder.set_state(ComponentState::Updating);
                             let mut delay =
@@ -210,7 +214,9 @@ fn toggle_recording(
                         }
                         {
                             let context_guard = context.read().await;
-                            let recorder = context_guard.get_component_by_tron_id("recorder");
+                            let components_guard = context_guard.components.read().await;
+                            let recorder_id = context_guard.get_component_id("recorder");
+                            let recorder = components_guard.get(&recorder_id).unwrap().as_ref();
                             audio_recorder::write_audio_data_to_file(recorder);
                         }
                         let msg = SseTriggerMsg {
@@ -223,8 +229,10 @@ fn toggle_recording(
                     }
                     "Start Recording" => {
                         {
-                            let mut context_guard = context.write().await;
-                            let recorder = context_guard.get_mut_component_by_tron_id("recorder");
+                            let context_guard = context.read().await;
+                            let recorder_id = context_guard.get_component_id("recorder");
+                            let mut components_guard = context_guard.components.write().await;
+                            let recorder = components_guard.get_mut(&recorder_id).unwrap();
                             recorder.set_value(ComponentValue::String("Recording".into()));
                             recorder.set_state(ComponentState::Updating);
                         }
@@ -292,8 +300,9 @@ fn audio_input_stream_processing(
             let chunk = Bytes::from(BASE64_STANDARD.decode(b64str).unwrap());
 
             {
-                let mut context_guard = context.write().await;
-                let recorder = context_guard.components.get_mut(&id).unwrap();
+                let context_guard = context.read().await;
+                let mut component_guard = context_guard.components.write().await;
+                let recorder = component_guard.get_mut(&id).unwrap();
                 audio_recorder::append_audio_data(recorder, chunk.clone());
             }
             {

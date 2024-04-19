@@ -32,7 +32,6 @@ fn test_evt_task(
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-    
     let f = || async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
         let mut i = 0;
@@ -44,32 +43,37 @@ fn test_evt_task(
         debug!("Event: {:?}", event.clone());
         loop {
             {
-                let mut context_guard = context.write().await;
-                let c = context_guard.get_mut_component_by_tron_id(&event.e_target);
-                let v = match c.value() {
-                    ComponentValue::String(s) => s.parse::<u32>().unwrap(),
-                    _ => 0,
-                };
-                c.set_value(ComponentValue::String(format!("{:02}", v + 1)));
-                c.set_state(ComponentState::Updating);
-
-                let origin_string = if let ComponentValue::String(origin_string) = context_guard
-                    .get_mut_component_by_tron_id("textarea")
-                    .value()
+                let context_guard = context.write().await;
+                let v;
                 {
-                    origin_string.clone()
-                } else {
-                    "".to_string()
-                };
+                    let id = context_guard.get_component_id(&event.e_target.clone());
+                    let mut components_guard = context_guard.components.write().await;
+                    let btn = components_guard.get_mut(&id).unwrap();
+                    v = match btn.value() {
+                        ComponentValue::String(s) => s.parse::<u32>().unwrap(),
+                        _ => 0,
+                    };
+                    btn.set_value(ComponentValue::String(format!("{:02}", v + 1)));
+                    btn.set_state(ComponentState::Updating);
+                }
 
-                context_guard
-                    .get_mut_component_by_tron_id("textarea")
-                    .set_value(ComponentValue::String(format!(
+                {
+                    let id = context_guard.get_component_id("textarea");
+                    let mut components_guard = context_guard.components.write().await;
+                    let text_area = components_guard.get_mut(&id).unwrap();
+                    let origin_string =
+                        if let ComponentValue::String(origin_string) = text_area.value() {
+                            origin_string.clone()
+                        } else {
+                            "".to_string()
+                        };
+                    text_area.set_value(ComponentValue::String(format!(
                         "{}\n {} -- {:02};",
                         origin_string,
                         event.e_target,
                         v + 1
                     )));
+                };
             }
 
             let data = format!(
@@ -81,7 +85,8 @@ fn test_evt_task(
             }
 
             let data =
-                r##"{"server_side_trigger": { "target":"textarea", "new_state":"ready" } }"##.to_string();
+                r##"{"server_side_trigger": { "target":"textarea", "new_state":"ready" } }"##
+                    .to_string();
             if sse_tx.send(data).await.is_err() {
                 debug!("tx dropped");
             }
@@ -95,9 +100,11 @@ fn test_evt_task(
             };
         }
         {
-            let mut context_guard = context.write().await;
-            let c = context_guard.get_mut_component_by_tron_id(&event.e_target);
-            c.set_state(ComponentState::Ready);
+            let context_guard = context.write().await;
+            let id = context_guard.get_component_id(&event.e_target.clone());
+            let mut components_guard = context_guard.components.write().await;
+            let btn = components_guard.get_mut(&id).unwrap();
+            btn.set_state(ComponentState::Ready);
             let data = format!(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"{}" }} }}"##,
                 event.e_target, "ready"
@@ -180,17 +187,26 @@ struct AppPageTemplate {
 fn layout(context: &Context) -> String {
     let buttons = (0..10)
         .map(|i| {
-            context
-                .get_component_by_tron_id(format!("btn-{:02}", i).as_str())
-                .render_to_string()
+            let mut components_guard = context.components.blocking_write();
+            let btn = components_guard.get_mut(&i).unwrap();
+            btn.render_to_string()
         })
         .collect::<Vec<String>>();
-    let textarea = context
-        .get_component_by_tron_id("textarea")
-        .render_to_string();
-    let textinput = context
-        .get_component_by_tron_id("textinput")
-        .render_to_string();
+
+    let textarea = {
+        let id = context.get_component_id("textarea");
+        let mut components_guard = context.components.blocking_write();
+        let textarea = components_guard.get_mut(&id).unwrap();
+        textarea.render_to_string()
+    };
+
+    let textinput = {
+        let id = context.get_component_id("textinput");
+        let mut components_guard = context.components.blocking_write();
+        let textinput = components_guard.get_mut(&id).unwrap();
+        textinput.render_to_string()
+    };
+    
     let html = AppPageTemplate {
         buttons,
         textarea,

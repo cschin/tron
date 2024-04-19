@@ -21,7 +21,7 @@ use tron_components::{
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
 use time::Duration;
-use tower_http::cors::CorsLayer;
+use tower_http::{cors::CorsLayer, follow_redirect::policy::PolicyExt};
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
@@ -155,8 +155,8 @@ async fn load_page(
 
     let session_components = app_data.session_context.read().await;
     let components = &session_components.get(&session_id).unwrap().read().await;
-
-    Ok(Html::from((*app_data.build_layout)(components)))
+    let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(components) );
+    Ok(Html::from(layout))
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -218,9 +218,10 @@ async fn tron_entry(
             if let Some(value) = event_data.e_value {
                 let session_context_guard = app_data.session_context.read().await;
                 let session_context = session_context_guard.get(&session_id).unwrap().clone();
-                let mut context_guard = session_context.write().await;
-                let component = context_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
-
+                let context_guard = session_context.write().await;
+                let id = context_guard.get_component_id(&evt.e_target.clone());
+                let mut components_guard = context_guard.components.write().await;
+                let component = components_guard.get_mut(&id).unwrap();
                 component.set_value(tron_components::ComponentValue::String(value));
             }
         }
@@ -235,7 +236,9 @@ async fn tron_entry(
                 let session_context_guard = app_data.session_context.read().await;
                 let session_context = session_context_guard.get(&session_id).unwrap().clone();
                 let mut context_guard = session_context.write().await;
-                let component = context_guard.get_mut_component_by_tron_id(&evt.e_target.clone());
+                let id = context_guard.get_component_id(&evt.e_target.clone());
+                let mut components_guard = context_guard.components.write().await;
+                let component = components_guard.get_mut(&id).unwrap();
                 // println!("pending set");
                 if *component.state() == ComponentState::Ready {
                     component.set_state(ComponentState::Pending);
@@ -268,7 +271,8 @@ async fn tron_entry(
         .await
         .components;
 
-    let target = components.get(&tron_id).unwrap();
+    let mut target_guard = components.write().await;
+    let target = target_guard.get_mut(&tron_id).unwrap();
     Ok(target.render())
 }
 

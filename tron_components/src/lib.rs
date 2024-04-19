@@ -81,7 +81,7 @@ pub struct SseMessageChannel {
 }
 
 pub struct Context<'a> {
-    pub components: HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>, // component ID mapped to Component structs
+    pub components: Arc<RwLock<HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>>>, // component ID mapped to Component structs
     pub stream_data: Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>,
     pub assets: Arc<RwLock<HashMap<String, Vec<TnAsset>>>>,
     pub tron_id_to_id: HashMap<String, u32>,
@@ -100,7 +100,7 @@ impl<'a> Context<'a> {
         
 
         Context {
-            components: HashMap::default(),
+            components: Arc::new(RwLock::new(HashMap::default())),
             assets: Arc::new(RwLock::new(HashMap::default())),
             tron_id_to_id: HashMap::default(),
             stream_data: Arc::new(RwLock::new(HashMap::default())),
@@ -113,33 +113,26 @@ impl<'a> Context<'a> {
     pub fn add_component(&mut self, new_component: impl ComponentBaseTrait<'a> + 'static) {
         let tron_id = new_component.tron_id().clone();
         let id = new_component.id();
-        self.components.insert(id, Box::new(new_component));
+        let mut component_guard = self.components.blocking_write();
+        component_guard.insert(id, Box::new(new_component));
         self.tron_id_to_id.insert(tron_id, id);
     }
 
-    pub fn get_component_by_tron_id(
+    pub fn get_component_id(
         &self,
         tron_id: &str,
-    ) -> &(dyn ComponentBaseTrait<'a> + 'static) {
-        let id = self
+    ) -> u32 {
+        *self
             .tron_id_to_id
             .get(tron_id)
-            .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id));
-        self.components.get(id).unwrap().as_ref()
-    }
-
-    pub fn get_mut_component_by_tron_id(
-        &mut self,
-        tron_id: &str,
-    ) -> &mut Box<dyn ComponentBaseTrait<'a> + 'static> {
-        let id = self.tron_id_to_id.get(tron_id).unwrap();
-        self.components
-            .get_mut(id)
             .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id))
     }
 
+
     pub fn render_to_string(&self, tron_id: &str) -> String {
-        let component = self.get_component_by_tron_id(tron_id);
+        let id = self.get_component_id(tron_id);
+        let component_guard = self.components.blocking_read();
+        let component = component_guard.get(&id).unwrap();
         component.render().0
     }
 }

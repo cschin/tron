@@ -25,7 +25,7 @@ impl<'a> Default for TnTextArea<'a> {
     fn default() -> Self {
         Self {
             inner: ComponentBase {
-                value: ComponentValue::String("input".to_string()),
+                value: ComponentValue::String("".into()),
                 ..Default::default()
             },
         }
@@ -40,11 +40,25 @@ impl<'a> TnTextArea<'a> {
             self.generate_attr_string(),
             match self.value() {
                 ComponentValue::String(s) => s,
-                _ => "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam eu pellentesque erat, ut sollicitudin nisi."
+                _ => "textarea",
             },
             self.inner.tag
         ))
     }
+}
+
+pub fn append_textarea_value(
+    comp: &mut Box<dyn ComponentBaseTrait<'static>>,
+    new_str: &str,
+    sep: Option<&str>,
+) {
+    let v = match comp.value() {
+        ComponentValue::String(s) => s.clone(),
+        _ => "".into(),
+    };
+    let v = [v, new_str.to_string()]; 
+    let sep = sep.unwrap_or("");
+    comp.set_value(ComponentValue::String(v.join(sep)));
 }
 
 #[derive(ComponentBase)]

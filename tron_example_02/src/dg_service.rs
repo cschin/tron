@@ -32,7 +32,7 @@ pub struct Channel {
 #[serde(untagged)]
 pub enum StreamResponse {
     UtteranceEnd {
-        last_word_end: f64
+        last_word_end: f64,
     },
     TranscriptResponse {
         duration: f64,
@@ -99,13 +99,15 @@ pub async fn trx_service(
     audio_rx: tokio::sync::mpsc::Receiver<Result<Bytes>>,
 ) -> Result<Receiver<Result<StreamResponse>>> {
     // This unwrap is safe because we're parsing a static.
-    let mut base =
-        Url::parse("wss://api.deepgram.com/v1/listen")
-            .unwrap();
-    base.query_pairs_mut().append_pair("endpointing", "1000");
-    base.query_pairs_mut().append_pair("utterance_end_ms", "1000");
-    base.query_pairs_mut().append_pair("interim_results", "true");
-    base.query_pairs_mut().append_pair("model", "nova-2-phonecall");
+    let mut base = Url::parse("wss://api.deepgram.com/v1/listen").unwrap();
+    
+    {
+        let query_pairs = &mut base.query_pairs_mut();
+        query_pairs.append_pair("endpointing", "1000");
+        query_pairs.append_pair("utterance_end_ms", "1000");
+        query_pairs.append_pair("interim_results", "true");
+        query_pairs.append_pair("model", "nova-2-phonecall");
+    }
 
     let api_key = std::env::var("DG_API_KEY").unwrap();
 

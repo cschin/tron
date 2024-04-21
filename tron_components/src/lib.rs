@@ -133,7 +133,7 @@ impl<'a: 'static> Context<'a>
 
 pub async fn context_set_value_for(
     locked_context: &Arc<RwLock<Context<'static>>>,
-    tron_id: &'static str,
+    tron_id: &str,
     v: ComponentValue,
 ) {
     let context_guard = locked_context.read().await;
@@ -145,7 +145,7 @@ pub async fn context_set_value_for(
 
 pub async fn context_set_state_for(
     locked_context: &Arc<RwLock<Context<'static>>>,
-    tron_id: &'static str,
+    tron_id: &str,
     s: ComponentState,
 ) {
     let context_guard = locked_context.read().await;
@@ -157,7 +157,7 @@ pub async fn context_set_state_for(
 
 pub async fn context_get_value_for(
     locked_context: &Arc<RwLock<Context<'static>>>,
-    tron_id: &'static str,
+    tron_id: &str,
 ) -> ComponentValue {
     let value = {
         let context_guard = locked_context.read().await;

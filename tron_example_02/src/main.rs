@@ -1,9 +1,12 @@
+mod dg_service;
+
 use askama::Template;
+use dg_service::{DeepgramError, StreamResponse};
 use futures_util::Future;
 
 use axum::body::Bytes;
-use serde::Deserialize;
 use data_encoding::BASE64;
+use serde::Deserialize;
 
 use bytes::{BufMut, BytesMut};
 use serde_json::Value;
@@ -25,10 +28,6 @@ use std::{
     sync::Arc,
 };
 use tokio::sync::oneshot;
-
-mod dg_service;
-use crate::dg_service::{StreamResponse::*, DeepgramError};
-
 
 #[tokio::main]
 async fn main() {
@@ -60,14 +59,22 @@ fn build_session_context() -> Context<'static> {
     context.add_component(recorder);
 
     component_id += 1;
-    let mut player = TnAudioPlayer::<'static>::new(component_id, "player".to_string(), "Paused".to_string());
+    let mut player =
+        TnAudioPlayer::<'static>::new(component_id, "player".to_string(), "Paused".to_string());
     player.set_attribute("class".to_string(), "flex-1".to_string());
     context.add_component(player);
 
     component_id += 1;
-    let transcript_area_id = component_id; 
-    let mut transcript_output = TnTextArea::<'static>::new(component_id, "transcript".to_string(), "Pending".to_string());
-    transcript_output.set_attribute("class".to_string(), "textarea textarea-bordered flex-1 min-h-80v".to_string());
+    let transcript_area_id = component_id;
+    let mut transcript_output = TnTextArea::<'static>::new(
+        component_id,
+        "transcript".to_string(),
+        "Pending".to_string(),
+    );
+    transcript_output.set_attribute(
+        "class".to_string(),
+        "textarea textarea-bordered flex-1 min-h-80v".to_string(),
+    );
     transcript_output.set_attribute(
         "hx-swap".into(),
         "outerHTML scroll:bottom focus-scroll:true".into(),
@@ -101,7 +108,8 @@ fn build_session_context() -> Context<'static> {
                     (*e).push(TnAsset::String(transcript.clone()));
                     {
                         let mut components_guard = components.write().await;
-                        let transcript_area = components_guard.get_mut(&transcript_area_id).unwrap();
+                        let transcript_area =
+                            components_guard.get_mut(&transcript_area_id).unwrap();
                         text::append_textarea_value(transcript_area, &transcript, Some("\n"));
                     }
                     {
@@ -112,7 +120,7 @@ fn build_session_context() -> Context<'static> {
                             },
                         };
                         let sse_tx_guard = sse_tx.read().await;
-                        let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone(); 
+                        let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
                         send_sse_msg_to_client(&sse_tx, msg).await;
                     }
                 }
@@ -201,7 +209,7 @@ fn toggle_recording(
             let mut components_guard = context_guard.components.write().await;
             let rec_button = components_guard.get_mut(&rec_button_id).unwrap();
             previous_rec_button_value = (*rec_button.value()).clone();
-            
+
             if let ComponentValue::String(value) = rec_button.value() {
                 match value.as_str() {
                     "Stop Recording" => {
@@ -243,9 +251,11 @@ fn toggle_recording(
                             send_sse_msg_to_client(&sse_tx, msg).await;
                         }
 
-                        { // ask the transcription service to stop
+                        {
+                            // ask the transcription service to stop
                             let context_guard = context.read().await;
-                            let (trx_srv, _) = context_guard.services.get("transcript_service").unwrap();
+                            let (trx_srv, _) =
+                                context_guard.services.get("transcript_service").unwrap();
                             let (tx, rx) = oneshot::channel::<String>();
                             let trx_req_msg = ServiceRequestMessage {
                                 request: "stop".into(),
@@ -256,7 +266,7 @@ fn toggle_recording(
                             if let Ok(out) = rx.await {
                                 println!("returned string: {}", out);
                             };
-                        } 
+                        }
 
                         // {
                         //     let context_guard = context.read().await;
@@ -381,34 +391,37 @@ async fn transcript_service(
     mut rx: Receiver<ServiceRequestMessage>,
     tx: Sender<ServiceResponseMessage>,
 ) {
-    let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<String>(1);
+    let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<StreamResponse>(1);
     tokio::spawn(async move {
-            println!("restart dg_trx");
-            let (mut audio_tx, audio_rx) = tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
-            let mut handle = tokio::spawn(dg_trx(audio_rx, transcript_tx.clone()));
-            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-            while let Some(req) = rx.recv().await {
-                if handle.is_finished() {
-                    audio_tx.closed().await;     
-                    let (audio_tx0, audio_rx) = tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
-                    audio_tx = audio_tx0;
-                    handle = tokio::spawn(dg_trx(audio_rx, transcript_tx.clone()));
-                    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-                }
-                if let TnAsset::VecU8(payload) = req.payload {
-                    println!("req received: {}, payload: {}", req.request, payload.len());
-                    let _ = audio_tx.send(Ok(Bytes::from_iter(payload))).await;
-                    let _ = req.response.send("audio sent to trx service".to_string());
-                }
+        println!("restart dg_trx");
+        let (mut audio_tx, audio_rx) =
+            tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
+        let mut handle = tokio::spawn(dg_trx(audio_rx, transcript_tx.clone()));
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        while let Some(req) = rx.recv().await {
+            if handle.is_finished() {
+                audio_tx.closed().await;
+                let (audio_tx0, audio_rx) =
+                    tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
+                audio_tx = audio_tx0;
+                handle = tokio::spawn(dg_trx(audio_rx, transcript_tx.clone()));
+                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
-            audio_tx.closed().await;
+            if let TnAsset::VecU8(payload) = req.payload {
+                println!("req received: {}, payload: {}", req.request, payload.len());
+                let _ = audio_tx.send(Ok(Bytes::from_iter(payload))).await;
+                let _ = req.response.send("audio sent to trx service".to_string());
+            }
+        }
+        audio_tx.closed().await;
     });
     while let Some(trx_rtn) = transcript_rx.recv().await {
-        println!("trx_rtn: {}", trx_rtn);
+        println!("trx_rtn: {:?}", trx_rtn);
+        let transcript = serde_json::to_string(&trx_rtn).unwrap();
         let _ = tx
             .send(ServiceResponseMessage {
                 response: "response".to_string(),
-                payload: TnAsset::String(trx_rtn),
+                payload: TnAsset::String(transcript),
             })
             .await;
     }
@@ -416,62 +429,20 @@ async fn transcript_service(
 
 async fn dg_trx(
     audio_rx: Receiver<Result<Bytes, DeepgramError>>,
-    transcript_tx: Sender<String>,
+    transcript_tx: Sender<StreamResponse>,
 ) -> Result<(), DeepgramError> {
-
-    let mut results = dg_service::trx_service(audio_rx).await.unwrap();
-    loop {
-        if let Some(result) = results.next().await {
-            match result {
-                Ok(r) => match r {
-                    TranscriptResponse {
-                        duration,
-                        is_final,
-                        speech_final,
-                        channel,
-                    } => {
-                        println!("duration: {}", duration);
-                        println!("is_final; {}", is_final);
-                        println!("speech_final: {}", speech_final);
-                        let transcript =
-                            serde_json::to_string(&(duration, is_final, speech_final, channel))
-                                .unwrap();
-                        transcript_tx
-                            .send(transcript)
-                            .await
-                            .expect("transcript send fail");
-                    }
-                    TerminalResponse {
-                        request_id,
-                        created,
-                        duration,
-                        channels,
-                    } => {
-                        println!("terminal request_id {:?}", request_id);
-                        println!("terminal created {:?}", created);
-                        println!("terminal duration {:?}", duration);
-                        println!("terminal channels {:?}", channels);
-                        break;
-                    },
-                    UtteranceEnd {
-                        last_word_end
-                    } => {
-                        println!("UtteranceEnd {}", last_word_end);
-                    }
-                },
-                Err(e) => {
-                    println!("Err {:?}", e);
-                    return Err(e);
-                }
+    let mut dg_response = dg_service::trx_service(audio_rx).await.unwrap();
+    while let Some(result) = dg_response.next().await {
+        match result {
+            Ok(r) => {
+                transcript_tx.send(r).await.expect("transcript send fail");
             }
-        } else {
-            println!("session listener loop end, last results:: {:?}", results);
-            break;
+            Err(e) => {
+                println!("Err {:?}", e);
+                return Err(e);
+            }
         }
     }
-    results.close();
-
-    println!("session listener final end");
-
+    drop(dg_response);
     Ok(())
 }

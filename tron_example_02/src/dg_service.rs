@@ -1,7 +1,7 @@
 use bytes::Bytes;
 use futures::channel::mpsc::Receiver;
-use futures::stream::StreamExt;
 use futures::sink::SinkExt;
+use futures::stream::StreamExt;
 use http::Request;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -99,7 +99,7 @@ pub async fn trx_service(
 ) -> Result<Receiver<Result<StreamResponse>>> {
     // This unwrap is safe because we're parsing a static.
     let mut base = Url::parse("wss://api.deepgram.com/v1/listen").unwrap();
-    
+
     {
         let query_pairs = &mut base.query_pairs_mut();
         query_pairs.append_pair("endpointing", "1000");
@@ -120,68 +120,51 @@ pub async fn trx_service(
         .header("upgrade", "websocket")
         .header("sec-websocket-version", "13")
         .body(())?;
-    let (ws_stream, response) = tokio_tungstenite::connect_async(request).await?;
-    println!("response: {:?}", response);
+    let (ws_stream, _response) = tokio_tungstenite::connect_async(request).await?;
+    // println!("response: {:?}", response);
     let (mut write, mut read) = ws_stream.split();
     let (mut tx, rx) = futures::channel::mpsc::channel::<Result<StreamResponse>>(1);
     println!("new dg ws established");
 
     let data_stream = tokio_stream::wrappers::ReceiverStream::new(audio_rx);
 
-    let mut source = data_stream
-        .map(|res| res.map(|bytes| Message::binary(Vec::from(bytes.as_ref()))));
-
+    let mut source =
+        data_stream.map(|res| res.map(|bytes| Message::binary(Vec::from(bytes.as_ref()))));
 
     let send_task = async move {
         loop {
             match source.next().await {
                 None => {
-                    println!("source next is none");
                     let _ = write.close().await;
                     break;
                 }
                 Some(Ok(frame)) => {
-                    // This unwrap is not safe.
-                    println!("frame sent len={}", frame.len());
                     if let Err(_w) = write.send(frame).await {
                         break;
                     };
                 }
                 Some(e) => {
-                    println!("error sending frame: {:?}", e);
                     let _ = dbg!(e);
                     break;
                 }
             }
         }
-        //write.send(Message::binary([])).await.expect("final empty send error");
         drop(source);
-        println!("send loop end");
-        // This unwrap is not safe.
     };
 
     let recv_task = async move {
         loop {
             match read.next().await {
                 None => {
-                    println!("received none");
                     let _ = tx.close().await;
                     break;
                 }
                 Some(Ok(msg)) => {
                     if let Message::Text(txt) = msg {
-                        println!("message received: {:?}", txt);
                         let resp = serde_json::from_str(&txt).map_err(DeepgramError::from);
-                        if let Ok(StreamResponse::TerminalResponse { .. }) = resp {
-                            tx.send(resp)
-                                .await
-                                .expect("message sent from ws to rust fails");
-                            //break
-                        } else {
-                            tx.send(resp)
-                                .await
-                                .expect("message sent from ws to rust fails");
-                        }
+                        tx.send(resp)
+                            .await
+                            .expect("message sent from ws to rust fails");
                     }
                 }
                 Some(e) => {
@@ -198,8 +181,12 @@ pub async fn trx_service(
     tokio::spawn(async move {
         //tokio::join!(send_task, recv_task);
         tokio::select! {
-            _ = send_task => {println!("send task finish first");},
-            _ = recv_task => {println!("recv task finish first");},
+            _ = send_task => {
+                //println!("send task finish first");
+            },
+            _ = recv_task => {
+                //println!("recv task finish first");
+            },
         }
     });
 

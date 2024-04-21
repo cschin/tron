@@ -389,6 +389,7 @@ async fn transcript_service(
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             while let Some(req) = rx.recv().await {
                 if handle.is_finished() {
+                    audio_tx.closed().await;     
                     let (audio_tx0, audio_rx) = tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
                     audio_tx = audio_tx0;
                     handle = tokio::spawn(dg_trx(audio_rx, transcript_tx.clone()));
@@ -400,6 +401,7 @@ async fn transcript_service(
                     let _ = req.response.send("audio sent to trx service".to_string());
                 }
             }
+            audio_tx.closed().await;
     });
     while let Some(trx_rtn) = transcript_rx.recv().await {
         println!("trx_rtn: {}", trx_rtn);

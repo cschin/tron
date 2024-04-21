@@ -23,9 +23,7 @@ use tron_components::*;
 //use std::sync::Mutex;
 use futures_util::StreamExt;
 use std::{
-    collections::{HashMap, VecDeque},
-    pin::Pin,
-    sync::Arc,
+    collections::{HashMap, VecDeque}, path::Components, pin::Pin, sync::Arc
 };
 use tokio::sync::oneshot;
 
@@ -94,38 +92,13 @@ fn build_session_context() -> Context<'static> {
         let assets = context.assets.clone();
         let components = context.components.clone();
         let sse_tx = context.sse_channels.clone();
-        tokio::task::spawn(async move {
-            let sse_tx = sse_tx;
-
-            while let Some(response) = response_rx.recv().await {
-                if let TnAsset::String(transcript) = response.payload {
-                    //println!("set lock");
-                    //let sse_tx_guard = sse_tx.read().await;
-                    //println!("debug: sse_tx_is_none: {}", sse_tx_guard.is_none());
-                    let mut assets_guard = assets.write().await;
-                    let e = assets_guard.entry("transcript".into()).or_default();
-                    println!("recorded transcript: {:?}", transcript);
-                    (*e).push(TnAsset::String(transcript.clone()));
-                    {
-                        let mut components_guard = components.write().await;
-                        let transcript_area =
-                            components_guard.get_mut(&transcript_area_id).unwrap();
-                        text::append_textarea_value(transcript_area, &transcript, Some("\n"));
-                    }
-                    {
-                        let msg = SseTriggerMsg {
-                            server_side_trigger: TriggerData {
-                                target: "transcript".into(),
-                                new_state: "ready".into(),
-                            },
-                        };
-                        let sse_tx_guard = sse_tx.read().await;
-                        let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
-                        send_sse_msg_to_client(&sse_tx, msg).await;
-                    }
-                }
-            }
-        });
+        tokio::task::spawn(processing_transcript(
+            assets,
+            components,
+            sse_tx,
+            response_rx,
+            transcript_area_id,
+        ));
     }
 
     {
@@ -263,8 +236,8 @@ fn toggle_recording(
                                 response: tx,
                             };
                             let _ = trx_srv.send(trx_req_msg).await;
-                            if let Ok(out) = rx.await {
-                                println!("returned string: {}", out);
+                            if let Ok(_out) = rx.await {
+                                //println!("returned string: {}", out);
                             };
                         }
 
@@ -337,10 +310,10 @@ fn audio_input_stream_processing(
     let f = async move {
         let chunk: Option<AudioChunk> = serde_json::from_value(payload).unwrap_or(None);
         if let Some(chunk) = chunk {
-            println!(
-                "stream, audio data received, len={}",
-                chunk.audio_data.len()
-            );
+            // println!(
+            //     "stream, audio data received, len={}",
+            //     chunk.audio_data.len()
+            // );
 
             let id = {
                 let context_guard = context.read().await;
@@ -377,8 +350,8 @@ fn audio_input_stream_processing(
                     response: tx,
                 };
                 let _ = trx_srv.send(trx_req_msg).await;
-                if let Ok(out) = rx.await {
-                    println!("returned string: {}", out);
+                if let Ok(_out) = rx.await {
+                    // println!("returned string: {}", out);
                 };
             }
         };
@@ -393,7 +366,7 @@ async fn transcript_service(
 ) {
     let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<StreamResponse>(1);
     tokio::spawn(async move {
-        println!("restart dg_trx");
+        //println!("restart dg_trx");
         let (mut audio_tx, audio_rx) =
             tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
         let mut handle = tokio::spawn(dg_trx(audio_rx, transcript_tx.clone()));
@@ -408,22 +381,67 @@ async fn transcript_service(
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
             if let TnAsset::VecU8(payload) = req.payload {
-                println!("req received: {}, payload: {}", req.request, payload.len());
+                //println!("req received: {}, payload: {}", req.request, payload.len());
                 let _ = audio_tx.send(Ok(Bytes::from_iter(payload))).await;
                 let _ = req.response.send("audio sent to trx service".to_string());
             }
         }
         audio_tx.closed().await;
     });
+
+    let mut transcript_fragments = Vec::<String>::new();
     while let Some(trx_rtn) = transcript_rx.recv().await {
-        println!("trx_rtn: {:?}", trx_rtn);
-        let transcript = serde_json::to_string(&trx_rtn).unwrap();
-        let _ = tx
-            .send(ServiceResponseMessage {
-                response: "response".to_string(),
-                payload: TnAsset::String(transcript),
-            })
-            .await;
+        //println!("trx_rtn: {:?}", trx_rtn);
+        //let transcript = serde_json::to_string(&trx_rtn).unwrap();
+        match trx_rtn {
+            StreamResponse::TerminalResponse {
+                request_id,
+                created,
+                duration,
+                channels,
+            } => {}
+            StreamResponse::TranscriptResponse {
+                duration,
+                is_final,
+                speech_final,
+                channel,
+            } => {
+                if is_final && !channel.alternatives.is_empty() {
+                    let trx_fragment = channel.alternatives.first().unwrap().transcript.clone();
+                    transcript_fragments.push(trx_fragment.clone());
+                    let _ = tx
+                        .send(ServiceResponseMessage {
+                            response: "response".to_string(),
+                            payload: TnAsset::String(trx_fragment),
+                        })
+                        .await;
+                }
+                if speech_final {
+                    // let transcript = transcript_fragments.join(" ");
+                    // if !transcript.is_empty() {
+                    //     let _ = tx
+                    //         .send(ServiceResponseMessage {
+                    //             response: "response".to_string(),
+                    //             payload: TnAsset::String(transcript),
+                    //         })
+                    //         .await;
+                    //     transcript_fragments.clear();
+                    // }
+                }
+            }
+            StreamResponse::UtteranceEnd { last_word_end } => {
+                // let transcript = transcript_fragments.join(" ");
+                // if !transcript.is_empty() {
+                //     let _ = tx
+                //         .send(ServiceResponseMessage {
+                //             response: "response".to_string(),
+                //             payload: TnAsset::String(transcript),
+                //         })
+                //         .await;
+                //     transcript_fragments.clear();
+                // }
+            }
+        };
     }
 }
 
@@ -445,4 +463,41 @@ async fn dg_trx(
     }
     drop(dg_response);
     Ok(())
+}
+
+async fn processing_transcript(
+    assets: TnAssets,
+    components: TnComponents<'static>,
+    sse_tx: TnSeeChannels,
+    mut response_rx: Receiver<ServiceResponseMessage>,
+    transcript_area_id: u32,
+) {
+
+    while let Some(response) = response_rx.recv().await {
+        if let TnAsset::String(transcript) = response.payload {
+            //println!("set lock");
+            //let sse_tx_guard = sse_tx.read().await;
+            //println!("debug: sse_tx_is_none: {}", sse_tx_guard.is_none());
+            let mut assets_guard = assets.write().await;
+            let e = assets_guard.entry("transcript".into()).or_default();
+            //println!("recorded transcript: {:?}", transcript);
+            (*e).push(TnAsset::String(transcript.clone()));
+            {
+                let mut components_guard = components.write().await;
+                let transcript_area = components_guard.get_mut(&transcript_area_id).unwrap();
+                text::append_textarea_value(transcript_area, &transcript, Some(" "));
+            }
+            {
+                let msg = SseTriggerMsg {
+                    server_side_trigger: TriggerData {
+                        target: "transcript".into(),
+                        new_state: "ready".into(),
+                    },
+                };
+                let sse_tx_guard = sse_tx.read().await;
+                let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
+                send_sse_msg_to_client(&sse_tx, msg).await;
+            }
+        }
+    }
 }

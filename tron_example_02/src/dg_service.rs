@@ -8,7 +8,7 @@ use thiserror::Error;
 use tokio_tungstenite::tungstenite::{self, Message};
 use url::Url;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Word {
     pub word: String,
     pub start: f64,
@@ -16,13 +16,13 @@ pub struct Word {
     pub confidence: f64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Alternatives {
     pub transcript: String,
     pub words: Vec<Word>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Default)]
 pub struct Channel {
     pub alternatives: Vec<Alternatives>,
 }
@@ -175,7 +175,7 @@ pub async fn trx_service(
             }
         }
         drop(read);
-        println!("recv task end");
+        // println!("recv task end");
     };
 
     tokio::spawn(async move {

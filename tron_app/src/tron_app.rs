@@ -126,7 +126,7 @@ async fn index(session: Session, _: Request) -> Html<String> {
 
 async fn get_session(session: Session, _: Request) {
     session.insert("session_set", true).await.unwrap();
-    println!("session Id: {}", session.id().unwrap());
+    //println!("session Id: {}", session.id().unwrap());
 }
 
 async fn load_page(
@@ -214,7 +214,7 @@ async fn tron_entry(
     //println!("payload: {:?}", payload);
 
     if let Some(event_data) = match_event(&payload).await {
-        println!("event matched, event_data: {:?}", event_data);
+        // println!("event matched, event_data: {:?}", event_data);
         let evt = event_data.tn_event;
 
         if evt.e_type == "change" {
@@ -350,7 +350,7 @@ async fn tron_stream(
     //Json(_payload): Json<Value>,
     // request: Request,
 ) -> impl IntoResponse {
-    println!("streaming with id: {}", stream_id);
+    //println!("streaming with id: {}", stream_id);
     let default_header = [
         (header::CONTENT_TYPE, "application/json".to_string()),
         (header::TRANSFER_ENCODING, "chunked".to_string()),

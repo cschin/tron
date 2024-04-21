@@ -53,7 +53,7 @@ pub enum ComponentState {
 #[derive(Debug)]
 pub struct ComponentBase<'a: 'static> {
     pub tag: ElmTag,
-    pub type_: String, 
+    pub type_: String,
     pub id: ComponentId,
     pub tron_id: String,
     pub attributes: ElmAttributes,
@@ -81,23 +81,24 @@ pub struct SseMessageChannel {
     pub rx: Option<Receiver<String>>, // this will be moved out and replaced by None
 }
 
+pub type TnComponents<'a> = Arc<RwLock<HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>>>;
+pub type TnStreamData = Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>;
+pub type TnAssets = Arc<RwLock<HashMap<String, Vec<TnAsset>>>>;
+pub type TnSeeChannels = Arc<RwLock<Option<SseMessageChannel>>>;
+pub type TnService = (
+    Sender<ServiceRequestMessage>,
+    Mutex<Option<Receiver<ServiceResponseMessage>>>,
+);
 pub struct Context<'a: 'static> {
-    pub components: Arc<RwLock<HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>>>, // component ID mapped to Component structs
-    pub stream_data: Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>,
-    pub assets: Arc<RwLock<HashMap<String, Vec<TnAsset>>>>,
-    pub sse_channels: Arc<RwLock<Option<SseMessageChannel>>>,
+    pub components: TnComponents<'a>, // component ID mapped to Component structs
+    pub stream_data: TnStreamData,
+    pub assets: TnAssets,
+    pub sse_channels: TnSeeChannels,
     pub tron_id_to_id: HashMap<String, u32>,
-    pub services: HashMap<
-        String,
-        (
-            Sender<ServiceRequestMessage>,
-            Mutex<Option<Receiver<ServiceResponseMessage>>>,
-        ),
-    >,
+    pub services: HashMap<String, TnService>,
 }
 
-impl<'a: 'static> Context<'a>
-{
+impl<'a: 'static> Context<'a> {
     pub fn new() -> Self {
         Context {
             components: Arc::new(RwLock::new(HashMap::default())),
@@ -243,7 +244,10 @@ impl<'a: 'static> Default for ComponentBase<'a> {
     }
 }
 
-impl<'a: 'static> ComponentBaseTrait<'a> for ComponentBase<'a> where 'a:'static {
+impl<'a: 'static> ComponentBaseTrait<'a> for ComponentBase<'a>
+where
+    'a: 'static,
+{
     fn id(&self) -> u32 {
         self.id
     }

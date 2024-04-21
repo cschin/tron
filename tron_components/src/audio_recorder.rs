@@ -70,7 +70,7 @@ pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_by
     let e = get_mut_audio_asset(comp);
     if let TnAsset::Bytes(audio_data) = e {
         (*audio_data).extend_from_slice(&new_bytes);
-        println!("new stream data size: {}", (*audio_data).len());
+        //println!("new stream data size: {}", (*audio_data).len());
     }
 }
 

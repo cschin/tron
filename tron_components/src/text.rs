@@ -2,11 +2,11 @@ use super::*;
 use tron_macro::*;
 
 #[derive(ComponentBase)]
-pub struct TnTextArea<'a> {
+pub struct TnTextArea<'a: 'static> {
     inner: ComponentBase<'a>,
 }
 
-impl<'a> TnTextArea<'a> {
+impl<'a: 'static> TnTextArea<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base = ComponentBase::new("textarea".into(), id, name);
         component_base.set_value(ComponentValue::String(value));
@@ -21,7 +21,7 @@ impl<'a> TnTextArea<'a> {
     }
 }
 
-impl<'a> Default for TnTextArea<'a> {
+impl<'a: 'static> Default for TnTextArea<'a> {
     fn default() -> Self {
         Self {
             inner: ComponentBase {
@@ -32,7 +32,7 @@ impl<'a> Default for TnTextArea<'a> {
     }
 }
 
-impl<'a> TnTextArea<'a> {
+impl<'a: 'static> TnTextArea<'a> {
     pub fn internal_render(&self) -> Html<String> {
         Html::from(format!(
             r##"<{} {}>{}</{}>"##,
@@ -62,11 +62,11 @@ pub fn append_textarea_value(
 }
 
 #[derive(ComponentBase)]
-pub struct TnTextInput<'a> {
+pub struct TnTextInput<'a: 'static> {
     inner: ComponentBase<'a>,
 }
 
-impl<'a> TnTextInput<'a> {
+impl<'a: 'static> TnTextInput<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base = ComponentBase::new("input".into(), id, name);
         component_base.set_value(ComponentValue::String(value.to_string()));
@@ -85,7 +85,7 @@ impl<'a> TnTextInput<'a> {
     }
 }
 
-impl<'a> Default for TnTextInput<'a> {
+impl<'a: 'static> Default for TnTextInput<'a> {
     fn default() -> Self {
         Self {
             inner: ComponentBase {
@@ -96,7 +96,7 @@ impl<'a> Default for TnTextInput<'a> {
     }
 }
 
-impl<'a> TnTextInput<'a> {
+impl<'a: 'static> TnTextInput<'a> {
     pub fn internal_render(&self) -> Html<String> {
         Html::from(format!(
             r##"<{} {} value="{}">"##,

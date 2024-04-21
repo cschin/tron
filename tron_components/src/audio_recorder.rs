@@ -2,11 +2,11 @@ use super::*;
 use tron_macro::*;
 
 #[derive(ComponentBase)]
-pub struct TnAudioRecorder<'a> {
+pub struct TnAudioRecorder<'a: 'static> {
     inner: ComponentBase<'a>,
 }
 
-impl<'a> TnAudioRecorder<'a> {
+impl<'a: 'static> TnAudioRecorder<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base = ComponentBase::new("div".to_string(), id, name);
         component_base.set_value(ComponentValue::String(value));
@@ -16,17 +16,18 @@ impl<'a> TnAudioRecorder<'a> {
             r##"js:{event_data:get_event(event), audio_data: event.detail.audio_data, streaming: event.detail.streaming}"##.into(),
         );
         component_base.assets = Some(HashMap::<String, TnAsset>::default());
-        component_base.assets.as_mut().unwrap().insert(
-            "audio_data".into(),
-            TnAsset::Bytes(BytesMut::default()),
-        );
+        component_base
+            .assets
+            .as_mut()
+            .unwrap()
+            .insert("audio_data".into(), TnAsset::Bytes(BytesMut::default()));
         Self {
             inner: component_base,
         }
     }
 }
 
-impl<'a> Default for TnAudioRecorder<'a> {
+impl<'a: 'static> Default for TnAudioRecorder<'a> {
     fn default() -> Self {
         Self {
             inner: ComponentBase {
@@ -37,7 +38,10 @@ impl<'a> Default for TnAudioRecorder<'a> {
     }
 }
 
-impl<'a> TnAudioRecorder<'a> {
+impl<'a: 'static> TnAudioRecorder<'a>
+where
+    'a: 'static,
+{
     pub fn internal_render(&self) -> Html<String> {
         Html::from(format!(
             r##"<{} {}>{}</{}>"##,
@@ -61,7 +65,10 @@ pub fn get_mut_audio_asset<'a>(
         .or_insert(TnAsset::Bytes(BytesMut::default()))
 }
 
-pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_bytes: Bytes) {
+pub fn append_audio_data(
+    comp: &mut Box<dyn ComponentBaseTrait<'static>>,
+    new_bytes: Bytes,
+) {
     let e = get_mut_audio_asset(comp);
     if let TnAsset::Bytes(audio_data) = e {
         (*audio_data).extend_from_slice(&new_bytes);
@@ -69,7 +76,7 @@ pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_by
     }
 }
 
-pub fn clear_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>) {
+pub fn clear_audio_data(comp: &'static mut Box<dyn ComponentBaseTrait<'static>>) {
     let e = get_mut_audio_asset(comp);
     if let TnAsset::Bytes(audio_data) = e {
         (*audio_data).clear();

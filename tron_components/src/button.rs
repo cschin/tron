@@ -2,11 +2,11 @@ use super::*;
 use tron_macro::*;
 
 #[derive(ComponentBase)]
-pub struct TnButton<'a> {
+pub struct TnButton<'a: 'static> {
     inner: ComponentBase<'a>,
 }
 
-impl<'a> TnButton<'a> {
+impl<'a: 'static> TnButton<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base = ComponentBase::new("button".into(), id, name);
         component_base.set_value(ComponentValue::String(value));
@@ -18,7 +18,7 @@ impl<'a> TnButton<'a> {
     }
 }
 
-impl<'a> Default for TnButton<'a> {
+impl<'a: 'static> Default for TnButton<'a> {
     fn default() -> Self {
         Self {
             inner: ComponentBase {
@@ -29,7 +29,7 @@ impl<'a> Default for TnButton<'a> {
     }
 }
 
-impl<'a> TnButton<'a> {
+impl<'a: 'static> TnButton<'a> where 'a:'static {
     pub fn internal_render(&self) -> Html<String> {
         Html::from(format!(
             r##"<{} {}>{}</{}>"##,

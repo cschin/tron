@@ -51,7 +51,7 @@ pub enum ComponentState {
     Disabled, // disabled, not interactive and not sending htmx get/post
 }
 #[derive(Debug)]
-pub struct ComponentBase<'a> {
+pub struct ComponentBase<'a: 'static> {
     pub tag: ElmTag,
     pub id: ComponentId,
     pub tron_id: String,
@@ -80,7 +80,7 @@ pub struct SseMessageChannel {
     pub rx: Option<Receiver<String>>, // this will be moved out and replaced by None
 }
 
-pub struct Context<'a> {
+pub struct Context<'a: 'static> {
     pub components: Arc<RwLock<HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>>>, // component ID mapped to Component structs
     pub stream_data: Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>,
     pub assets: Arc<RwLock<HashMap<String, Vec<TnAsset>>>>,
@@ -95,7 +95,8 @@ pub struct Context<'a> {
     >,
 }
 
-impl<'a> Context<'a> {
+impl<'a: 'static> Context<'a>
+{
     pub fn new() -> Self {
         Context {
             components: Arc::new(RwLock::new(HashMap::default())),
@@ -122,7 +123,7 @@ impl<'a> Context<'a> {
             .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id))
     }
 
-    pub fn render_to_string(&self, tron_id: &str) -> String {
+    pub fn render_to_string(&self, tron_id: &'a str) -> String {
         let id = self.get_component_id(tron_id);
         let component_guard = self.components.blocking_read();
         let component = component_guard.get(&id).unwrap();
@@ -130,8 +131,11 @@ impl<'a> Context<'a> {
     }
 }
 
-
-pub async fn context_set_value_for(locked_context: &Arc<RwLock<Context<'static>>>, tron_id: &str, v: ComponentValue) {
+pub async fn context_set_value_for(
+    locked_context: &Arc<RwLock<Context<'static>>>,
+    tron_id: &'static str,
+    v: ComponentValue,
+) {
     let context_guard = locked_context.read().await;
     let mut components_guard = context_guard.components.write().await;
     let component_id = context_guard.get_component_id(tron_id);
@@ -139,7 +143,11 @@ pub async fn context_set_value_for(locked_context: &Arc<RwLock<Context<'static>>
     component.set_value(v);
 }
 
-pub async fn context_set_state_for(locked_context: &Arc<RwLock<Context<'static>>>, tron_id: &str, s: ComponentState) {
+pub async fn context_set_state_for(
+    locked_context: &Arc<RwLock<Context<'static>>>,
+    tron_id: &'static str,
+    s: ComponentState,
+) {
     let context_guard = locked_context.read().await;
     let mut components_guard = context_guard.components.write().await;
     let component_id = context_guard.get_component_id(tron_id);
@@ -147,26 +155,30 @@ pub async fn context_set_state_for(locked_context: &Arc<RwLock<Context<'static>>
     component.set_state(s);
 }
 
-pub async fn context_get_value_for(locked_context: &Arc<RwLock<Context<'static>>>, tron_id: &str) -> ComponentValue {
-    let value =  {
+pub async fn context_get_value_for(
+    locked_context: &Arc<RwLock<Context<'static>>>,
+    tron_id: &'static str,
+) -> ComponentValue {
+    let value = {
         let context_guard = locked_context.read().await;
         let components_guard = context_guard.components.read().await;
         let component_id = context_guard.get_component_id(tron_id);
-        let components_guard =  
-        components_guard.get(&component_id).unwrap();
+        let components_guard = components_guard.get(&component_id).unwrap();
         components_guard.value().clone()
-    }; 
+    };
     value
 }
 
-
-impl<'a> Default for Context<'a> {
+impl<'a: 'static> Default for Context<'a>
+where
+    'a: 'static,
+{
     fn default() -> Self {
         Self::new()
     }
 }
 
-pub trait ComponentBaseTrait<'a>: Send + Sync {
+pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn id(&self) -> ComponentId;
     fn tron_id(&self) -> &String;
     fn attributes(&self) -> &ElmAttributes;
@@ -183,7 +195,7 @@ pub trait ComponentBaseTrait<'a>: Send + Sync {
     fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>>;
 }
 
-impl<'a> ComponentBase<'a> {
+impl<'a: 'static> ComponentBase<'a> {
     pub fn new(tag: String, id: ComponentId, tron_id: String) -> Self {
         let mut attributes = HashMap::<String, String>::default();
         attributes.insert("id".into(), tron_id.clone());
@@ -210,7 +222,7 @@ impl<'a> ComponentBase<'a> {
     }
 }
 
-impl<'a> Default for ComponentBase<'a> {
+impl<'a: 'static> Default for ComponentBase<'a> {
     fn default() -> ComponentBase<'a> {
         let mut rng = thread_rng();
         let id: u32 = rng.gen();
@@ -228,7 +240,7 @@ impl<'a> Default for ComponentBase<'a> {
     }
 }
 
-impl<'a> ComponentBaseTrait<'a> for ComponentBase<'a> {
+impl<'a: 'static> ComponentBaseTrait<'a> for ComponentBase<'a> where 'a:'static {
     fn id(&self) -> u32 {
         self.id
     }

@@ -1,5 +1,4 @@
 use askama::Template;
-use futures::TryFutureExt;
 use futures_util::Future;
 
 use axum::body::Bytes;
@@ -56,19 +55,18 @@ fn build_session_context() -> Context<'static> {
     context.add_component(btn);
 
     component_id += 1;
-    let mut recorder =
-        TnAudioRecorder::new(component_id, "recorder".to_string(), "Paused".to_string());
-    //recorder.set_attribute("class".to_string(), "".to_string());
+    let recorder =
+        TnAudioRecorder::<'static>::new(component_id, "recorder".to_string(), "Paused".to_string());
     context.add_component(recorder);
 
     component_id += 1;
-    let mut player = TnAudioPlayer::new(component_id, "player".to_string(), "Paused".to_string());
+    let mut player = TnAudioPlayer::<'static>::new(component_id, "player".to_string(), "Paused".to_string());
     player.set_attribute("class".to_string(), "flex-1".to_string());
     context.add_component(player);
 
     component_id += 1;
     let transcript_area_id = component_id; 
-    let mut transcript_output = TnTextArea::new(component_id, "transcript".to_string(), "Pending".to_string());
+    let mut transcript_output = TnTextArea::<'static>::new(component_id, "transcript".to_string(), "Pending".to_string());
     transcript_output.set_attribute("class".to_string(), "flex-1".to_string());
     transcript_output.set_attribute(
         "hx-swap".into(),
@@ -88,18 +86,9 @@ fn build_session_context() -> Context<'static> {
         tokio::task::spawn(transcript_service(request_rx, response_tx));
         let assets = context.assets.clone();
         let components = context.components.clone();
-        //let stream_data = context.stream_data.clone();
         let sse_tx = context.sse_channels.clone();
         tokio::task::spawn(async move {
             let sse_tx = sse_tx;
-            //let stream_data = stream_data;
-
-            {
-                println!("set lock");
-                let sse_tx_guard = sse_tx.read().await;
-                println!("debug: sse_tx_is_none: {}", sse_tx_guard.is_none());
-            }
-            //let _ = sse_tx.send("value".to_string()).await;
 
             while let Some(response) = response_rx.recv().await {
                 if let TnAsset::String(transcript) = response.payload {

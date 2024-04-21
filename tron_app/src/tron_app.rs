@@ -156,9 +156,9 @@ async fn load_page(
     let mut app_event_action_guard = app_data.event_actions.write().await;
     app_event_action_guard.clone_from(&(*app_data.build_session_actions)());
 
-    let session_components = app_data.session_context.read().await;
-    let components = &session_components.get(&session_id).unwrap().read().await;
-    let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(components));
+    let context_guard = app_data.session_context.read().await;
+    let context = &context_guard.get(&session_id).unwrap().read().await;
+    let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context));
     Ok(Html::from(layout))
 }
 

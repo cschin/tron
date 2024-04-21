@@ -10,7 +10,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
     // Build the trait implementation
     let name = &ast.ident;
     let gen = quote! {
-        impl<'a> ComponentBaseTrait<'a> for #name<'a> {
+        impl<'a> ComponentBaseTrait<'a> for #name<'a> where 'a:'static {
             fn id(&self) -> ComponentId {
                 self.inner.id()
             }

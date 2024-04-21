@@ -1,11 +1,10 @@
 use bytes::Bytes;
-use futures::channel::mpsc::{self, Receiver};
+use futures::channel::mpsc::Receiver;
 use futures::stream::StreamExt;
-use futures::{sink::SinkExt, Stream};
+use futures::sink::SinkExt;
 use http::Request;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
-use tokio_stream::wrappers::ReceiverStream;
 use tokio_tungstenite::tungstenite::{self, Message};
 use url::Url;
 
@@ -127,18 +126,18 @@ pub async fn trx_service(
     let (mut tx, rx) = futures::channel::mpsc::channel::<Result<StreamResponse>>(1);
     println!("new dg ws established");
 
-    let data_stream = Some(tokio_stream::wrappers::ReceiverStream::new(audio_rx));
+    let data_stream = tokio_stream::wrappers::ReceiverStream::new(audio_rx);
 
     let mut source = data_stream
-        .ok_or(DeepgramError::NoSource)?
         .map(|res| res.map(|bytes| Message::binary(Vec::from(bytes.as_ref()))));
+
 
     let send_task = async move {
         loop {
             match source.next().await {
                 None => {
                     println!("source next is none");
-                    write.close().await;
+                    let _ = write.close().await;
                     break;
                 }
                 Some(Ok(frame)) => {
@@ -166,7 +165,7 @@ pub async fn trx_service(
             match read.next().await {
                 None => {
                     println!("received none");
-                    tx.close().await;
+                    let _ = tx.close().await;
                     break;
                 }
                 Some(Ok(msg)) => {

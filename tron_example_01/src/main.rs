@@ -119,10 +119,10 @@ fn test_evt_task(
 }
 
 fn build_session_context() -> Context<'static> {
-    let mut components = Context::default();
+    let mut components = Context::<'static>::default();
     let mut component_id = 0_u32;
     loop {
-        let mut btn = TnButton::new(
+        let mut btn = TnButton::<'static>::new(
             component_id,
             format!("btn-{:02}", component_id),
             format!("{:02}", component_id),
@@ -138,7 +138,7 @@ fn build_session_context() -> Context<'static> {
         }
     }
 
-    let mut textarea = TnTextArea::new(component_id, "textarea".into(), "".into());
+    let mut textarea = TnTextArea::<'static>::new(component_id, "textarea".into(), "".into());
     textarea.set_attribute(
         "class".into(),
         "textarea textarea-bordered flex-1 min-h-80v".into(),
@@ -151,7 +151,7 @@ fn build_session_context() -> Context<'static> {
 
     component_id += 1;
 
-    let mut textinput = TnTextInput::new(component_id, "textinput".into(), "10".into());
+    let mut textinput = TnTextInput::<'static>::new(component_id, "textinput".into(), "10".into());
     textinput.set_attribute("class".into(), "input w-full max-w-xs".into());
     textinput.set_attribute(
         "hx-swap".into(),
@@ -185,7 +185,7 @@ struct AppPageTemplate {
     textinput: String,
 }
 
-fn layout(context: &Context) -> String {
+fn layout(context: &Context<'static>) -> String{
     let buttons = (0..10)
         .map(|i| {
             let mut components_guard = context.components.blocking_write();

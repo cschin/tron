@@ -109,7 +109,7 @@
           mediaRecorder.onstop = () => {
             //setTimeout(() => htmx.trigger(element_id, "streaming", { streaming: false }), 1000);
           };
-          mediaRecorder.start(1000);
+          mediaRecorder.start(500);
         })
         .catch(err => {
           console.error("An error occurred:", err);

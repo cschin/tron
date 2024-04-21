@@ -31,6 +31,9 @@ pub struct Channel {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum StreamResponse {
+    UtteranceEnd {
+        last_word_end: f64
+    },
     TranscriptResponse {
         duration: f64,
         is_final: bool,
@@ -97,7 +100,7 @@ pub async fn trx_service(
 ) -> Result<Receiver<Result<StreamResponse>>> {
     // This unwrap is safe because we're parsing a static.
     let mut base =
-        Url::parse("wss://api.deepgram.com/v1/listen?endpointing=1000&model=nova-2-phonecall")
+        Url::parse("wss://api.deepgram.com/v1/listen?endpointing=1000&utterance_end_ms=1000&interim_results=true&model=nova-2-phonecall")
             .unwrap();
     let api_key = std::env::var("DG_API_KEY").unwrap();
 
@@ -161,8 +164,8 @@ pub async fn trx_service(
                 }
                 Some(Ok(msg)) => {
                     if let Message::Text(txt) = msg {
+                        println!("message received: {:?}", txt);
                         let resp = serde_json::from_str(&txt).map_err(DeepgramError::from);
-                        println!("message received: {:?}", resp);
                         if let Ok(StreamResponse::TerminalResponse { .. }) = resp {
                             tx.send(resp)
                                 .await

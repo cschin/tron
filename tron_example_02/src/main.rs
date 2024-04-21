@@ -20,7 +20,6 @@ use tron_app::{
 use tron_components::*;
 //use std::sync::Mutex;
 use futures_util::StreamExt;
-use lazy_static::lazy_static;
 use std::{
     collections::{HashMap, VecDeque},
     pin::Pin,
@@ -29,7 +28,7 @@ use std::{
 use tokio::sync::oneshot;
 
 mod dg_service;
-use crate::dg_service::{StreamResponse::{TerminalResponse, TranscriptResponse}, DeepgramError};
+use crate::dg_service::{StreamResponse::*, DeepgramError};
 
 
 #[tokio::main]
@@ -462,6 +461,11 @@ async fn dg_trx(
                         println!("terminal duration {:?}", duration);
                         println!("terminal channels {:?}", channels);
                         break;
+                    },
+                    UtteranceEnd {
+                        last_word_end
+                    } => {
+                        println!("UtteranceEnd {}", last_word_end);
                     }
                 },
                 Err(e) => {

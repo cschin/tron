@@ -100,8 +100,13 @@ pub async fn trx_service(
 ) -> Result<Receiver<Result<StreamResponse>>> {
     // This unwrap is safe because we're parsing a static.
     let mut base =
-        Url::parse("wss://api.deepgram.com/v1/listen?endpointing=1000&utterance_end_ms=1000&interim_results=true&model=nova-2-phonecall")
+        Url::parse("wss://api.deepgram.com/v1/listen")
             .unwrap();
+    base.query_pairs_mut().append_pair("endpointing", "1000");
+    base.query_pairs_mut().append_pair("utterance_end_ms", "1000");
+    base.query_pairs_mut().append_pair("interim_results", "true");
+    base.query_pairs_mut().append_pair("model", "nova-2-phonecall");
+
     let api_key = std::env::var("DG_API_KEY").unwrap();
 
     let request = Request::builder()
@@ -117,7 +122,7 @@ pub async fn trx_service(
     let (ws_stream, response) = tokio_tungstenite::connect_async(request).await?;
     println!("response: {:?}", response);
     let (mut write, mut read) = ws_stream.split();
-    let (mut tx, rx) = mpsc::channel::<Result<StreamResponse>>(1);
+    let (mut tx, rx) = futures::channel::mpsc::channel::<Result<StreamResponse>>(1);
     println!("new dg ws established");
 
     let data_stream = Some(tokio_stream::wrappers::ReceiverStream::new(audio_rx));

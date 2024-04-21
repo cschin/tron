@@ -3,8 +3,8 @@ use futures_util::Future;
 
 use axum::body::Bytes;
 use serde::Deserialize;
-//use serde::{Deserialize, Serialize};
-use base64::prelude::*;
+use data_encoding::BASE64;
+
 use bytes::{BufMut, BytesMut};
 use serde_json::Value;
 use tokio::sync::{
@@ -67,7 +67,7 @@ fn build_session_context() -> Context<'static> {
     component_id += 1;
     let transcript_area_id = component_id; 
     let mut transcript_output = TnTextArea::<'static>::new(component_id, "transcript".to_string(), "Pending".to_string());
-    transcript_output.set_attribute("class".to_string(), "flex-1".to_string());
+    transcript_output.set_attribute("class".to_string(), "textarea textarea-bordered flex-1 min-h-80v".to_string());
     transcript_output.set_attribute(
         "hx-swap".into(),
         "outerHTML scroll:bottom focus-scroll:true".into(),
@@ -258,13 +258,13 @@ fn toggle_recording(
                             };
                         } 
 
-                        {
-                            let context_guard = context.read().await;
-                            let components_guard = context_guard.components.read().await;
-                            let recorder_id = context_guard.get_component_id("recorder");
-                            let recorder = components_guard.get(&recorder_id).unwrap().as_ref();
-                            audio_recorder::write_audio_data_to_file(recorder);
-                        }
+                        // {
+                        //     let context_guard = context.read().await;
+                        //     let components_guard = context_guard.components.read().await;
+                        //     let recorder_id = context_guard.get_component_id("recorder");
+                        //     let recorder = components_guard.get(&recorder_id).unwrap().as_ref();
+                        //     audio_recorder::write_audio_data_to_file(recorder);
+                        // }
 
                         let msg = SseTriggerMsg {
                             server_side_trigger: TriggerData {
@@ -341,7 +341,7 @@ fn audio_input_stream_processing(
             let mut split = b64data.split(',');
             let _head = split.next().unwrap();
             let b64str = split.next().unwrap();
-            let chunk = Bytes::from(BASE64_STANDARD.decode(b64str).unwrap());
+            let chunk = Bytes::from(BASE64.decode(b64str.as_bytes()).unwrap());
 
             {
                 let context_guard = context.read().await;

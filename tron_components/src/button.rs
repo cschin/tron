@@ -8,7 +8,7 @@ pub struct TnButton<'a: 'static> {
 
 impl<'a: 'static> TnButton<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
-        let mut component_base = ComponentBase::new("button".into(), id, name);
+        let mut component_base = ComponentBase::new("button".into(), id, name, "button".into());
         component_base.set_value(ComponentValue::String(value));
         component_base.set_attribute("hx-trigger".into(), "click, server_side_trigger".into());
 
@@ -29,7 +29,10 @@ impl<'a: 'static> Default for TnButton<'a> {
     }
 }
 
-impl<'a: 'static> TnButton<'a> where 'a:'static {
+impl<'a: 'static> TnButton<'a>
+where
+    'a: 'static,
+{
     pub fn internal_render(&self) -> Html<String> {
         Html::from(format!(
             r##"<{} {}>{}</{}>"##,

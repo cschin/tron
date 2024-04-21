@@ -53,6 +53,7 @@ pub enum ComponentState {
 #[derive(Debug)]
 pub struct ComponentBase<'a: 'static> {
     pub tag: ElmTag,
+    pub type_: String, 
     pub id: ComponentId,
     pub tron_id: String,
     pub attributes: ElmAttributes,
@@ -196,7 +197,7 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
 }
 
 impl<'a: 'static> ComponentBase<'a> {
-    pub fn new(tag: String, id: ComponentId, tron_id: String) -> Self {
+    pub fn new(tag: String, id: ComponentId, tron_id: String, type_: String) -> Self {
         let mut attributes = HashMap::<String, String>::default();
         attributes.insert("id".into(), tron_id.clone());
         attributes.insert("hx-post".to_string(), format!("/tron/{}", id));
@@ -211,6 +212,7 @@ impl<'a: 'static> ComponentBase<'a> {
         attributes.insert("state".to_string(), "ready".to_string());
         Self {
             tag,
+            type_,
             id,
             tron_id,
             attributes,
@@ -228,7 +230,8 @@ impl<'a: 'static> Default for ComponentBase<'a> {
         let id: u32 = rng.gen();
         let tron_id = format!("{:x}", id);
         ComponentBase {
-            tag: "div".to_string(),
+            tag: "div".into(),
+            type_: "base".into(),
             id,
             tron_id,
             attributes: HashMap::default(),

@@ -8,7 +8,8 @@ pub struct TnAudioPlayer<'a: 'static> {
 
 impl<'a: 'static> TnAudioPlayer<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
-        let mut component_base = ComponentBase::new("audio".to_string(), id, name.clone());
+        let mut component_base =
+            ComponentBase::new("audio".to_string(), id, name.clone(), "audio_player".into());
         component_base.set_value(ComponentValue::String(value));
         component_base.set_attribute("src".into(), format!("/tron_streaming/{}", name));
         component_base.set_attribute("type".into(), "audio/webm".into());
@@ -30,7 +31,10 @@ impl<'a: 'static> Default for TnAudioPlayer<'a> {
     }
 }
 
-impl<'a: 'static> TnAudioPlayer<'a> where 'a:'static {
+impl<'a: 'static> TnAudioPlayer<'a>
+where
+    'a: 'static,
+{
     pub fn internal_render(&self) -> Html<String> {
         Html::from(format!(
             r##"<{} {} controls autoplay>{}</{}>"##,

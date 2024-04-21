@@ -8,7 +8,8 @@ pub struct TnAudioRecorder<'a: 'static> {
 
 impl<'a: 'static> TnAudioRecorder<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
-        let mut component_base = ComponentBase::new("div".to_string(), id, name);
+        let mut component_base =
+            ComponentBase::new("div".to_string(), id, name, "audio_recorder".into());
         component_base.set_value(ComponentValue::String(value));
         component_base.set_attribute("hx-trigger".into(), "streaming, server_side_trigger".into());
         component_base.set_attribute(
@@ -65,10 +66,7 @@ pub fn get_mut_audio_asset<'a>(
         .or_insert(TnAsset::Bytes(BytesMut::default()))
 }
 
-pub fn append_audio_data(
-    comp: &mut Box<dyn ComponentBaseTrait<'static>>,
-    new_bytes: Bytes,
-) {
+pub fn append_audio_data(comp: &mut Box<dyn ComponentBaseTrait<'static>>, new_bytes: Bytes) {
     let e = get_mut_audio_asset(comp);
     if let TnAsset::Bytes(audio_data) = e {
         (*audio_data).extend_from_slice(&new_bytes);

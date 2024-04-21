@@ -123,7 +123,7 @@ impl<'a: 'static> Context<'a>
             .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id))
     }
 
-    pub fn render_to_string(&self, tron_id: &'a str) -> String {
+    pub fn render_to_string(&self, tron_id: &str) -> String {
         let id = self.get_component_id(tron_id);
         let component_guard = self.components.blocking_read();
         let component = component_guard.get(&id).unwrap();

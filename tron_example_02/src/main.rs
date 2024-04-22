@@ -46,7 +46,7 @@ async fn main() {
 fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     let mut context = Context::<'static>::default();
     let mut component_id = 0_u32;
-    let mut btn = TnButton::new(component_id, "rec_button".into(), "Start Recording".into());
+    let mut btn = TnButton::new(component_id, "rec_button".into(), "Start Conversation".into());
     btn.set_attribute(
         "class".to_string(),
         "btn btn-sm btn-outline btn-primary flex-1".to_string(),
@@ -68,7 +68,7 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     let mut transcript_output = TnTextArea::<'static>::new(
         component_id,
         "transcript".to_string(),
-        "".to_string(),
+        "<< ".to_string(),
     );
     transcript_output.set_attribute(
         "class".to_string(),
@@ -213,12 +213,12 @@ fn toggle_recording(
 
             if let ComponentValue::String(value) = rec_button.value() {
                 match value.as_str() {
-                    "Stop Recording" => {
-                        rec_button.set_value(ComponentValue::String("Start Recording".into()));
+                    "Stop Conversation" => {
+                        rec_button.set_value(ComponentValue::String("Start Conversation".into()));
                         rec_button.set_state(ComponentState::Ready);
                     }
-                    "Start Recording" => {
-                        rec_button.set_value(ComponentValue::String("Stop Recording".into()));
+                    "Start Conversation" => {
+                        rec_button.set_value(ComponentValue::String("Stop Conversation".into()));
                         rec_button.set_state(ComponentState::Ready);
                     }
                     _ => {}
@@ -297,7 +297,7 @@ fn toggle_recording(
                         // };
                         // send_sse_msg_to_client(&sse_tx, msg).await;
                     }
-                    "Start Recording" => {
+                    "Start Conversation" => {
                         context_set_value_for(
                             &context,
                             "recorder",
@@ -575,7 +575,7 @@ async fn transcript_post_processing_service(
                         let mut components_guard = components.write().await;
                         let transcript_area =
                             components_guard.get_mut(&transcript_area_id).unwrap();
-                        text::append_textarea_value(transcript_area, "<END>\n", None);
+                        text::append_textarea_value(transcript_area, " <END>\n", None);
                     }
                     {
                         let msg = SseTriggerMsg {

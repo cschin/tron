@@ -60,17 +60,18 @@ pub async fn simulate_dialog(
                 stream_data_guard.get_mut("player").unwrap().1.clear();
                 // clear the stream buffer
             }
-            let mut patient_response = String::default();
+            let mut llm_response = String::default();
             for choice in response.choices {
                 println!(
                     "{}: Role: {}  Content: {:?}",
                     choice.index, choice.message.role, choice.message.content
                 );
                 if let Some(s) = choice.message.content {
-                    patient_response = s.clone(); 
+                    llm_response = s.clone(); 
                     let json_data = json!({"text": s}).to_string();
                     let mut response = reqwest_client
                         .post("https://api.deepgram.com/v1/speak?model=aura-zeus-en")
+                        //.post("https://api.deepgram.com/v1/speak?model=aura-stella-en")
                         .header("Content-Type", "application/json")
                         .header("Authorization", format!("Token {}", dg_api_key))
                         .body(json_data.to_owned())
@@ -121,7 +122,7 @@ pub async fn simulate_dialog(
                 let mut components_guard = components.write().await;
                 let transcript_area =
                     components_guard.get_mut(&transcript_area_id).unwrap();
-                text::append_textarea_value(transcript_area, &format!("Patient: {} \n", patient_response), None);
+                text::append_textarea_value(transcript_area, &format!(">> {} \n\n<<", llm_response), None);
             }
             {
                 let msg = SseTriggerMsg {

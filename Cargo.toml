@@ -1,0 +1,6 @@
+[workspace]
+
+resolver = "2"
+
+members = [ "tron_app", "tron_components", "tron_example_01", "tron_example_02", "tron_macro" ]
+

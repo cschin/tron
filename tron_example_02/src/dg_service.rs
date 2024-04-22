@@ -102,8 +102,8 @@ pub async fn trx_service(
 
     {
         let query_pairs = &mut base.query_pairs_mut();
-        query_pairs.append_pair("endpointing", "1000");
-        query_pairs.append_pair("utterance_end_ms", "1000");
+        query_pairs.append_pair("endpointing", "1500");
+        query_pairs.append_pair("utterance_end_ms", "1500");
         query_pairs.append_pair("interim_results", "true");
         query_pairs.append_pair("model", "nova-2-phonecall");
     }

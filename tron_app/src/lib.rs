@@ -19,6 +19,12 @@ pub struct SseAudioRecorderTriggerMsg {
     pub audio_recorder_control: String,
 }
 
+#[derive(Serialize)]
+pub struct SseAudioPlayerTriggerMsg {
+    pub server_side_trigger: TriggerData,
+    pub audio_player_control: String,
+}
+
 pub mod utils {
     use serde::Serialize;
     use tokio::sync::mpsc::Sender;

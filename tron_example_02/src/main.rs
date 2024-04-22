@@ -500,7 +500,9 @@ async fn transcript_service(
                         .transcript
                         .trim()
                         .to_string();
-                    transcript_fragments.push(trx_fragment.clone());
+                    if !trx_fragment.is_empty() {
+                        transcript_fragments.push(trx_fragment.clone());
+                    }
                     let _ = tx
                         .send(ServiceResponseMessage {
                             response: "transcript_fragment".to_string(),
@@ -550,7 +552,14 @@ async fn transcript_post_processing_service(
             "transcript_final" => {
                 if let TnAsset::String(transcript) = response.payload {
                     {
-                        let llm_tx = context.read().await.services.get("llm_service").unwrap().0.clone();
+                        let llm_tx = context
+                            .read()
+                            .await
+                            .services
+                            .get("llm_service")
+                            .unwrap()
+                            .0
+                            .clone();
 
                         let (tx, rx) = oneshot::channel::<String>();
                         let llm_req_msg = ServiceRequestMessage {
@@ -596,25 +605,27 @@ async fn transcript_post_processing_service(
             }
             "transcript_fragment" => {
                 if let TnAsset::String(transcript) = response.payload {
-                    let mut assets_guard = assets.write().await;
-                    let e = assets_guard.entry("transcript".into()).or_default();
-                    (*e).push(TnAsset::String(transcript.clone()));
-                    {
-                        let mut components_guard = components.write().await;
-                        let transcript_area =
-                            components_guard.get_mut(&transcript_area_id).unwrap();
-                        text::append_textarea_value(transcript_area, &transcript, Some(" "));
-                    }
-                    {
-                        let msg = SseTriggerMsg {
-                            server_side_trigger: TriggerData {
-                                target: "transcript".into(),
-                                new_state: "ready".into(),
-                            },
-                        };
-                        let sse_tx_guard = sse_tx.read().await;
-                        let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
-                        send_sse_msg_to_client(&sse_tx, msg).await;
+                    if !transcript.is_empty() {
+                        let mut assets_guard = assets.write().await;
+                        let e = assets_guard.entry("transcript".into()).or_default();
+                        (*e).push(TnAsset::String(transcript.clone()));
+                        {
+                            let mut components_guard = components.write().await;
+                            let transcript_area =
+                                components_guard.get_mut(&transcript_area_id).unwrap();
+                            text::append_textarea_value(transcript_area, &transcript, Some(" "));
+                        }
+                        {
+                            let msg = SseTriggerMsg {
+                                server_side_trigger: TriggerData {
+                                    target: "transcript".into(),
+                                    new_state: "ready".into(),
+                                },
+                            };
+                            let sse_tx_guard = sse_tx.read().await;
+                            let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
+                            send_sse_msg_to_client(&sse_tx, msg).await;
+                        }
                     }
                 }
             }

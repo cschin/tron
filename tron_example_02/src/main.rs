@@ -263,7 +263,7 @@ fn toggle_recording(
                                 //println!("returned string: {}", out);
                             };
                         }
-
+                        // // write the audio to file.
                         // {
                         //     let context_guard = context.read().await;
                         //     let components_guard = context_guard.components.read().await;
@@ -271,6 +271,7 @@ fn toggle_recording(
                         //     let recorder = components_guard.get(&recorder_id).unwrap().as_ref();
                         //     audio_recorder::write_audio_data_to_file(recorder);
                         // }
+
                         {
                             let context_guard = context.write().await;
                             let mut components_guard = context_guard.components.write().await;
@@ -280,6 +281,7 @@ fn toggle_recording(
                             player.set_attribute("src".into(), "/tron_streaming/player".into());
                             player.set_state(ComponentState::Updating);
                         }
+                        
                         let msg = SseTriggerMsg {
                             server_side_trigger: TriggerData {
                                 target: "player".into(),
@@ -391,10 +393,25 @@ fn audio_input_stream_processing(
     Box::pin(f)
 }
 
+async fn get_sse_tx(context: Arc<RwLock<Context<'static>>>) -> Sender<String> {
+    // unlock two layers of Rwlock !!
+    let sse_tx = context
+        .read()
+        .await
+        .sse_channels
+        .read()
+        .await
+        .as_ref()
+        .unwrap()
+        .tx
+        .clone();
+    sse_tx
+}
+
 fn stop_audio_playing(
     context: Arc<RwLock<Context<'static>>>,
-    event: TnEvent,
-    payload: Value,
+    _event: TnEvent,
+    _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
         {
@@ -407,15 +424,7 @@ fn stop_audio_playing(
             player.set_state(ComponentState::Ready);
         }
         {
-            let context_guard = context.read().await;
-            let sse_tx = context_guard
-                .sse_channels
-                .read()
-                .await
-                .as_ref()
-                .unwrap()
-                .tx
-                .clone();
+            let sse_tx = get_sse_tx(context.clone()).await;
             let msg = SseTriggerMsg {
                 server_side_trigger: TriggerData {
                     target: "player".into(),
@@ -568,6 +577,7 @@ async fn transcript_post_processing_service(
                         send_sse_msg_to_client(&sse_tx, msg).await;
                     }
                     {
+                        // toggle the rec_button to stop recording
                         let msg = SseTriggerMsg {
                             server_side_trigger: TriggerData {
                                 target: "rec_button".into(),

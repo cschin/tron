@@ -1,7 +1,7 @@
 mod dg_service;
 
 use askama::Template;
-use dg_service::{DeepgramError, StreamResponse, deepgram_transcript_service};
+use dg_service::{deepgram_transcript_service, DeepgramError, StreamResponse};
 use futures_util::Future;
 
 use axum::body::Bytes;
@@ -10,6 +10,12 @@ use serde::Deserialize;
 
 use bytes::{BufMut, BytesMut};
 use serde_json::Value;
+use std::{
+    collections::{HashMap, VecDeque},
+    pin::Pin,
+    sync::Arc,
+};
+use tokio::sync::oneshot;
 use tokio::sync::{
     mpsc::{Receiver, Sender},
     Mutex, RwLock,
@@ -17,16 +23,9 @@ use tokio::sync::{
 #[allow(unused_imports)]
 use tracing::debug;
 use tron_app::{
-    utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg,
-    SseTriggerMsg, TriggerData,
+    utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData,
 };
 use tron_components::*;
-use std::{
-    collections::{HashMap, VecDeque},
-    pin::Pin,
-    sync::Arc,
-};
-use tokio::sync::oneshot;
 
 #[tokio::main]
 async fn main() {
@@ -84,24 +83,37 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
 
     // add services
     {
-        let (request_tx, request_rx) = tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
-        let (response_tx, mut response_rx) =
+        let (transcript_request_tx, transcript_request_rx) =
+            tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
+        let (transcript_response_tx, transcript_response_rx) =
             tokio::sync::mpsc::channel::<ServiceResponseMessage>(1);
         context.blocking_write().services.insert(
             "transcript_service".into(),
-            (request_tx.clone(), Mutex::new(None)),
+            (transcript_request_tx.clone(), Mutex::new(None)),
         );
-        tokio::task::spawn(transcript_service(request_rx, response_tx));
-
+        tokio::task::spawn(transcript_service(
+            transcript_request_rx,
+            transcript_response_tx,
+        ));
         tokio::task::spawn(transcript_post_processing_service(
             context.clone(),
-            response_rx,
-            transcript_area_id,
+            transcript_response_rx,
         ));
+
+        let (llm_request_tx, llm_request_rx) =
+            tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
+        context.blocking_write().services.insert(
+            "llm_service".into(),
+            (llm_request_tx.clone(), Mutex::new(None)),
+        );
+        // tokio::task::spawn(llm_service(
+        //     context.clone()
+        //     llm_request_rx,
+        // ));
     }
 
     {
-        let context_guard  = context.blocking_write();
+        let context_guard = context.blocking_write();
         let mut stream_data_guard = context_guard.stream_data.blocking_write();
 
         stream_data_guard.insert("player".into(), ("audio/webm".into(), VecDeque::default()));
@@ -214,7 +226,7 @@ fn toggle_recording(
                 }
             }
         }
-        {  
+        {
             // Fore stop and start the recording stream
             if let ComponentValue::String(value) = previous_rec_button_value {
                 match value.as_str() {
@@ -277,7 +289,7 @@ fn toggle_recording(
                             player.set_attribute("src".into(), "/tron_streaming/player".into());
                             player.set_state(ComponentState::Updating);
                         }
-                        
+
                         let msg = SseTriggerMsg {
                             server_side_trigger: TriggerData {
                                 target: "player".into(),
@@ -528,11 +540,11 @@ async fn transcript_service(
 async fn transcript_post_processing_service(
     context: Arc<RwLock<Context<'static>>>,
     mut response_rx: Receiver<ServiceResponseMessage>,
-    transcript_area_id: u32,
 ) {
     let assets = context.read().await.assets.clone();
     let components = context.read().await.components.clone();
     let sse_tx = context.read().await.sse_channels.clone();
+    let transcript_area_id = context.read().await.get_component_id("transcript");
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {
             "transcript_final" => {

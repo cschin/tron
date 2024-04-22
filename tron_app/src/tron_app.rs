@@ -409,9 +409,10 @@ async fn tron_stream(
         .collect::<Vec<_>>();
 
     if data_queue.is_empty() {
+        println!("stream data_queue empty");
         return (StatusCode::NOT_FOUND, default_header, Body::default());
     }
-
+    println!("stream data_queue NOT empty");
     let data_queue = futures_util::stream::iter(data_queue);
 
     let body = Body::from_stream(data_queue);

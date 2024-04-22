@@ -1,4 +1,6 @@
 mod dg_service;
+mod open_ai_service;
+use open_ai_service::simulate_dialog;
 
 use askama::Template;
 use dg_service::{deepgram_transcript_service, DeepgramError, StreamResponse};
@@ -106,17 +108,15 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
             "llm_service".into(),
             (llm_request_tx.clone(), Mutex::new(None)),
         );
-        // tokio::task::spawn(llm_service(
-        //     context.clone()
-        //     llm_request_rx,
-        // ));
+        tokio::task::spawn(simulate_dialog(context.clone(), llm_request_rx));
     }
 
     {
         let context_guard = context.blocking_write();
         let mut stream_data_guard = context_guard.stream_data.blocking_write();
 
-        stream_data_guard.insert("player".into(), ("audio/webm".into(), VecDeque::default()));
+        // stream_data_guard.insert("player".into(), ("audio/webm".into(), VecDeque::default()));
+        stream_data_guard.insert("player".into(), ("audio/mp3".into(), VecDeque::default()));
     }
 
     //components.component_layout = Some(layout(&components));
@@ -280,23 +280,23 @@ fn toggle_recording(
                         //     audio_recorder::write_audio_data_to_file(recorder);
                         // }
 
-                        {
-                            let context_guard = context.write().await;
-                            let mut components_guard = context_guard.components.write().await;
-                            let player_id = context_guard.get_component_id("player");
-                            let player = components_guard.get_mut(&player_id).unwrap();
-                            player.set_attribute("autoplay".into(), "true".into());
-                            player.set_attribute("src".into(), "/tron_streaming/player".into());
-                            player.set_state(ComponentState::Updating);
-                        }
+                        // {
+                        //     let context_guard = context.write().await;
+                        //     let mut components_guard = context_guard.components.write().await;
+                        //     let player_id = context_guard.get_component_id("player");
+                        //     let player = components_guard.get_mut(&player_id).unwrap();
+                        //     player.set_attribute("autoplay".into(), "true".into());
+                        //     player.set_attribute("src".into(), "/tron_streaming/player".into());
+                        //     player.set_state(ComponentState::Updating);
+                        // }
 
-                        let msg = SseTriggerMsg {
-                            server_side_trigger: TriggerData {
-                                target: "player".into(),
-                                new_state: "updating".into(),
-                            },
-                        };
-                        send_sse_msg_to_client(&sse_tx, msg).await;
+                        // let msg = SseTriggerMsg {
+                        //     server_side_trigger: TriggerData {
+                        //         target: "player".into(),
+                        //         new_state: "updating".into(),
+                        //     },
+                        // };
+                        // send_sse_msg_to_client(&sse_tx, msg).await;
                     }
                     "Start Recording" => {
                         context_set_value_for(
@@ -374,14 +374,14 @@ fn audio_input_stream_processing(
                 let recorder = component_guard.get_mut(&id).unwrap();
                 audio_recorder::append_audio_data(recorder, chunk.clone());
             }
-            {
-                let context_guard = context.write().await;
-                let mut stream_data_guard = context_guard.stream_data.write().await;
-                let player_data = stream_data_guard.get_mut("player").unwrap();
-                let mut data = BytesMut::new();
-                data.put(&chunk[..]);
-                player_data.1.push_back(data);
-            }
+            // {
+            //     let context_guard = context.write().await;
+            //     let mut stream_data_guard = context_guard.stream_data.write().await;
+            //     let player_data = stream_data_guard.get_mut("player").unwrap();
+            //     let mut data = BytesMut::new();
+            //     data.put(&chunk[..]);
+            //     player_data.1.push_back(data);
+            // }
             {
                 let context_guard = context.read().await;
                 let (trx_srv, _) = context_guard.services.get("transcript_service").unwrap();
@@ -548,7 +548,21 @@ async fn transcript_post_processing_service(
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {
             "transcript_final" => {
-                if let TnAsset::String(_transcript) = response.payload {
+                if let TnAsset::String(transcript) = response.payload {
+                    {
+                        let llm_tx = context.read().await.services.get("llm_service").unwrap().0.clone();
+
+                        let (tx, rx) = oneshot::channel::<String>();
+                        let llm_req_msg = ServiceRequestMessage {
+                            request: "chat-complete".into(),
+                            payload: TnAsset::String(transcript),
+                            response: tx,
+                        };
+                        let _ = llm_tx.send(llm_req_msg).await;
+                        if let Ok(_out) = rx.await {
+                            //println!("returned string: {}", out);
+                        };
+                    }
                     {
                         let mut components_guard = components.write().await;
                         let transcript_area =
@@ -566,18 +580,18 @@ async fn transcript_post_processing_service(
                         let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
                         send_sse_msg_to_client(&sse_tx, msg).await;
                     }
-                    {
-                        // toggle the rec_button to stop recording
-                        let msg = SseTriggerMsg {
-                            server_side_trigger: TriggerData {
-                                target: "rec_button".into(),
-                                new_state: "ready".into(),
-                            },
-                        };
-                        let sse_tx_guard = sse_tx.read().await;
-                        let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
-                        send_sse_msg_to_client(&sse_tx, msg).await;
-                    }
+                    // {
+                    //     // toggle the rec_button to stop recording
+                    //     let msg = SseTriggerMsg {
+                    //         server_side_trigger: TriggerData {
+                    //             target: "rec_button".into(),
+                    //             new_state: "ready".into(),
+                    //         },
+                    //     };
+                    //     let sse_tx_guard = sse_tx.read().await;
+                    //     let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
+                    //     send_sse_msg_to_client(&sse_tx, msg).await;
+                    // }
                 }
             }
             "transcript_fragment" => {

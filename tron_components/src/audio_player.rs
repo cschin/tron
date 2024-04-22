@@ -12,7 +12,8 @@ impl<'a: 'static> TnAudioPlayer<'a> {
             ComponentBase::new("audio".to_string(), id, name.clone(), "audio_player".into());
         component_base.set_value(ComponentValue::String(value));
         component_base.set_attribute("src".into(), format!("/tron_streaming/{}", name));
-        component_base.set_attribute("type".into(), "audio/webm".into());
+        // component_base.set_attribute("type".into(), "audio/webm".into());
+        component_base.set_attribute("type".into(), "audio/mp3".into());
         component_base.set_attribute("hx-trigger".into(), "server_side_trigger, ended".into());
         Self {
             inner: component_base,

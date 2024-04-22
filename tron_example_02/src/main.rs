@@ -65,11 +65,10 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     context.add_component(player);
 
     component_id += 1;
-    let transcript_area_id = component_id;
     let mut transcript_output = TnTextArea::<'static>::new(
         component_id,
         "transcript".to_string(),
-        "Pending".to_string(),
+        "".to_string(),
     );
     transcript_output.set_attribute(
         "class".to_string(),

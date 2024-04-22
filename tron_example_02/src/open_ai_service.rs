@@ -70,7 +70,7 @@ pub async fn simulate_dialog(
                     patient_response = s.clone(); 
                     let json_data = json!({"text": s}).to_string();
                     let mut response = reqwest_client
-                        .post("https://api.deepgram.com/v1/speak?model=aura-asteria-en")
+                        .post("https://api.deepgram.com/v1/speak?model=aura-zeus-en")
                         .header("Content-Type", "application/json")
                         .header("Authorization", format!("Token {}", dg_api_key))
                         .body(json_data.to_owned())
@@ -122,6 +122,15 @@ pub async fn simulate_dialog(
                 let transcript_area =
                     components_guard.get_mut(&transcript_area_id).unwrap();
                 text::append_textarea_value(transcript_area, &format!("Patient: {} \n", patient_response), None);
+            }
+            {
+                let msg = SseTriggerMsg {
+                    server_side_trigger: TriggerData {
+                        target: "transcript".into(),
+                        new_state: "ready".into(),
+                    },
+                };
+                send_sse_msg_to_client(&sse_tx, msg).await;
             }
         }
     }

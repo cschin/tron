@@ -5,6 +5,7 @@ use futures::stream::StreamExt;
 use http::Request;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
+use tokio::sync::mpsc::Sender;
 use tokio_tungstenite::tungstenite::{self, Message};
 use url::Url;
 
@@ -92,6 +93,26 @@ pub fn generate_key() -> String {
     // when decoded, is 16 bytes in length (RFC 6455)
     let r: [u8; 16] = rand::random();
     data_encoding::BASE64.encode(&r)
+}
+
+pub async fn deepgram_transcript_service(
+    audio_rx: tokio::sync::mpsc::Receiver<core::result::Result<Bytes, DeepgramError>>,
+    transcript_tx: Sender<StreamResponse>,
+) -> core::result::Result<(), DeepgramError> {
+    let mut dg_response = trx_service(audio_rx).await.unwrap();
+    while let Some(result) = dg_response.next().await {
+        match result {
+            Ok(r) => {
+                transcript_tx.send(r).await.expect("transcript send fail");
+            }
+            Err(e) => {
+                println!("Err {:?}", e);
+                return Err(e);
+            }
+        }
+    }
+    drop(dg_response);
+    Ok(())
 }
 
 pub async fn trx_service(

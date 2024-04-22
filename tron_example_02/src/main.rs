@@ -1,7 +1,7 @@
 mod dg_service;
 
 use askama::Template;
-use dg_service::{DeepgramError, StreamResponse};
+use dg_service::{DeepgramError, StreamResponse, deepgram_transcript_service};
 use futures_util::Future;
 
 use axum::body::Bytes;
@@ -17,12 +17,10 @@ use tokio::sync::{
 #[allow(unused_imports)]
 use tracing::debug;
 use tron_app::{
-    utils::send_sse_msg_to_client, SseAudioPlayerTriggerMsg, SseAudioRecorderTriggerMsg,
+    utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg,
     SseTriggerMsg, TriggerData,
 };
 use tron_components::*;
-//use std::sync::Mutex;
-use futures_util::StreamExt;
 use std::{
     collections::{HashMap, VecDeque},
     pin::Pin,
@@ -194,11 +192,7 @@ fn toggle_recording(
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
         let previous_rec_button_value;
-        let sse_tx = {
-            let context_guard = context.read().await;
-            let channel_guard = context_guard.sse_channels.read().await;
-            channel_guard.as_ref().unwrap().tx.clone()
-        };
+        let sse_tx = get_sse_tx(context.clone()).await;
         {
             let context_guard = context.read().await;
             let rec_button_id = context_guard.get_component_id(&event.e_target);
@@ -305,6 +299,7 @@ fn toggle_recording(
                             stream_data_guard.get_mut("player").unwrap().1.clear();
                             // clear the stream buffer
                         }
+
                         let msg = SseAudioRecorderTriggerMsg {
                             server_side_trigger: TriggerData {
                                 target: "recorder".into(),
@@ -446,7 +441,7 @@ async fn transcript_service(
         //println!("restart dg_trx");
         let (mut audio_tx, audio_rx) =
             tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
-        let mut handle = tokio::spawn(dg_trx(audio_rx, transcript_tx.clone()));
+        let mut handle = tokio::spawn(deepgram_transcript_service(audio_rx, transcript_tx.clone()));
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         while let Some(req) = rx.recv().await {
             if handle.is_finished() {
@@ -454,7 +449,7 @@ async fn transcript_service(
                 let (audio_tx0, audio_rx) =
                     tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
                 audio_tx = audio_tx0;
-                handle = tokio::spawn(dg_trx(audio_rx, transcript_tx.clone()));
+                handle = tokio::spawn(deepgram_transcript_service(audio_rx, transcript_tx.clone()));
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
             if let TnAsset::VecU8(payload) = req.payload {
@@ -526,26 +521,6 @@ async fn transcript_service(
             }
         };
     }
-}
-
-async fn dg_trx(
-    audio_rx: Receiver<Result<Bytes, DeepgramError>>,
-    transcript_tx: Sender<StreamResponse>,
-) -> Result<(), DeepgramError> {
-    let mut dg_response = dg_service::trx_service(audio_rx).await.unwrap();
-    while let Some(result) = dg_response.next().await {
-        match result {
-            Ok(r) => {
-                transcript_tx.send(r).await.expect("transcript send fail");
-            }
-            Err(e) => {
-                println!("Err {:?}", e);
-                return Err(e);
-            }
-        }
-    }
-    drop(dg_response);
-    Ok(())
 }
 
 async fn transcript_post_processing_service(

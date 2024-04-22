@@ -42,7 +42,7 @@ async fn main() {
     tron_app::run(app_share_data).await
 }
 
-fn build_session_context() -> Context<'static> {
+fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     let mut context = Context::<'static>::default();
     let mut component_id = 0_u32;
     let mut btn = TnButton::new(component_id, "rec_button".into(), "Start Recording".into());
@@ -80,30 +80,29 @@ fn build_session_context() -> Context<'static> {
     );
     context.add_component(transcript_output);
 
-    // add service
+    let context = Arc::new(RwLock::new(context));
+
+    // add services
     {
         let (request_tx, request_rx) = tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
         let (response_tx, mut response_rx) =
             tokio::sync::mpsc::channel::<ServiceResponseMessage>(1);
-        context.services.insert(
+        context.blocking_write().services.insert(
             "transcript_service".into(),
             (request_tx.clone(), Mutex::new(None)),
         );
         tokio::task::spawn(transcript_service(request_rx, response_tx));
-        let assets = context.assets.clone();
-        let components = context.components.clone();
-        let sse_tx = context.sse_channels.clone();
+
         tokio::task::spawn(transcript_post_processing_service(
-            assets,
-            components,
-            sse_tx,
+            context.clone(),
             response_rx,
             transcript_area_id,
         ));
     }
 
     {
-        let mut stream_data_guard = context.stream_data.blocking_write();
+        let context_guard  = context.blocking_write();
+        let mut stream_data_guard = context_guard.stream_data.blocking_write();
 
         stream_data_guard.insert("player".into(), ("audio/webm".into(), VecDeque::default()));
     }
@@ -121,11 +120,12 @@ struct AppPageTemplate {
     transcript: String,
 }
 
-fn layout(context: &Context<'static>) -> String {
-    let btn = context.render_to_string("rec_button");
-    let recorder = context.render_to_string("recorder");
-    let player = context.render_to_string("player");
-    let transcript = context.render_to_string("transcript");
+fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
+    let context_guard = context.blocking_read();
+    let btn = context_guard.render_to_string("rec_button");
+    let recorder = context_guard.render_to_string("recorder");
+    let player = context_guard.render_to_string("player");
+    let transcript = context_guard.render_to_string("transcript");
     let html = AppPageTemplate {
         btn,
         recorder,
@@ -214,7 +214,8 @@ fn toggle_recording(
                 }
             }
         }
-        {
+        {  
+            // Fore stop and start the recording stream
             if let ComponentValue::String(value) = previous_rec_button_value {
                 match value.as_str() {
                     "Stop Recording" => {
@@ -257,6 +258,7 @@ fn toggle_recording(
                                 //println!("returned string: {}", out);
                             };
                         }
+
                         // // write the audio to file.
                         // {
                         //     let context_guard = context.read().await;
@@ -524,12 +526,13 @@ async fn transcript_service(
 }
 
 async fn transcript_post_processing_service(
-    assets: TnAssets,
-    components: TnComponents<'static>,
-    sse_tx: TnSeeChannels,
+    context: Arc<RwLock<Context<'static>>>,
     mut response_rx: Receiver<ServiceResponseMessage>,
     transcript_area_id: u32,
 ) {
+    let assets = context.read().await.assets.clone();
+    let components = context.read().await.components.clone();
+    let sse_tx = context.read().await.sse_channels.clone();
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {
             "transcript_final" => {

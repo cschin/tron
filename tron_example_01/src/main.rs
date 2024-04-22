@@ -118,7 +118,7 @@ fn test_evt_task(
     Box::pin(f())
 }
 
-fn build_session_context() -> Context<'static> {
+fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     let mut components = Context::<'static>::default();
     let mut component_id = 0_u32;
     loop {
@@ -159,7 +159,7 @@ fn build_session_context() -> Context<'static> {
     );
     components.add_component(textinput);
 
-    components
+    Arc::new(RwLock::new(components))
 
     //Arc::new(RwLock::new(components))
 }
@@ -185,25 +185,26 @@ struct AppPageTemplate {
     textinput: String,
 }
 
-fn layout(context: &Context<'static>) -> String{
+fn layout(context: Arc<RwLock<Context<'static>>>) -> String{
+    
+    let context_guard = context.blocking_read();
+    let mut components_guard = context_guard.components.blocking_write();
+    
     let buttons = (0..10)
         .map(|i| {
-            let mut components_guard = context.components.blocking_write();
             let btn = components_guard.get_mut(&i).unwrap();
             btn.render_to_string()
         })
         .collect::<Vec<String>>();
 
     let textarea = {
-        let id = context.get_component_id("textarea");
-        let mut components_guard = context.components.blocking_write();
+        let id = context_guard.get_component_id("textarea");
         let textarea = components_guard.get_mut(&id).unwrap();
         textarea.render_to_string()
     };
 
     let textinput = {
-        let id = context.get_component_id("textinput");
-        let mut components_guard = context.components.blocking_write();
+        let id = context_guard.get_component_id("textinput");
         let textinput = components_guard.get_mut(&id).unwrap();
         textinput.render_to_string()
     };

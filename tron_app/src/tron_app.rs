@@ -42,9 +42,9 @@ pub type SessionContext =
 
 pub type EventActions = RwLock<TnEventActions>;
 
-type ContextBuilder = dyn Fn() -> Context<'static> + Send + Sync;
+type ContextBuilder = dyn Fn() -> Arc<RwLock<Context<'static>>> + Send + Sync;
 type ActionFunctionTemplate = dyn Fn() -> TnEventActions + Send + Sync;
-type LayoutFunction = dyn Fn(&Context<'static>) -> String + Send + Sync;
+type LayoutFunction = dyn Fn(Arc<RwLock<Context<'static>>>) -> String + Send + Sync;
 
 pub struct AppData {
     pub session_context: SessionContext,
@@ -144,7 +144,7 @@ async fn load_page(
         let mut session_contexts = app_data.session_context.write().await;
         let e = session_contexts
             .entry(session_id)
-            .or_insert(Arc::new(RwLock::new(context)));
+            .or_insert(context);
         {
             let context_guard = e.read().await;
             let (tx, rx) = tokio::sync::mpsc::channel(16);
@@ -157,8 +157,9 @@ async fn load_page(
     app_event_action_guard.clone_from(&(*app_data.build_session_actions)());
 
     let context_guard = app_data.session_context.read().await;
-    let context = &context_guard.get(&session_id).unwrap().read().await;
+    let context = context_guard.get(&session_id).unwrap().clone();
     let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context));
+
     Ok(Html::from(layout))
 }
 

@@ -28,12 +28,12 @@ async fn main() {
     tron_app::run(app_share_data).await
 }
 
-fn build_session_context() -> Context<'static> {
-    let mut context = Context::default();
+fn build_session_context() -> Arc<RwLock<Context<'static>>> {
+    let context = Arc::new(RwLock::new(Context::default()));
     context
 }
 
-fn layout(components: &Context) -> String {
+fn layout(components: Arc<RwLock<Context>>) -> String {
     "This is an template, please fill in the components and how to layout them.".into()
 }
 

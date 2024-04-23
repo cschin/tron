@@ -427,9 +427,7 @@ fn stop_audio_playing(
             let mut components_guard = context_guard.components.write().await;
             let player_id = context_guard.get_component_id("player");
             let player = components_guard.get_mut(&player_id).unwrap();
-            //player.set_attribute("src".into(), "".into());
-            //player.set_attribute("autoplay".into(), "false".into());
-            player.set_header("HX-Reswap".into(), "None".into()); 
+            player.set_header("HX-Reswap".into(), "none".into()); 
             player.set_state(ComponentState::Ready);
         }
         {

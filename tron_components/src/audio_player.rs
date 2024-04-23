@@ -38,14 +38,9 @@ where
 {
     pub fn internal_render(&self) -> String {
         format!(
-            r##"<{} {} controls autoplay>{}</{}>"##,
+            r##"<{} {} controls autoplay>"##,
             self.inner.tag,
             self.generate_attr_string(),
-            match self.value() {
-                ComponentValue::String(s) => s,
-                _ => "paused",
-            },
-            self.inner.tag
         )
     }
 }

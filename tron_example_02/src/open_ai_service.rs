@@ -103,8 +103,6 @@ pub async fn simulate_dialog(
                 let mut components_guard = context_guard.components.write().await;
                 let player_id = context_guard.get_component_id("player");
                 let player = components_guard.get_mut(&player_id).unwrap();
-                //player.set_attribute("autoplay".into(), "true".into());
-                //player.set_attribute("src".into(), "/tron_streaming/player".into());
                 player.remove_header("HX-Reswap".into());
                 player.set_state(ComponentState::Updating);
             }

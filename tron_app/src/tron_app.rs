@@ -287,9 +287,9 @@ async fn tron_entry(
             .insert(
                 HeaderName::from_bytes(k.as_bytes()).unwrap(),
                 HeaderValue::from_bytes(v.as_bytes()).unwrap(),
-            )
-            .unwrap();
+            );
     });
+    // println!("response_headers: {:?}", response_headers);
     (StatusCode::OK, response_headers, body)
 }
 

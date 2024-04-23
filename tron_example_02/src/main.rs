@@ -386,7 +386,7 @@ fn audio_input_stream_processing(
                 let (trx_srv, _) = context_guard.services.get("transcript_service").unwrap();
                 let (tx, rx) = oneshot::channel::<String>();
                 let trx_req_msg = ServiceRequestMessage {
-                    request: "sending audio:".into(),
+                    request: "sending audio".into(),
                     payload: TnAsset::VecU8(chunk.to_vec()),
                     response: tx,
                 };

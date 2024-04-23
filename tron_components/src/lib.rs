@@ -19,11 +19,12 @@ pub use text::TnTextArea;
 
 use rand::{thread_rng, Rng};
 
-use axum::{body::Bytes, response::Html};
+use axum::body::Bytes;
 use bytes::BytesMut;
 
 pub type ComponentId = u32;
 pub type ElmAttributes = HashMap<String, String>;
+pub type ExtraResponseHeader = HashMap<String, String>; 
 pub type ElmTag = String;
 
 use serde::Deserialize;
@@ -58,6 +59,7 @@ pub struct ComponentBase<'a: 'static> {
     pub tron_id: String,
     pub attributes: ElmAttributes,
     pub value: ComponentValue,
+    pub extra_response_headers: ExtraResponseHeader,
     pub assets: Option<HashMap<String, TnAsset>>,
     pub state: ComponentState,
     pub children: Option<Vec<&'a ComponentBase<'a>>>, // general storage
@@ -129,7 +131,7 @@ impl<'a: 'static> Context<'a> {
         let id = self.get_component_id(tron_id);
         let component_guard = self.components.blocking_read();
         let component = component_guard.get(&id).unwrap();
-        component.render().0
+        component.render()
     }
 }
 
@@ -185,6 +187,10 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn tron_id(&self) -> &String;
     fn attributes(&self) -> &ElmAttributes;
     fn set_attribute(&mut self, key: String, value: String);
+    fn remove_attribute(&mut self, key: String);
+    fn extra_headers(&self) -> &ExtraResponseHeader;
+    fn set_header(&mut self, key: String, value: String);
+    fn remove_header(&mut self, key: String);
     fn generate_attr_string(&self) -> String;
     fn value(&self) -> &ComponentValue;
     fn set_value(&mut self, value: ComponentValue);
@@ -192,8 +198,7 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn set_state(&mut self, state: ComponentState);
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>>;
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
-    fn render(&self) -> Html<String>;
-    fn render_to_string(&self) -> String;
+    fn render(&self) -> String;
     fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>>;
 }
 
@@ -217,6 +222,7 @@ impl<'a: 'static> ComponentBase<'a> {
             id,
             tron_id,
             attributes,
+            extra_response_headers: HashMap::default(),
             value: ComponentValue::None,
             assets: None,
             state: ComponentState::Ready,
@@ -236,6 +242,7 @@ impl<'a: 'static> Default for ComponentBase<'a> {
             id,
             tron_id,
             attributes: HashMap::default(),
+            extra_response_headers: HashMap::default(),
             value: ComponentValue::None,
             assets: None,
             state: ComponentState::Ready,
@@ -262,6 +269,22 @@ where
 
     fn set_attribute(&mut self, key: String, val: String) {
         self.attributes.insert(key, val);
+    }
+
+    fn remove_attribute(&mut self, key: String) {
+        self.attributes.remove(&key);
+    }
+
+    fn extra_headers(&self) -> &ExtraResponseHeader {
+        &self.extra_response_headers
+    }
+
+    fn set_header(&mut self, key: String, val: String) {
+        self.extra_response_headers.insert(key, val);
+    }
+
+    fn remove_header(&mut self, key: String) {
+        self.extra_response_headers.remove(&key);
     }
 
     fn generate_attr_string(&self) -> String {
@@ -312,12 +335,8 @@ where
         }
     }
 
-    fn render(&self) -> Html<String> {
+    fn render(&self) -> String {
         unimplemented!()
-    }
-
-    fn render_to_string(&self) -> String {
-        self.render().0
     }
 
     fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>> {

@@ -43,8 +43,8 @@ impl<'a: 'static> TnAudioRecorder<'a>
 where
     'a: 'static,
 {
-    pub fn internal_render(&self) -> Html<String> {
-        Html::from(format!(
+    pub fn internal_render(&self) -> String {
+        format!(
             r##"<{} {}>{}</{}>"##,
             self.inner.tag,
             self.generate_attr_string(),
@@ -53,7 +53,7 @@ where
                 _ => "paused",
             },
             self.inner.tag
-        ))
+        )
     }
 }
 

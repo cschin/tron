@@ -229,7 +229,7 @@ fn toggle_recording(
             // Fore stop and start the recording stream
             if let ComponentValue::String(value) = previous_rec_button_value {
                 match value.as_str() {
-                    "Stop Recording" => {
+                    "Stop Conversation" => {
                         {
                             context_set_value_for(
                                 &context,
@@ -427,8 +427,9 @@ fn stop_audio_playing(
             let mut components_guard = context_guard.components.write().await;
             let player_id = context_guard.get_component_id("player");
             let player = components_guard.get_mut(&player_id).unwrap();
-            player.set_attribute("src".into(), "".into());
-            player.set_attribute("autoplay".into(), "false".into());
+            //player.set_attribute("src".into(), "".into());
+            //player.set_attribute("autoplay".into(), "false".into());
+            player.set_header("HX-Reswap".into(), "None".into()); 
             player.set_state(ComponentState::Ready);
         }
         {
@@ -457,6 +458,7 @@ async fn transcript_service(
         let mut handle = tokio::spawn(deepgram_transcript_service(audio_rx, transcript_tx.clone()));
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         while let Some(req) = rx.recv().await {
+            println!("req: {}", req.request);
             if handle.is_finished() {
                 audio_tx.closed().await;
                 let (audio_tx0, audio_rx) =

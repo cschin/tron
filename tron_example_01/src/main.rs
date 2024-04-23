@@ -193,20 +193,20 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String{
     let buttons = (0..10)
         .map(|i| {
             let btn = components_guard.get_mut(&i).unwrap();
-            btn.render_to_string()
+            btn.render()
         })
         .collect::<Vec<String>>();
 
     let textarea = {
         let id = context_guard.get_component_id("textarea");
         let textarea = components_guard.get_mut(&id).unwrap();
-        textarea.render_to_string()
+        textarea.render()
     };
 
     let textinput = {
         let id = context_guard.get_component_id("textinput");
         let textinput = components_guard.get_mut(&id).unwrap();
-        textinput.render_to_string()
+        textinput.render()
     };
     
     let html = AppPageTemplate {

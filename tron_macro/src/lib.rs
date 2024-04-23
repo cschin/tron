@@ -28,6 +28,29 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                     .insert(key, val);
             }
 
+            fn remove_attribute(&mut self, key: String) {
+                self.inner
+                    .attributes
+                    .remove(&key);
+            }
+
+            fn extra_headers(&self) -> &ExtraResponseHeader {
+                self.inner.extra_headers()
+            }
+
+            fn set_header(&mut self, key: String, val: String) {
+                self.inner
+                    .extra_response_headers
+                    .insert(key, val);
+            }
+
+            fn remove_header(&mut self, key: String) {
+                self.inner
+                    .extra_response_headers
+                    .remove(&key);
+            }
+
+
             fn generate_attr_string(&self) -> String {
                 self.inner.generate_attr_string()
             }
@@ -57,12 +80,8 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.inner.get_mut_assets()
             }
 
-            fn render(&self) -> Html<String> {
+            fn render(&self) -> String {
                 self.internal_render()
-            }
-
-            fn render_to_string(&self) -> String {
-                self.render().0
             }
 
             fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>> {

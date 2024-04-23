@@ -36,9 +36,9 @@ impl<'a: 'static> TnAudioPlayer<'a>
 where
     'a: 'static,
 {
-    pub fn internal_render(&self) -> Html<String> {
-        Html::from(format!(
-            r##"<{} {} controls>{}</{}>"##,
+    pub fn internal_render(&self) -> String {
+        format!(
+            r##"<{} {} controls autoplay>{}</{}>"##,
             self.inner.tag,
             self.generate_attr_string(),
             match self.value() {
@@ -46,6 +46,6 @@ where
                 _ => "paused",
             },
             self.inner.tag
-        ))
+        )
     }
 }

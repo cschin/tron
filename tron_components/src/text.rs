@@ -33,8 +33,8 @@ impl<'a: 'static> Default for TnTextArea<'a> {
 }
 
 impl<'a: 'static> TnTextArea<'a> {
-    pub fn internal_render(&self) -> Html<String> {
-        Html::from(format!(
+    pub fn internal_render(&self) -> String {
+        format!(
             r##"<{} {}>{}</{}>"##,
             self.inner.tag,
             self.generate_attr_string(),
@@ -43,7 +43,7 @@ impl<'a: 'static> TnTextArea<'a> {
                 _ => "textarea",
             },
             self.inner.tag
-        ))
+        )
     }
 }
 
@@ -97,8 +97,8 @@ impl<'a: 'static> Default for TnTextInput<'a> {
 }
 
 impl<'a: 'static> TnTextInput<'a> {
-    pub fn internal_render(&self) -> Html<String> {
-        Html::from(format!(
+    pub fn internal_render(&self) -> String {
+        format!(
             r##"<{} {} value="{}">"##,
             self.inner.tag,
             self.generate_attr_string(),
@@ -106,6 +106,6 @@ impl<'a: 'static> TnTextInput<'a> {
                 ComponentValue::String(s) => utils::html_escape_double_quote(s),
                 _ => "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam eu pellentesque erat, ut sollicitudin nisi.".to_string()
             }
-        ))
+        )
     }
 }

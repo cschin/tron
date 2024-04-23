@@ -2,7 +2,7 @@ use axum::{
     body::Body,
     extract::{Host, Json, Path, Request, State},
     handler::HandlerWithoutStateExt,
-    http::{header, HeaderMap, StatusCode, Uri},
+    http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode, Uri},
     response::{
         sse::{self, KeepAlive},
         Html, IntoResponse, Redirect, Sse,
@@ -142,9 +142,7 @@ async fn load_page(
     {
         let context = tokio::task::block_in_place(|| (*app_data.build_session_context)());
         let mut session_contexts = app_data.session_context.write().await;
-        let e = session_contexts
-            .entry(session_id)
-            .or_insert(context);
+        let e = session_contexts.entry(session_id).or_insert(context);
         {
             let context_guard = e.read().await;
             let (tx, rx) = tokio::sync::mpsc::channel(16);
@@ -195,20 +193,26 @@ async fn tron_entry(
     Path(tron_id): Path<ComponentId>,
     Json(payload): Json<Value>,
     //request: Request,
-) -> Result<Html<String>, StatusCode> {
+) -> impl IntoResponse {
     // println!("req: {:?}", request);
     // println!("req body: {:?}", to_bytes(request.into_body(), usize::MAX).await );
     // let body_bytes =  to_bytes(request.into_body(), usize::MAX).await.unwrap();
     // println!("header: {:?}", _headers);
+
+    let mut response_headers = HeaderMap::new();
+    response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+
     let session_id = if let Some(session_id) = session.id() {
         session_id
     } else {
-        return Err(StatusCode::FORBIDDEN);
+        //return Err(StatusCode::FORBIDDEN);
+        return (StatusCode::FORBIDDEN, response_headers, Body::default());
     };
     {
         let context = app_data.session_context.read().await;
         if !context.contains_key(&session_id) {
-            return Err(StatusCode::FORBIDDEN);
+            //return Err(StatusCode::FORBIDDEN);
+            return (StatusCode::FORBIDDEN, response_headers, Body::default());
         }
     }
 
@@ -277,7 +281,16 @@ async fn tron_entry(
 
     let mut target_guard = components.write().await;
     let target = target_guard.get_mut(&tron_id).unwrap();
-    Ok(target.render())
+    let body = Body::new(target.render());
+    target.extra_headers().iter().for_each(|(k, v)| {
+        response_headers
+            .insert(
+                HeaderName::from_bytes(k.as_bytes()).unwrap(),
+                HeaderValue::from_bytes(v.as_bytes()).unwrap(),
+            )
+            .unwrap();
+    });
+    (StatusCode::OK, response_headers, body)
 }
 
 #[allow(dead_code)]

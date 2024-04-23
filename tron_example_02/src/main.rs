@@ -46,7 +46,11 @@ async fn main() {
 fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     let mut context = Context::<'static>::default();
     let mut component_id = 0_u32;
-    let mut btn = TnButton::new(component_id, "rec_button".into(), "Start Conversation".into());
+    let mut btn = TnButton::new(
+        component_id,
+        "rec_button".into(),
+        "Start Conversation".into(),
+    );
     btn.set_attribute(
         "class".to_string(),
         "btn btn-sm btn-outline btn-primary flex-1".to_string(),
@@ -65,11 +69,8 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     context.add_component(player);
 
     component_id += 1;
-    let mut transcript_output = TnTextArea::<'static>::new(
-        component_id,
-        "transcript".to_string(),
-        "<< ".to_string(),
-    );
+    let mut transcript_output =
+        TnTextArea::<'static>::new(component_id, "transcript".to_string(), "<< ".to_string());
     transcript_output.set_attribute(
         "class".to_string(),
         "textarea textarea-bordered flex-1 min-h-80v".to_string(),
@@ -427,7 +428,7 @@ fn stop_audio_playing(
             let mut components_guard = context_guard.components.write().await;
             let player_id = context_guard.get_component_id("player");
             let player = components_guard.get_mut(&player_id).unwrap();
-            player.set_header("HX-Reswap".into(), "none".into()); 
+            player.set_header("HX-Reswap".into(), "none".into()); // we don't want to swap the element, or it will replay the audio
             player.set_state(ComponentState::Ready);
         }
         {

@@ -103,7 +103,7 @@ pub async fn simulate_dialog(
                 let mut components_guard = context_guard.components.write().await;
                 let player_id = context_guard.get_component_id("player");
                 let player = components_guard.get_mut(&player_id).unwrap();
-                player.remove_header("HX-Reswap".into());
+                player.remove_header("HX-Reswap".into()); // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
                 player.set_state(ComponentState::Updating);
             }
 

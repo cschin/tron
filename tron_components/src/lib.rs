@@ -222,6 +222,7 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn remove_header(&mut self, key: String);
     
     fn value(&self) -> &ComponentValue;
+    fn get_mut_value(&mut self) -> &mut ComponentValue;
     fn set_value(&mut self, value: ComponentValue);
     
     fn state(&self) -> &ComponentState;
@@ -338,6 +339,10 @@ where
 
     fn value(&self) -> &ComponentValue {
         &self.value
+    }
+
+    fn get_mut_value(&mut self) -> &mut ComponentValue {
+        &mut self.value
     }
 
     fn set_value(&mut self, _new_value: ComponentValue) {

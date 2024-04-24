@@ -64,6 +64,9 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 &self.inner.value()
             }
 
+            fn get_mut_value(&mut self) -> &mut ComponentValue {
+                self.inner.get_mut_value()
+            }
             fn set_value(&mut self, new_value: ComponentValue) {
                 self.inner.set_value(new_value);
             }

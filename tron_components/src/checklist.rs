@@ -8,7 +8,8 @@ pub struct TnCheckList<'a: 'static> {
 
 impl<'a: 'static> TnCheckList<'a> {
     pub fn new(id: ComponentId, name: String, value: HashMap<String, bool>) -> Self {
-        let mut component_base = ComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
+        let mut component_base =
+            ComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
         component_base.set_value(ComponentValue::CheckItems(value));
         component_base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         component_base.set_attribute("type".into(), "checklist".into());
@@ -32,9 +33,12 @@ impl<'a: 'static> Default for TnCheckList<'a> {
 
 impl<'a: 'static> TnCheckList<'a> {
     pub fn internal_render(&self) -> String {
-        let childred_render_results = self.get_children().iter().map(|c: &Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>| {
-            c.blocking_read().render()
-        }).collect::<Vec<String>>().join(" ");
+        let childred_render_results = self
+            .get_children()
+            .iter()
+            .map(|c: &Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>| c.blocking_read().render())
+            .collect::<Vec<String>>()
+            .join(" ");
         format!(
             r##"<{} {}>{}</{}>"##,
             self.inner.tag,
@@ -52,7 +56,8 @@ pub struct TnCheckBox<'a: 'static> {
 
 impl<'a: 'static> TnCheckBox<'a> {
     pub fn new(id: ComponentId, name: String, value: bool) -> Self {
-        let mut component_base = ComponentBase::new("input".into(), id, name, TnComponentType::CheckBox);
+        let mut component_base =
+            ComponentBase::new("input".into(), id, name, TnComponentType::CheckBox);
         component_base.set_value(ComponentValue::CheckItem(value));
         component_base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         component_base.set_attribute("type".into(), "checkbox".into());
@@ -82,5 +87,63 @@ impl<'a: 'static> TnCheckBox<'a> {
             self.generate_attr_string(),
             self.tron_id()
         )
+    }
+}
+
+pub fn add_checklist_to_context(
+    context: &mut Context<'static>,
+    component_id: &mut u32,
+    checklist_tron_id: String,
+    checklist_items: Vec<String>,
+) {
+    let children_ids = checklist_items
+        .into_iter()
+        .map(|child_trod_id| {
+            *component_id += 1;
+            let checkbox_id = *component_id;
+            let checkbox = TnCheckBox::new(checkbox_id, child_trod_id, false);
+            context.add_component(checkbox);
+            checkbox_id
+        })
+        .collect::<Vec<_>>();
+
+    *component_id += 1;
+    let checklist = TnCheckList::new(*component_id, checklist_tron_id, HashMap::default());
+    context.add_component(checklist);
+    let components = context.components.blocking_read();
+    let checklist = components.get(component_id).unwrap();
+    children_ids.iter().for_each(|child_id| {
+        {
+            let mut checklist = checklist.blocking_write();
+            checklist.add_child(
+                // we need to get Arc from the context
+                context
+                    .components
+                    .blocking_read()
+                    .get(child_id)
+                    .unwrap()
+                    .clone(),
+            );
+        }
+        {
+            let components = context.components.blocking_read();
+            let mut child = components.get(child_id).unwrap().blocking_write();
+            child.add_parent(checklist.clone());
+        }
+    });
+}
+
+pub async fn checklist_update_value(comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>) {
+    let comp_guard = comp.write().await;
+    assert!(comp_guard.get_type() == TnComponentType::CheckList);
+    for child in comp_guard.get_children() {
+        let child = child.read().await;
+        let mut comp_guard = comp.write().await;
+        if let ComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
+            value.clear();
+            if let ComponentValue::CheckItem(b) = child.value() {
+                value.insert(child.tron_id().clone(), *b);
+            }
+        }
     }
 }

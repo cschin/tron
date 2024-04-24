@@ -83,41 +83,13 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         "outerHTML scroll:bottom focus-scroll:true".into(),
     );
     context.add_component(transcript_output);
-
-    {
-        let children_ids = (0..5)
-            .map(|i| {
-                component_id += 1;
-                let checkbox_id = component_id;
-                let checkbox = TnCheckBox::new(checkbox_id, format!("checkbox-{i}"), false);
-                context.add_component(checkbox);
-                checkbox_id
-            })
-            .collect::<Vec<_>>();
-
-        component_id += 1;
-        let mut checklist = TnCheckList::new(component_id, "checklist".into(), HashMap::default());
-        children_ids.iter().for_each(|child_id| {
-            checklist.add_child(
-                // we need to get Arc from the context
-                context
-                    .components
-                    .blocking_read()
-                    .get(&child_id)
-                    .unwrap()
-                    .clone(),
-            );
-        });
-
-        context.add_component(checklist);
-        let components = context.components.blocking_read();
-        let checklist = components.get(&component_id).unwrap();
-        children_ids.into_iter().for_each(|child_id| {
-            let components = context.components.blocking_read();
-            let mut child = components.get(&child_id).unwrap().blocking_write();
-            child.add_parent(checklist.clone());
-        });
-    }
+    let checklist_items = vec![
+        "checkbox-1".to_string(),
+        "checkbox-2".to_string(),
+        "checkbox-3".to_string(),
+    ];
+    let checklist_tron_id = "checklist".to_string();
+    checklist::add_checklist_to_context(&mut context, &mut component_id, checklist_tron_id, checklist_items);
 
     let context = Arc::new(RwLock::new(context));
 

@@ -228,8 +228,8 @@ async fn tron_entry(
                 let session_context = session_context_guard.get(&session_id).unwrap().clone();
                 let context_guard = session_context.write().await;
                 let id = context_guard.get_component_id(&evt.e_target.clone());
-                let mut components_guard = context_guard.components.write().await;
-                let component = components_guard.get_mut(&id).unwrap();
+                let components_guard = context_guard.components.read().await;
+                let mut component = components_guard.get(&id).unwrap().write().await;
                 component.set_value(tron_components::ComponentValue::String(value));
             }
         }
@@ -248,8 +248,8 @@ async fn tron_entry(
                 let mut components_guard = context_guard.components.write().await;
                 let component = components_guard.get_mut(&id).unwrap();
                 // println!("pending set");
-                if *component.state() == ComponentState::Ready {
-                    component.set_state(ComponentState::Pending);
+                if *component.read().await.state() == ComponentState::Ready {
+                    component.write().await.set_state(ComponentState::Pending);
                 };
             }
 
@@ -281,14 +281,18 @@ async fn tron_entry(
 
     let mut target_guard = components.write().await;
     let target = target_guard.get_mut(&tron_id).unwrap();
-    let body = Body::new(target.render());
-    target.extra_headers().iter().for_each(|(k, v)| {
-        response_headers
-            .insert(
+    let body = Body::new(target.read().await.render());
+    target
+        .write()
+        .await
+        .extra_headers()
+        .iter()
+        .for_each(|(k, v)| {
+            response_headers.insert(
                 HeaderName::from_bytes(k.as_bytes()).unwrap(),
                 HeaderValue::from_bytes(v.as_bytes()).unwrap(),
             );
-    });
+        });
     // println!("response_headers: {:?}", response_headers);
     (StatusCode::OK, response_headers, body)
 }
@@ -352,8 +356,8 @@ async fn sse_event_handler(
         if let Some(rx) = channel_guard.as_mut().unwrap().rx.take() {
             ReceiverStream::new(rx).map(|v| Ok(sse::Event::default().data(v.clone())))
         } else {
-            return Err(StatusCode::SERVICE_UNAVAILABLE)
-        } 
+            return Err(StatusCode::SERVICE_UNAVAILABLE);
+        }
 
         //let rx = channel_guard.as_mut().unwrap().rx.take().unwrap();
     };

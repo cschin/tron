@@ -100,9 +100,9 @@ pub async fn simulate_dialog(
             }
             {
                 let context_guard = context.write().await;
-                let mut components_guard = context_guard.components.write().await;
+                let components_guard = context_guard.components.write().await;
                 let player_id = context_guard.get_component_id("player");
-                let player = components_guard.get_mut(&player_id).unwrap();
+                let mut player = components_guard.get(&player_id).unwrap().write().await;
                 player.remove_header("HX-Reswap".into()); // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
                 player.set_state(ComponentState::Updating);
             }
@@ -119,10 +119,10 @@ pub async fn simulate_dialog(
             {
                 let components = context.read().await.components.clone();
                 let transcript_area_id = context.read().await.get_component_id("transcript");
-                let mut components_guard = components.write().await;
+                let components_guard = components.write().await;
                 let transcript_area =
-                    components_guard.get_mut(&transcript_area_id).unwrap();
-                text::append_textarea_value(transcript_area, &format!(">> {} \n\n<<", llm_response), None);
+                    components_guard.get(&transcript_area_id).unwrap();
+                text::append_textarea_value(transcript_area.clone(), &format!(">> {} \n\n<<", llm_response), None).await;
             }
             {
                 let msg = SseTriggerMsg {

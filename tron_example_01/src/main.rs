@@ -49,19 +49,25 @@ fn test_evt_task(
                 {
                     let id = context_guard.get_component_id(&event.e_target.clone());
                     let mut components_guard = context_guard.components.write().await;
-                    let btn = components_guard.get_mut(&id).unwrap();
-                    v = match btn.value() {
-                        ComponentValue::String(s) => s.parse::<u32>().unwrap(),
-                        _ => 0,
-                    };
-                    btn.set_value(ComponentValue::String(format!("{:02}", v + 1)));
-                    btn.set_state(ComponentState::Updating);
+                    {
+                        let btn = components_guard.get_mut(&id).unwrap().read().await;
+                        v = match btn.value() {
+                            ComponentValue::String(s) => s.parse::<u32>().unwrap(),
+                            _ => 0,
+                        };
+                    }
+                    {
+                        let mut btn = components_guard.get_mut(&id).unwrap().write().await;
+
+                        btn.set_value(ComponentValue::String(format!("{:02}", v + 1)));
+                        btn.set_state(ComponentState::Updating);
+                    }
                 }
 
                 {
                     let id = context_guard.get_component_id("textarea");
                     let mut components_guard = context_guard.components.write().await;
-                    let text_area = components_guard.get_mut(&id).unwrap();
+                    let mut text_area = components_guard.get_mut(&id).unwrap().write().await;
                     let origin_string =
                         if let ComponentValue::String(origin_string) = text_area.value() {
                             origin_string.clone()
@@ -104,7 +110,7 @@ fn test_evt_task(
             let context_guard = context.write().await;
             let id = context_guard.get_component_id(&event.e_target.clone());
             let mut components_guard = context_guard.components.write().await;
-            let btn = components_guard.get_mut(&id).unwrap();
+            let mut btn = components_guard.get_mut(&id).unwrap().write().await;
             btn.set_state(ComponentState::Ready);
             let data = format!(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"{}" }} }}"##,
@@ -185,30 +191,29 @@ struct AppPageTemplate {
     textinput: String,
 }
 
-fn layout(context: Arc<RwLock<Context<'static>>>) -> String{
-    
+fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
     let context_guard = context.blocking_read();
     let mut components_guard = context_guard.components.blocking_write();
-    
+
     let buttons = (0..10)
         .map(|i| {
-            let btn = components_guard.get_mut(&i).unwrap();
+            let btn = components_guard.get_mut(&i).unwrap().blocking_read();
             btn.render()
         })
         .collect::<Vec<String>>();
 
     let textarea = {
         let id = context_guard.get_component_id("textarea");
-        let textarea = components_guard.get_mut(&id).unwrap();
+        let textarea = components_guard.get_mut(&id).unwrap().blocking_read();
         textarea.render()
     };
 
     let textinput = {
         let id = context_guard.get_component_id("textinput");
-        let textinput = components_guard.get_mut(&id).unwrap();
+        let textinput = components_guard.get_mut(&id).unwrap().blocking_read();
         textinput.render()
     };
-    
+
     let html = AppPageTemplate {
         buttons,
         textarea,

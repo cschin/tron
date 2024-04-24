@@ -84,7 +84,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.internal_render()
             }
 
-            fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>> {
+            fn get_children(&self) -> &Vec<Arc<RwLock<ComponentBase<'a>>>>  {
                 self.inner.get_children()
             }
 

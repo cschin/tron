@@ -47,18 +47,25 @@ impl<'a: 'static> TnTextArea<'a> {
     }
 }
 
-pub fn append_textarea_value(
-    comp: &mut Box<dyn ComponentBaseTrait<'static>>,
+pub async fn append_textarea_value(
+    comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>,
     new_str: &str,
     sep: Option<&str>,
 ) {
-    let v = match comp.value() {
-        ComponentValue::String(s) => s.clone(),
-        _ => "".into(),
-    };
-    let v = [v, new_str.to_string()];
-    let sep = sep.unwrap_or("");
-    comp.set_value(ComponentValue::String(v.join(sep)));
+    let v;
+    {
+        let comp = comp.read().await;
+        let v0 = match comp.value() {
+            ComponentValue::String(s) => s.clone(),
+            _ => "".into(),
+        };
+        v = [v0, new_str.to_string()];
+    }
+    {
+        let mut comp = comp.write().await;
+        let sep = sep.unwrap_or("");
+        comp.set_value(ComponentValue::String(v.join(sep)));
+    }
 }
 
 #[derive(ComponentBase)]

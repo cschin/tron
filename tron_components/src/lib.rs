@@ -1,6 +1,7 @@
 pub mod audio_player;
 pub mod audio_recorder;
 pub mod button;
+pub mod checklist;
 pub mod text;
 
 use std::{
@@ -24,7 +25,7 @@ use bytes::BytesMut;
 
 pub type ComponentId = u32;
 pub type ElmAttributes = HashMap<String, String>;
-pub type ExtraResponseHeader = HashMap<String, String>; 
+pub type ExtraResponseHeader = HashMap<String, String>;
 pub type ElmTag = String;
 
 use serde::Deserialize;
@@ -33,6 +34,8 @@ use serde::Deserialize;
 pub enum ComponentValue {
     None,
     String(String),
+    CheckItems(HashMap<String, bool>),
+    CheckItem(bool),
 }
 #[derive(Debug, Clone)]
 pub enum TnAsset {
@@ -41,6 +44,7 @@ pub enum TnAsset {
     String(String),
     Bytes(BytesMut),
     Value(Value), //json
+    Bool(bool),
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -62,7 +66,7 @@ pub struct ComponentBase<'a: 'static> {
     pub extra_response_headers: ExtraResponseHeader,
     pub assets: Option<HashMap<String, TnAsset>>,
     pub state: ComponentState,
-    pub children: Option<Vec<&'a ComponentBase<'a>>>, // general storage
+    pub children: Vec<Arc<RwLock<ComponentBase<'a>>>>,
 }
 
 #[derive(Debug)]
@@ -83,7 +87,7 @@ pub struct SseMessageChannel {
     pub rx: Option<Receiver<String>>, // this will be moved out and replaced by None
 }
 
-pub type TnComponents<'a> = Arc<RwLock<HashMap<u32, Box<dyn ComponentBaseTrait<'a>>>>>;
+pub type TnComponents<'a> = Arc<RwLock<HashMap<u32, Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>>>;
 pub type TnStreamData = Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>;
 pub type TnAssets = Arc<RwLock<HashMap<String, Vec<TnAsset>>>>;
 pub type TnSeeChannels = Arc<RwLock<Option<SseMessageChannel>>>;
@@ -116,7 +120,7 @@ impl<'a: 'static> Context<'a> {
         let tron_id = new_component.tron_id().clone();
         let id = new_component.id();
         let mut component_guard = self.components.blocking_write();
-        component_guard.insert(id, Box::new(new_component));
+        component_guard.insert(id, Arc::new(RwLock::new(Box::new(new_component))));
         self.tron_id_to_id.insert(tron_id, id);
     }
 
@@ -130,7 +134,7 @@ impl<'a: 'static> Context<'a> {
     pub fn render_to_string(&self, tron_id: &str) -> String {
         let id = self.get_component_id(tron_id);
         let component_guard = self.components.blocking_read();
-        let component = component_guard.get(&id).unwrap();
+        let component = component_guard.get(&id).unwrap().blocking_read();
         component.render()
     }
 }
@@ -143,7 +147,11 @@ pub async fn context_set_value_for(
     let context_guard = locked_context.read().await;
     let mut components_guard = context_guard.components.write().await;
     let component_id = context_guard.get_component_id(tron_id);
-    let component = components_guard.get_mut(&component_id).unwrap();
+    let mut component = components_guard
+        .get_mut(&component_id)
+        .unwrap()
+        .write()
+        .await;
     component.set_value(v);
 }
 
@@ -155,7 +163,11 @@ pub async fn context_set_state_for(
     let context_guard = locked_context.read().await;
     let mut components_guard = context_guard.components.write().await;
     let component_id = context_guard.get_component_id(tron_id);
-    let component = components_guard.get_mut(&component_id).unwrap();
+    let mut component = components_guard
+        .get_mut(&component_id)
+        .unwrap()
+        .write()
+        .await;
     component.set_state(s);
 }
 
@@ -167,7 +179,7 @@ pub async fn context_get_value_for(
         let context_guard = locked_context.read().await;
         let components_guard = context_guard.components.read().await;
         let component_id = context_guard.get_component_id(tron_id);
-        let components_guard = components_guard.get(&component_id).unwrap();
+        let components_guard = components_guard.get(&component_id).unwrap().read().await;
         components_guard.value().clone()
     };
     value
@@ -199,7 +211,7 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>>;
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
     fn render(&self) -> String;
-    fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>>;
+    fn get_children(&self) -> &Vec<Arc<RwLock<ComponentBase<'a>>>>;
 }
 
 impl<'a: 'static> ComponentBase<'a> {
@@ -226,7 +238,7 @@ impl<'a: 'static> ComponentBase<'a> {
             value: ComponentValue::None,
             assets: None,
             state: ComponentState::Ready,
-            children: None,
+            ..Default::default()
         }
     }
 }
@@ -246,7 +258,7 @@ impl<'a: 'static> Default for ComponentBase<'a> {
             value: ComponentValue::None,
             assets: None,
             state: ComponentState::Ready,
-            children: None,
+            children: Vec::default(),
         }
     }
 }
@@ -335,20 +347,16 @@ where
         }
     }
 
+    fn get_children(&self) -> &Vec<Arc<RwLock<ComponentBase<'a>>>> {
+        &self.children
+    }
+
     fn render(&self) -> String {
         unimplemented!()
     }
-
-    fn get_children(&self) -> Option<&Vec<&'a ComponentBase<'a>>> {
-        if let Some(children) = self.children.as_ref() {
-            Some(children)
-        } else {
-            None
-        }
-    }
 }
 // For Event Dispatcher
-#[derive(Eq, PartialEq, Hash, Clone, Debug, Deserialize)]
+#[derive(Eq, PartialEq, Hash, Clone, Debug, Deserialize, Default)]
 pub struct TnEvent {
     pub e_target: String,
     pub e_type: String,  // maybe use Enum

@@ -208,8 +208,12 @@ fn toggle_recording(
         {
             let context_guard = context.read().await;
             let rec_button_id = context_guard.get_component_id(&event.e_target);
-            let mut components_guard = context_guard.components.write().await;
-            let rec_button = components_guard.get_mut(&rec_button_id).unwrap();
+            let components_guard = context_guard.components.write().await;
+            let mut rec_button = components_guard
+                .get(&rec_button_id)
+                .unwrap()
+                .write()
+                .await;
             previous_rec_button_value = (*rec_button.value()).clone();
 
             if let ComponentValue::String(value) = rec_button.value() {
@@ -370,9 +374,9 @@ fn audio_input_stream_processing(
 
             {
                 let context_guard = context.read().await;
-                let mut component_guard = context_guard.components.write().await;
-                let recorder = component_guard.get_mut(&id).unwrap();
-                audio_recorder::append_audio_data(recorder, chunk.clone());
+                let component_guard = context_guard.components.write().await;
+                let recorder = component_guard.get(&id).unwrap();
+                audio_recorder::append_audio_data(recorder.clone(), chunk.clone()).await;
             }
             // {
             //     let context_guard = context.write().await;
@@ -425,9 +429,9 @@ fn stop_audio_playing(
     let f = async move {
         {
             let context_guard = context.write().await;
-            let mut components_guard = context_guard.components.write().await;
+            let components_guard = context_guard.components.write().await;
             let player_id = context_guard.get_component_id("player");
-            let player = components_guard.get_mut(&player_id).unwrap();
+            let mut player = components_guard.get(&player_id).unwrap().write().await;
             player.set_header("HX-Reswap".into(), "none".into()); // we don't want to swap the element, or it will replay the audio
             player.set_state(ComponentState::Ready);
         }
@@ -573,10 +577,9 @@ async fn transcript_post_processing_service(
                         };
                     }
                     {
-                        let mut components_guard = components.write().await;
-                        let transcript_area =
-                            components_guard.get_mut(&transcript_area_id).unwrap();
-                        text::append_textarea_value(transcript_area, " <END>\n", None);
+                        let components_guard = components.write().await;
+                        let transcript_area = components_guard.get(&transcript_area_id).unwrap();
+                        text::append_textarea_value(transcript_area.clone(), " <END>\n", None).await;
                     }
                     {
                         let msg = SseTriggerMsg {
@@ -610,10 +613,14 @@ async fn transcript_post_processing_service(
                         let e = assets_guard.entry("transcript".into()).or_default();
                         (*e).push(TnAsset::String(transcript.clone()));
                         {
-                            let mut components_guard = components.write().await;
+                            let components_guard = components.write().await;
                             let transcript_area =
-                                components_guard.get_mut(&transcript_area_id).unwrap();
-                            text::append_textarea_value(transcript_area, &transcript, Some(" "));
+                                components_guard.get(&transcript_area_id).unwrap();
+                            text::append_textarea_value(
+                                transcript_area.clone(),
+                                &transcript,
+                                Some(" "),
+                            ).await;
                         }
                         {
                             let msg = SseTriggerMsg {

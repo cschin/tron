@@ -97,7 +97,7 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
 
         component_id += 1;
         let mut checklist = TnCheckList::new(component_id, "checklist".into(), HashMap::default());
-        children_ids.into_iter().for_each(|child_id| {
+        children_ids.iter().for_each(|child_id| {
             checklist.add_child(
                 // we need to get Arc from the context
                 context
@@ -107,9 +107,16 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
                     .unwrap()
                     .clone(),
             );
-        } );
-       
+        });
+
         context.add_component(checklist);
+        let components = context.components.blocking_read();
+        let checklist = components.get(&component_id).unwrap();
+        children_ids.into_iter().for_each(|child_id| {
+            let components = context.components.blocking_read();
+            let mut child = components.get(&child_id).unwrap().blocking_write();
+            child.add_parent(checklist.clone());
+        });
     }
 
     let context = Arc::new(RwLock::new(context));

@@ -97,6 +97,9 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.inner.add_child(child);
             }
 
+            fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
+                self.inner.add_parent(parent);
+            }
         }
     };
     gen.into()

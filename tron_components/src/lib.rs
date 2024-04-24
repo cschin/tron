@@ -7,7 +7,7 @@ pub mod text;
 use std::{
     collections::{HashMap, VecDeque},
     pin::Pin,
-    sync::Arc,
+    sync::{Arc, Weak},
 };
 use tokio::sync::mpsc::Receiver;
 use tokio::sync::{oneshot, Mutex};
@@ -79,6 +79,7 @@ pub struct ComponentBase<'a: 'static> {
     pub assets: Option<HashMap<String, TnAsset>>,
     pub state: ComponentState,
     pub children: Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>,
+    pub parent: Weak<RwLock<Box<dyn ComponentBaseTrait<'a>>>>,
 }
 
 #[derive(Debug)]
@@ -233,6 +234,8 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     
     fn get_children(&self) -> &Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>;
     fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
+
+    fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
 }
 
 impl<'a: 'static> ComponentBase<'a> {
@@ -280,6 +283,7 @@ impl<'a: 'static> Default for ComponentBase<'a> {
             assets: None,
             state: ComponentState::Ready,
             children: Vec::default(),
+            parent: Weak::default(),
         }
     }
 }
@@ -378,6 +382,10 @@ where
 
     fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
         self.children.push(child);
+    }
+
+    fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
+        self.parent = Arc::downgrade(&parent);
     }
 
     fn render(&self) -> String {

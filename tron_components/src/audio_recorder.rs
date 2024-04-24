@@ -62,6 +62,7 @@ pub async fn append_audio_data(
     new_bytes: Bytes,
 ) {
     let mut comp = comp.write().await;
+    assert!(comp.get_type()==TnComponentType::AudioRecorder);
     let e = comp
         .get_mut_assets()
         .unwrap()
@@ -75,7 +76,7 @@ pub async fn append_audio_data(
 
 pub async fn clear_audio_data(comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>) {
     let mut comp = comp.write().await;
-    
+    assert!(comp.get_type()==TnComponentType::AudioRecorder);
     let e = comp
         .get_mut_assets()
         .unwrap()
@@ -88,6 +89,7 @@ pub async fn clear_audio_data(comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'stati
 
 pub async fn write_audio_data_to_file(comp: Arc<RwLock<Box<&dyn ComponentBaseTrait<'static>>>>) {
     let comp = comp.read().await;
+    assert!(comp.get_type()==TnComponentType::AudioRecorder);
     let e = comp
         .get_assets()
         .as_ref()

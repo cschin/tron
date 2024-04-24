@@ -10,7 +10,6 @@ use axum::body::Bytes;
 use data_encoding::BASE64;
 use serde::Deserialize;
 
-use bytes::{BufMut, BytesMut};
 use serde_json::Value;
 use std::{
     collections::{HashMap, VecDeque},
@@ -27,10 +26,7 @@ use tracing::debug;
 use tron_app::{
     utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData,
 };
-use tron_components::{
-    checklist::{TnCheckBox, TnCheckList},
-    *,
-};
+use tron_components::*;
 
 #[tokio::main]
 async fn main() {
@@ -83,13 +79,6 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         "outerHTML scroll:bottom focus-scroll:true".into(),
     );
     context.add_component(transcript_output);
-    let checklist_items = vec![
-        "checkbox-1".to_string(),
-        "checkbox-2".to_string(),
-        "checkbox-3".to_string(),
-    ];
-    let checklist_tron_id = "checklist".to_string();
-    checklist::add_checklist_to_context(&mut context, &mut component_id, checklist_tron_id, checklist_items);
 
     let context = Arc::new(RwLock::new(context));
 
@@ -140,7 +129,6 @@ struct AppPageTemplate {
     recorder: String,
     player: String,
     transcript: String,
-    checklist: String,
 }
 
 fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
@@ -149,18 +137,17 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
     let recorder = context_guard.render_to_string("recorder");
     let player = context_guard.render_to_string("player");
     let transcript = context_guard.render_to_string("transcript");
-    let checklist = context_guard.render_to_string("checklist");
     let html = AppPageTemplate {
         btn,
         recorder,
         player,
         transcript,
-        checklist,
     };
     html.render().unwrap()
 }
 
-fn build_session_actions() -> TnEventActions {
+fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActions {
+    println!("build actions 00");
     let mut actions = TnEventActions::default();
     // for processing rec button click
     let evt = TnEvent {

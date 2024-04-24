@@ -1,4 +1,5 @@
 use super::*;
+use futures_util::Future;
 use tron_macro::*;
 
 #[derive(ComponentBase)]
@@ -40,7 +41,7 @@ impl<'a: 'static> TnCheckList<'a> {
             .collect::<Vec<String>>()
             .join(" ");
         format!(
-            r##"<{} {}>{}</{}>"##,
+            r##"<{} {} class="flex flex-row p-1 flex-1">{}</{}>"##,
             self.inner.tag,
             self.generate_attr_string(),
             childred_render_results,
@@ -57,10 +58,15 @@ pub struct TnCheckBox<'a: 'static> {
 impl<'a: 'static> TnCheckBox<'a> {
     pub fn new(id: ComponentId, name: String, value: bool) -> Self {
         let mut component_base =
-            ComponentBase::new("input".into(), id, name, TnComponentType::CheckBox);
+            ComponentBase::new("input".into(), id, name.clone(), TnComponentType::CheckBox);
         component_base.set_value(ComponentValue::CheckItem(value));
-        component_base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        component_base.set_attribute("type".into(), "checkbox".into());
+        component_base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
+        component_base.set_attribute("hx-target".into(), format!("#{}-container", name));
+        component_base.set_attribute(
+            "hx-vals".into(),
+            r##"js:{event_data: get_checkbox_event(event)}"##.into(),
+        );
+        //component_base.set_attribute("type".into(), "checkbox".into());
 
         Self {
             inner: component_base,
@@ -81,10 +87,22 @@ impl<'a: 'static> Default for TnCheckBox<'a> {
 
 impl<'a: 'static> TnCheckBox<'a> {
     pub fn internal_render(&self) -> String {
+        let checked = if let &ComponentValue::CheckItem(v) = self.value() {
+            if v {
+                "checked"
+            } else {
+                ""
+            }
+        } else {
+            ""
+        };
         format!(
-            r##"<div><{} {} type="checkbox" /><label>&nbsp;{}</label></div>"##,
+            r##"<div id="{}-container" class="flex-1"><{} {} type="checkbox" value="{}" name="chatlist" {checked} /><label for="{}">&nbsp;{}</label></div>"##,
+            self.tron_id(),
             self.inner.tag,
             self.generate_attr_string(),
+            self.tron_id(),
+            self.tron_id(),
             self.tron_id()
         )
     }
@@ -134,16 +152,64 @@ pub fn add_checklist_to_context(
 }
 
 pub async fn checklist_update_value(comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>) {
-    let comp_guard = comp.write().await;
+    let mut comp_guard = comp.write().await;
     assert!(comp_guard.get_type() == TnComponentType::CheckList);
-    for child in comp_guard.get_children() {
+    let children = comp_guard.get_children().clone();
+    if let ComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
+        value.clear();
+    };
+    for child in children {
         let child = child.read().await;
-        let mut comp_guard = comp.write().await;
         if let ComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
-            value.clear();
             if let ComponentValue::CheckItem(b) = child.value() {
                 value.insert(child.tron_id().clone(), *b);
             }
         }
     }
+}
+
+pub fn get_checklist_actions(
+    comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>,
+) -> Vec<(TnEvent, Arc<ActionFn>)> {
+    let comp_guard = comp.blocking_write();
+    assert!(comp_guard.get_type() == TnComponentType::CheckList);
+    let children = comp_guard.get_children().clone();
+    let mut events: Vec<(TnEvent, Arc<ActionFn>)> = Vec::default();
+    for child in children {
+        let child = child.blocking_read();
+        let evt = TnEvent {
+            e_target: child.tron_id().clone(),
+            e_type: "change".into(),
+            e_state: "ready".into(),
+        };
+        events.push((evt, Arc::new(toggle_checkbox)))
+    }
+    events
+}
+
+pub fn toggle_checkbox(
+    context: Arc<RwLock<Context<'static>>>,
+    event: TnEvent,
+    payload: Value,
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    let f = async move {
+        println!("paylod value {payload}");
+        if let Value::String(checked) = &payload["event_data"]["e_value"] {
+            let context_guard = context.read().await;
+            let checkbox_id = context_guard.get_component_id(&event.e_target);
+            let components_guard = context_guard.components.write().await;
+            let mut checkbox = components_guard.get(&checkbox_id).unwrap().write().await;
+
+            if checked == &"true".to_string() {
+                // println!("set true");
+                checkbox.set_value(ComponentValue::CheckItem(true));
+            } else {
+                // println!("set false");
+                checkbox.set_value(ComponentValue::CheckItem(false));
+            }
+            checkbox.set_state(ComponentState::Ready);
+        };
+    };
+
+    Box::pin(f)
 }

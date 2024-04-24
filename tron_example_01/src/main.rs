@@ -8,8 +8,8 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    text::TnTextInput, ActionExecutionMethod, ComponentBaseTrait, ComponentState, ComponentValue,
-    Context, TnButton, TnEvent, TnEventActions, TnTextArea,
+    checklist, text::TnTextInput, ActionExecutionMethod, ComponentBaseTrait, ComponentState,
+    ComponentValue, Context, TnButton, TnEvent, TnEventActions, TnTextArea,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -125,7 +125,7 @@ fn test_evt_task(
 }
 
 fn build_session_context() -> Arc<RwLock<Context<'static>>> {
-    let mut components = Context::<'static>::default();
+    let mut context = Context::<'static>::default();
     let mut component_id = 0_u32;
     loop {
         let mut btn = TnButton::<'static>::new(
@@ -137,7 +137,7 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
-        components.add_component(btn);
+        context.add_component(btn);
         component_id += 1;
         if component_id >= 10 {
             break;
@@ -153,24 +153,41 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         "hx-swap".into(),
         "outerHTML scroll:bottom focus-scroll:true".into(),
     );
-    components.add_component(textarea);
+    context.add_component(textarea);
 
     component_id += 1;
 
+    let checklist_items = vec![
+        "checkbox-1".to_string(),
+        "checkbox-2".to_string(),
+        "checkbox-3".to_string(),
+        "checkbox-4".to_string(),
+        "checkbox-5".to_string(),
+        "checkbox-".to_string(),
+    ];
+    let checklist_tron_id = "checklist".to_string();
+    checklist::add_checklist_to_context(
+        &mut context,
+        &mut component_id,
+        checklist_tron_id,
+        checklist_items,
+    );
+
+    component_id += 1;
     let mut textinput = TnTextInput::<'static>::new(component_id, "textinput".into(), "10".into());
     textinput.set_attribute("class".into(), "input w-full max-w-xs".into());
     textinput.set_attribute(
         "hx-swap".into(),
         "outerHTML scroll:bottom focus-scroll:true".into(),
     );
-    components.add_component(textinput);
+    context.add_component(textinput);
 
-    Arc::new(RwLock::new(components))
+    Arc::new(RwLock::new(context))
 
     //Arc::new(RwLock::new(components))
 }
 
-fn build_session_actions() -> TnEventActions {
+fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActions {
     let mut actions = TnEventActions::default();
     for i in 0..10 {
         let evt = TnEvent {
@@ -179,6 +196,16 @@ fn build_session_actions() -> TnEventActions {
             e_state: "ready".to_string(),
         };
         actions.insert(evt, (ActionExecutionMethod::Spawn, Arc::new(test_evt_task)));
+    }
+    {
+        let context_guard = context.blocking_read();
+        let checklist_id = context_guard.get_component_id("checklist");
+        let component_guard = context_guard.components.blocking_read();
+        let checklist = component_guard.get(&checklist_id).unwrap().clone();
+        let checklist_actions = checklist::get_checklist_actions(checklist);
+        checklist_actions.into_iter().for_each(|(evt, action)| {
+            actions.insert(evt, (ActionExecutionMethod::Await, action));
+        });
     }
     actions
 }
@@ -189,35 +216,46 @@ struct AppPageTemplate {
     buttons: Vec<String>,
     textarea: String,
     textinput: String,
+    checklist: String,
 }
 
 fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
-    let context_guard = context.blocking_read();
-    let mut components_guard = context_guard.components.blocking_write();
 
     let buttons = (0..10)
         .map(|i| {
+            let context_guard = context.blocking_read();
+            let mut components_guard = context_guard.components.blocking_write();
             let btn = components_guard.get_mut(&i).unwrap().blocking_read();
             btn.render()
         })
         .collect::<Vec<String>>();
 
     let textarea = {
+        let context_guard = context.blocking_read();
         let id = context_guard.get_component_id("textarea");
+        let mut components_guard = context_guard.components.blocking_write();
         let textarea = components_guard.get_mut(&id).unwrap().blocking_read();
         textarea.render()
     };
 
     let textinput = {
+        let context_guard = context.blocking_read();
         let id = context_guard.get_component_id("textinput");
+        let mut components_guard = context_guard.components.blocking_write();
         let textinput = components_guard.get_mut(&id).unwrap().blocking_read();
         textinput.render()
+    };
+
+    let checklist = {
+        let context_guard = context.blocking_read();
+        context_guard.render_to_string("checklist")
     };
 
     let html = AppPageTemplate {
         buttons,
         textarea,
         textinput,
+        checklist,
     };
     html.render().unwrap()
 }

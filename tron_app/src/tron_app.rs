@@ -43,7 +43,7 @@ pub type SessionContext =
 pub type EventActions = RwLock<TnEventActions>;
 
 type ContextBuilder = dyn Fn() -> Arc<RwLock<Context<'static>>> + Send + Sync;
-type ActionFunctionTemplate = dyn Fn() -> TnEventActions + Send + Sync;
+type ActionFunctionTemplate = dyn Fn(Arc<RwLock<Context<'static>>>) -> TnEventActions + Send + Sync;
 type LayoutFunction = dyn Fn(Arc<RwLock<Context<'static>>>) -> String + Send + Sync;
 
 pub struct AppData {
@@ -151,10 +151,13 @@ async fn load_page(
         }
     };
 
-    let mut app_event_action_guard = app_data.event_actions.write().await;
-    app_event_action_guard.clone_from(&(*app_data.build_session_actions)());
-
     let context_guard = app_data.session_context.read().await;
+    let context = context_guard.get(&session_id).unwrap().clone();
+    let mut app_event_action_guard = app_data.event_actions.write().await;
+    app_event_action_guard.clone_from(&tokio::task::block_in_place(|| {
+        (*app_data.build_session_actions)(context)
+    }));
+
     let context = context_guard.get(&session_id).unwrap().clone();
     let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context));
 
@@ -219,7 +222,7 @@ async fn tron_entry(
     //println!("payload: {:?}", payload);
 
     if let Some(event_data) = match_event(&payload).await {
-        //println!("event matched, event_data: {:?}", event_data);
+        println!("event matched, event_data: {:?}", event_data);
         let evt = event_data.tn_event;
 
         if evt.e_type == "change" {
@@ -279,10 +282,15 @@ async fn tron_entry(
         .await
         .components;
 
-    let mut target_guard = components.write().await;
-    let target = target_guard.get_mut(&tron_id).unwrap();
-    let body = Body::new(target.read().await.render());
-    target
+    let mut component_guard = components.write().await;
+    let target_guard = component_guard.get_mut(&tron_id).unwrap();
+
+    let body = Body::new({
+        let target = target_guard.read().await;
+        tokio::task::block_in_place(|| target.render())
+    });
+    //let body = Body::new(target.read().await.render());
+    target_guard
         .write()
         .await
         .extra_headers()

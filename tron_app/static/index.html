@@ -45,7 +45,7 @@
       // eventSource.close();
     });
 
-    // for input element, the value is stored in the attribute
+    // for text input element, the value is stored in the attribute
     function get_input_event(event) {
       return {
         "tn_event":
@@ -55,6 +55,26 @@
           "e_state": event.currentTarget.getAttribute('state')
         },
         "e_value": document.getElementById(event.currentTarget.id).value
+      };
+    };
+
+    // for chackbox input element, the value is stored in the attribute
+    function get_checkbox_event(event) {
+      var checked;
+      if (document.getElementById(event.currentTarget.id).checked) {
+        checked = "true"
+      } else {
+        checked = "false"
+      }
+
+      return {
+        "tn_event":
+        {
+          "e_target": event.currentTarget.id,
+          "e_type": event.type,
+          "e_state": event.currentTarget.getAttribute('state')
+        },
+        "e_value": checked
       };
     };
 

@@ -8,8 +8,12 @@ pub struct TnAudioPlayer<'a: 'static> {
 
 impl<'a: 'static> TnAudioPlayer<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
-        let mut component_base =
-            ComponentBase::new("audio".to_string(), id, name.clone(), "audio_player".into());
+        let mut component_base = ComponentBase::new(
+            "audio".to_string(),
+            id,
+            name.clone(),
+            TnComponentType::AudioPlayer,
+        );
         component_base.set_value(ComponentValue::String(value));
         component_base.set_attribute("src".into(), format!("/tron_streaming/{}", name));
         // component_base.set_attribute("type".into(), "audio/webm".into());

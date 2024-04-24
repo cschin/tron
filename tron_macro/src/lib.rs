@@ -14,8 +14,13 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             fn id(&self) -> ComponentId {
                 self.inner.id()
             }
+
             fn tron_id(&self) -> &String {
                 self.inner.tron_id()
+            }
+
+            fn get_type(&self) -> TnComponentType {
+                self.inner.get_type()
             }
 
             fn attributes(&self) -> &ElmAttributes {
@@ -84,8 +89,12 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.internal_render()
             }
 
-            fn get_children(&self) -> &Vec<Arc<RwLock<ComponentBase<'a>>>>  {
+            fn get_children(&self) -> &Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>  {
                 self.inner.get_children()
+            }
+
+            fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
+                self.inner.add_child(child);
             }
 
         }

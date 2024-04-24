@@ -27,7 +27,10 @@ use tracing::debug;
 use tron_app::{
     utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData,
 };
-use tron_components::*;
+use tron_components::{
+    checklist::{TnCheckBox, TnCheckList},
+    *,
+};
 
 #[tokio::main]
 async fn main() {
@@ -81,6 +84,34 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     );
     context.add_component(transcript_output);
 
+    {
+        let children_ids = (0..5)
+            .map(|i| {
+                component_id += 1;
+                let checkbox_id = component_id;
+                let checkbox = TnCheckBox::new(checkbox_id, format!("checkbox-{i}"), false);
+                context.add_component(checkbox);
+                checkbox_id
+            })
+            .collect::<Vec<_>>();
+
+        component_id += 1;
+        let mut checklist = TnCheckList::new(component_id, "checklist".into(), HashMap::default());
+        children_ids.into_iter().for_each(|child_id| {
+            checklist.add_child(
+                // we need to get Arc from the context
+                context
+                    .components
+                    .blocking_read()
+                    .get(&child_id)
+                    .unwrap()
+                    .clone(),
+            );
+        } );
+       
+        context.add_component(checklist);
+    }
+
     let context = Arc::new(RwLock::new(context));
 
     // add services
@@ -130,6 +161,7 @@ struct AppPageTemplate {
     recorder: String,
     player: String,
     transcript: String,
+    checklist: String,
 }
 
 fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
@@ -138,11 +170,13 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
     let recorder = context_guard.render_to_string("recorder");
     let player = context_guard.render_to_string("player");
     let transcript = context_guard.render_to_string("transcript");
+    let checklist = context_guard.render_to_string("checklist");
     let html = AppPageTemplate {
         btn,
         recorder,
         player,
         transcript,
+        checklist,
     };
     html.render().unwrap()
 }
@@ -209,11 +243,7 @@ fn toggle_recording(
             let context_guard = context.read().await;
             let rec_button_id = context_guard.get_component_id(&event.e_target);
             let components_guard = context_guard.components.write().await;
-            let mut rec_button = components_guard
-                .get(&rec_button_id)
-                .unwrap()
-                .write()
-                .await;
+            let mut rec_button = components_guard.get(&rec_button_id).unwrap().write().await;
             previous_rec_button_value = (*rec_button.value()).clone();
 
             if let ComponentValue::String(value) = rec_button.value() {
@@ -579,7 +609,8 @@ async fn transcript_post_processing_service(
                     {
                         let components_guard = components.write().await;
                         let transcript_area = components_guard.get(&transcript_area_id).unwrap();
-                        text::append_textarea_value(transcript_area.clone(), " <END>\n", None).await;
+                        text::append_textarea_value(transcript_area.clone(), " <END>\n", None)
+                            .await;
                     }
                     {
                         let msg = SseTriggerMsg {
@@ -620,7 +651,8 @@ async fn transcript_post_processing_service(
                                 transcript_area.clone(),
                                 &transcript,
                                 Some(" "),
-                            ).await;
+                            )
+                            .await;
                         }
                         {
                             let msg = SseTriggerMsg {

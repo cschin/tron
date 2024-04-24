@@ -9,7 +9,7 @@ pub struct TnAudioRecorder<'a: 'static> {
 impl<'a: 'static> TnAudioRecorder<'a> {
     pub fn new(id: ComponentId, name: String, value: String) -> Self {
         let mut component_base =
-            ComponentBase::new("div".to_string(), id, name, "audio_recorder".into());
+            ComponentBase::new("div".to_string(), id, name, TnComponentType::AudioRecorder);
         component_base.set_value(ComponentValue::String(value));
         component_base.set_attribute("hx-trigger".into(), "streaming, server_side_trigger".into());
         component_base.set_attribute(
@@ -75,6 +75,7 @@ pub async fn append_audio_data(
 
 pub async fn clear_audio_data(comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>) {
     let mut comp = comp.write().await;
+    
     let e = comp
         .get_mut_assets()
         .unwrap()

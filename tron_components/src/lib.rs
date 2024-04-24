@@ -48,6 +48,19 @@ pub enum TnAsset {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
+pub enum TnComponentType {
+    Base,
+    AudioPlayer,
+    AudioRecorder,
+    Button,
+    CheckList,
+    CheckBox,
+    TextArea,
+    TextInput,
+    UserDefined(String)
+}
+
+#[derive(PartialEq, Eq, Debug, Clone)]
 pub enum ComponentState {
     Ready,    // ready to receive new event on the UI end
     Pending,  // UI event receive, server function dispatched, waiting for server to response
@@ -55,10 +68,9 @@ pub enum ComponentState {
     Finished, // no more new update to consider, will transition to Ready
     Disabled, // disabled, not interactive and not sending htmx get/post
 }
-#[derive(Debug)]
 pub struct ComponentBase<'a: 'static> {
     pub tag: ElmTag,
-    pub type_: String,
+    pub type_: TnComponentType,
     pub id: ComponentId,
     pub tron_id: String,
     pub attributes: ElmAttributes,
@@ -66,7 +78,7 @@ pub struct ComponentBase<'a: 'static> {
     pub extra_response_headers: ExtraResponseHeader,
     pub assets: Option<HashMap<String, TnAsset>>,
     pub state: ComponentState,
-    pub children: Vec<Arc<RwLock<ComponentBase<'a>>>>,
+    pub children: Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>,
 }
 
 #[derive(Debug)]
@@ -197,25 +209,34 @@ where
 pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn id(&self) -> ComponentId;
     fn tron_id(&self) -> &String;
+    fn get_type(&self) -> TnComponentType;
+
     fn attributes(&self) -> &ElmAttributes;
     fn set_attribute(&mut self, key: String, value: String);
     fn remove_attribute(&mut self, key: String);
+    fn generate_attr_string(&self) -> String;
+    
     fn extra_headers(&self) -> &ExtraResponseHeader;
     fn set_header(&mut self, key: String, value: String);
     fn remove_header(&mut self, key: String);
-    fn generate_attr_string(&self) -> String;
+    
     fn value(&self) -> &ComponentValue;
     fn set_value(&mut self, value: ComponentValue);
+    
     fn state(&self) -> &ComponentState;
     fn set_state(&mut self, state: ComponentState);
+    
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>>;
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
+    
     fn render(&self) -> String;
-    fn get_children(&self) -> &Vec<Arc<RwLock<ComponentBase<'a>>>>;
+    
+    fn get_children(&self) -> &Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>;
+    fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
 }
 
 impl<'a: 'static> ComponentBase<'a> {
-    pub fn new(tag: String, id: ComponentId, tron_id: String, type_: String) -> Self {
+    pub fn new(tag: String, id: ComponentId, tron_id: String, type_: TnComponentType) -> Self {
         let mut attributes = HashMap::<String, String>::default();
         attributes.insert("id".into(), tron_id.clone());
         attributes.insert("hx-post".to_string(), format!("/tron/{}", id));
@@ -250,7 +271,7 @@ impl<'a: 'static> Default for ComponentBase<'a> {
         let tron_id = format!("{:x}", id);
         ComponentBase {
             tag: "div".into(),
-            type_: "base".into(),
+            type_: TnComponentType::Base,
             id,
             tron_id,
             attributes: HashMap::default(),
@@ -273,6 +294,10 @@ where
 
     fn tron_id(&self) -> &String {
         &self.tron_id
+    }
+
+    fn get_type(&self) -> TnComponentType {
+        self.type_.clone()
     }
 
     fn attributes(&self) -> &ElmAttributes {
@@ -347,8 +372,12 @@ where
         }
     }
 
-    fn get_children(&self) -> &Vec<Arc<RwLock<ComponentBase<'a>>>> {
+    fn get_children(&self) -> &Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>> {
         &self.children
+    }
+
+    fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
+        self.children.push(child);
     }
 
     fn render(&self) -> String {

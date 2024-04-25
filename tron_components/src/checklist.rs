@@ -203,9 +203,19 @@ pub fn toggle_checkbox(
             if checked == &"true".to_string() {
                 // println!("set true");
                 checkbox.set_value(ComponentValue::CheckItem(true));
+                let parent_guard = checkbox.get_parent().clone();
+                let mut parent_guard = parent_guard.write().await;
+                if let ComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
+                    value.insert(event.e_target.clone(), true);
+                };
             } else {
                 // println!("set false");
                 checkbox.set_value(ComponentValue::CheckItem(false));
+                let parent_guard = checkbox.get_parent().clone();
+                let mut parent_guard = parent_guard.write().await;
+                if let ComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
+                    value.insert(event.e_target.clone(), false);
+                };
             }
             checkbox.set_state(ComponentState::Ready);
         };

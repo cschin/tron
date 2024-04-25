@@ -222,7 +222,7 @@ async fn tron_entry(
     //println!("payload: {:?}", payload);
 
     if let Some(event_data) = match_event(&payload).await {
-        println!("event matched, event_data: {:?}", event_data);
+        //println!("event matched, event_data: {:?}", event_data);
         let evt = event_data.tn_event;
 
         if evt.e_type == "change" {

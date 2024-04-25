@@ -237,6 +237,7 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
 
     fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
+    fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>; 
 }
 
 impl<'a: 'static> ComponentBase<'a> {
@@ -391,6 +392,10 @@ where
 
     fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
         self.parent = Arc::downgrade(&parent);
+    }
+
+    fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>> {
+        Weak::upgrade(&self.parent).unwrap()
     }
 
     fn render(&self) -> String {

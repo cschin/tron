@@ -221,35 +221,17 @@ struct AppPageTemplate {
 
 fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
 
+    let context_guard = context.blocking_read();
     let buttons = (0..10)
         .map(|i| {
-            let context_guard = context.blocking_read();
-            let mut components_guard = context_guard.components.blocking_write();
-            let btn = components_guard.get_mut(&i).unwrap().blocking_read();
-            btn.render()
+            context_guard.render_to_string(&format!("btn-{:02}", i))
         })
         .collect::<Vec<String>>();
 
-    let textarea = {
-        let context_guard = context.blocking_read();
-        let id = context_guard.get_component_id("textarea");
-        let mut components_guard = context_guard.components.blocking_write();
-        let textarea = components_guard.get_mut(&id).unwrap().blocking_read();
-        textarea.render()
-    };
-
-    let textinput = {
-        let context_guard = context.blocking_read();
-        let id = context_guard.get_component_id("textinput");
-        let mut components_guard = context_guard.components.blocking_write();
-        let textinput = components_guard.get_mut(&id).unwrap().blocking_read();
-        textinput.render()
-    };
-
-    let checklist = {
-        let context_guard = context.blocking_read();
-        context_guard.render_to_string("checklist")
-    };
+    let context_guard = context.blocking_read();
+    let textarea = context_guard.render_to_string("textarea");    
+    let textinput = context_guard.render_to_string("textinput");    
+    let checklist = context_guard.render_to_string("checklist");
 
     let html = AppPageTemplate {
         buttons,

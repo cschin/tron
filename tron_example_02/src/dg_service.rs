@@ -51,10 +51,12 @@ pub enum StreamResponse {
 #[derive(Debug, Error)]
 pub enum DeepgramError {
     /// No source was provided to the request builder.
+    #[allow(dead_code)]
     #[error("No source was provided to the request builder.")]
     NoSource,
 
     /// The Deepgram API returned an error.
+    #[allow(dead_code)]
     #[error("The Deepgram API returned an error.")]
     DeepgramApiError {
         /// Error message from the Deepgram API.

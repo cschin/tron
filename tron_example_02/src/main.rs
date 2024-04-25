@@ -344,7 +344,7 @@ struct AudioChunk {
 
 fn audio_input_stream_processing(
     context: Arc<RwLock<Context<'static>>>,
-    event: TnEvent,
+    _event: TnEvent,
     payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
@@ -355,10 +355,10 @@ fn audio_input_stream_processing(
             //     chunk.audio_data.len()
             // );
 
-            let id = {
-                let context_guard = context.read().await;
-                *context_guard.tron_id_to_id.get(&event.e_target).unwrap()
-            };
+            // let id = {
+            //     let context_guard = context.read().await;
+            //     *context_guard.tron_id_to_id.get(&event.e_target).unwrap()
+            // };
 
             let b64data = chunk.audio_data.trim_end_matches('"');
             let mut split = b64data.split(',');

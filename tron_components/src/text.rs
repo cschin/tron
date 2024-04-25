@@ -112,7 +112,7 @@ impl<'a: 'static> TnTextInput<'a> {
             self.inner.tag,
             self.generate_attr_string(),
             match self.value() {
-                ComponentValue::String(s) => utils::html_escape_double_quote(s),
+                ComponentValue::String(s) => html_escape_double_quote(s),
                 _ => "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam eu pellentesque erat, ut sollicitudin nisi.".to_string()
             }
         )

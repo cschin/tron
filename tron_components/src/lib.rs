@@ -57,7 +57,7 @@ pub enum TnComponentType {
     CheckBox,
     TextArea,
     TextInput,
-    UserDefined(String)
+    UserDefined(String),
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
@@ -152,7 +152,7 @@ impl<'a: 'static> Context<'a> {
     }
 }
 
-pub async fn context_set_value_for(
+pub async fn set_value_with_context(
     locked_context: &Arc<RwLock<Context<'static>>>,
     tron_id: &str,
     v: ComponentValue,
@@ -168,7 +168,7 @@ pub async fn context_set_value_for(
     component.set_value(v);
 }
 
-pub async fn context_set_state_for(
+pub async fn set_state_with_context(
     locked_context: &Arc<RwLock<Context<'static>>>,
     tron_id: &str,
     s: ComponentState,
@@ -216,28 +216,28 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn set_attribute(&mut self, key: String, value: String);
     fn remove_attribute(&mut self, key: String);
     fn generate_attr_string(&self) -> String;
-    
+
     fn extra_headers(&self) -> &ExtraResponseHeader;
     fn set_header(&mut self, key: String, value: String);
     fn remove_header(&mut self, key: String);
-    
+
     fn value(&self) -> &ComponentValue;
     fn get_mut_value(&mut self) -> &mut ComponentValue;
     fn set_value(&mut self, value: ComponentValue);
-    
+
     fn state(&self) -> &ComponentState;
     fn set_state(&mut self, state: ComponentState);
-    
+
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>>;
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
-    
+
     fn render(&self) -> String;
-    
+
     fn get_children(&self) -> &Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>;
     fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
 
     fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
-    fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>; 
+    fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>;
 }
 
 impl<'a: 'static> ComponentBase<'a> {
@@ -333,7 +333,7 @@ where
     fn generate_attr_string(&self) -> String {
         self.attributes
             .iter()
-            .map(|(k, v)| format!(r#"{}="{}""#, k, utils::html_escape_double_quote(v)))
+            .map(|(k, v)| format!(r#"{}="{}""#, k, html_escape_double_quote(v)))
             .collect::<Vec<_>>()
             .join(" ")
     }
@@ -424,18 +424,41 @@ pub enum ActionExecutionMethod {
 
 pub type TnEventActions = HashMap<TnEvent, (ActionExecutionMethod, Arc<ActionFn>)>;
 
-pub mod utils {
-    pub fn html_escape_double_quote(input: &str) -> String {
-        let mut output = String::new();
-        for c in input.chars() {
-            if c == '"' {
-                output.push_str("&quot;");
-            } else {
-                output.push(c)
-            }
+pub fn html_escape_double_quote(input: &str) -> String {
+    let mut output = String::new();
+    for c in input.chars() {
+        if c == '"' {
+            output.push_str("&quot;");
+        } else {
+            output.push(c)
         }
-        output
     }
+    output
+}
+
+pub async fn get_component_with_contex(
+    context: Arc<RwLock<Context<'static>>>,
+    tron_id: &str,
+) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>> {
+    let context_guard = context.write().await;
+    let components_guard = context_guard.components.write().await;
+    let comp_id = context_guard.get_component_id(tron_id);
+    components_guard.get(&comp_id).unwrap().clone()
+}
+
+pub async fn get_sse_tx_with_context(context: Arc<RwLock<Context<'static>>>) -> Sender<String> {
+    // unlock two layers of Rwlock !!
+    let sse_tx = context
+        .read()
+        .await
+        .sse_channels
+        .read()
+        .await
+        .as_ref()
+        .unwrap()
+        .tx
+        .clone();
+    sse_tx
 }
 
 #[cfg(test)]

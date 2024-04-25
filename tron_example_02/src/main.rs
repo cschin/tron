@@ -24,7 +24,7 @@ use tokio::sync::{
 #[allow(unused_imports)]
 use tracing::debug;
 use tron_app::{
-    utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData,
+    send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData,
 };
 use tron_components::*;
 
@@ -146,7 +146,7 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
     html.render().unwrap()
 }
 
-fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActions {
+fn build_session_actions(_context: Arc<RwLock<Context<'static>>>) -> TnEventActions {
     println!("build actions 00");
     let mut actions = TnEventActions::default();
     // for processing rec button click
@@ -191,7 +191,7 @@ fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActio
     };
     actions.insert(
         evt,
-        (ActionExecutionMethod::Await, Arc::new(stop_audio_playing)),
+        (ActionExecutionMethod::Await, Arc::new(audio_player::stop_audio_playing_action)),
     );
 
     actions
@@ -204,12 +204,10 @@ fn toggle_recording(
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
         let previous_rec_button_value;
-        let sse_tx = get_sse_tx(context.clone()).await;
+        let sse_tx = get_sse_tx_with_context(context.clone()).await;
         {
-            let context_guard = context.read().await;
-            let rec_button_id = context_guard.get_component_id(&event.e_target);
-            let components_guard = context_guard.components.write().await;
-            let mut rec_button = components_guard.get(&rec_button_id).unwrap().write().await;
+            let rec_button = get_component_with_contex(context.clone(), "rec_button").await;
+            let mut rec_button = rec_button.write().await;
             previous_rec_button_value = (*rec_button.value()).clone();
 
             if let ComponentValue::String(value) = rec_button.value() {
@@ -232,13 +230,13 @@ fn toggle_recording(
                 match value.as_str() {
                     "Stop Conversation" => {
                         {
-                            context_set_value_for(
+                            set_value_with_context(
                                 &context,
                                 "recorder",
                                 ComponentValue::String("Paused".into()),
                             )
                             .await;
-                            context_set_state_for(&context, "recorder", ComponentState::Updating)
+                            set_state_with_context(&context, "recorder", ComponentState::Updating)
                                 .await;
                             let mut delay =
                                 tokio::time::interval(tokio::time::Duration::from_millis(300));
@@ -299,13 +297,13 @@ fn toggle_recording(
                         // send_sse_msg_to_client(&sse_tx, msg).await;
                     }
                     "Start Conversation" => {
-                        context_set_value_for(
+                        set_value_with_context(
                             &context,
                             "recorder",
                             ComponentValue::String("Recording".into()),
                         )
                         .await;
-                        context_set_state_for(&context, "recorder", ComponentState::Updating).await;
+                        set_state_with_context(&context, "recorder", ComponentState::Updating).await;
 
                         {
                             let context_guard = context.write().await;
@@ -369,9 +367,7 @@ fn audio_input_stream_processing(
             let chunk = Bytes::from(BASE64.decode(b64str.as_bytes()).unwrap());
 
             {
-                let context_guard = context.read().await;
-                let component_guard = context_guard.components.write().await;
-                let recorder = component_guard.get(&id).unwrap();
+                let recorder = get_component_with_contex(context.clone(), "recorder").await;
                 audio_recorder::append_audio_data(recorder.clone(), chunk.clone()).await;
             }
             // {
@@ -399,49 +395,6 @@ fn audio_input_stream_processing(
         };
     };
 
-    Box::pin(f)
-}
-
-async fn get_sse_tx(context: Arc<RwLock<Context<'static>>>) -> Sender<String> {
-    // unlock two layers of Rwlock !!
-    let sse_tx = context
-        .read()
-        .await
-        .sse_channels
-        .read()
-        .await
-        .as_ref()
-        .unwrap()
-        .tx
-        .clone();
-    sse_tx
-}
-
-fn stop_audio_playing(
-    context: Arc<RwLock<Context<'static>>>,
-    _event: TnEvent,
-    _payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-    let f = async move {
-        {
-            let context_guard = context.write().await;
-            let components_guard = context_guard.components.write().await;
-            let player_id = context_guard.get_component_id("player");
-            let mut player = components_guard.get(&player_id).unwrap().write().await;
-            player.set_header("HX-Reswap".into(), "none".into()); // we don't want to swap the element, or it will replay the audio
-            player.set_state(ComponentState::Ready);
-        }
-        {
-            let sse_tx = get_sse_tx(context.clone()).await;
-            let msg = SseTriggerMsg {
-                server_side_trigger: TriggerData {
-                    target: "player".into(),
-                    new_state: "ready".into(),
-                },
-            };
-            send_sse_msg_to_client(&sse_tx, msg).await;
-        }
-    };
     Box::pin(f)
 }
 
@@ -481,13 +434,13 @@ async fn transcript_service(
         //let transcript = serde_json::to_string(&trx_rtn).unwrap();
         match trx_rtn {
             StreamResponse::TerminalResponse {
-                request_id,
-                created,
-                duration,
-                channels,
+                request_id: _,
+                created: _,
+                duration: _,
+                channels: _,
             } => {}
             StreamResponse::TranscriptResponse {
-                duration,
+                duration: _,
                 is_final,
                 speech_final,
                 channel,
@@ -523,7 +476,7 @@ async fn transcript_service(
                     }
                 }
             }
-            StreamResponse::UtteranceEnd { last_word_end } => {
+            StreamResponse::UtteranceEnd { last_word_end: _ } => {
                 let transcript = transcript_fragments.join(" ").trim().to_string();
                 if !transcript.is_empty() {
                     let _ = tx
@@ -545,7 +498,6 @@ async fn transcript_post_processing_service(
 ) {
     let assets = context.read().await.assets.clone();
     let components = context.read().await.components.clone();
-    let sse_tx = context.read().await.sse_channels.clone();
     let transcript_area_id = context.read().await.get_component_id("transcript");
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {
@@ -585,8 +537,7 @@ async fn transcript_post_processing_service(
                                 new_state: "ready".into(),
                             },
                         };
-                        let sse_tx_guard = sse_tx.read().await;
-                        let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
+                        let sse_tx = get_sse_tx_with_context(context.clone()).await;
                         send_sse_msg_to_client(&sse_tx, msg).await;
                     }
                     // {
@@ -627,8 +578,7 @@ async fn transcript_post_processing_service(
                                     new_state: "ready".into(),
                                 },
                             };
-                            let sse_tx_guard = sse_tx.read().await;
-                            let sse_tx = sse_tx_guard.as_ref().unwrap().tx.clone();
+                            let sse_tx = get_sse_tx_with_context(context.clone()).await;
                             send_sse_msg_to_client(&sse_tx, msg).await;
                         }
                     }

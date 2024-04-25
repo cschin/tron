@@ -13,3 +13,4 @@ tokio = { version = "1.37.0", features = ["full"] }
 tron_macro = { path = "../tron_macro"}
 bytes = "1.6.0"
 uuid = { version = "1.8.0", features = ["v4"] }
+tron_utils = { path = "../tron_utils" }

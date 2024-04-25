@@ -1,5 +1,7 @@
 use super::*;
+use futures_util::Future;
 use tron_macro::*;
+use tron_utils::*;
 
 #[derive(ComponentBase)]
 pub struct TnAudioPlayer<'a: 'static> {
@@ -47,4 +49,51 @@ where
             self.generate_attr_string(),
         )
     }
+}
+
+pub async fn start_audio (
+    comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>, sse_tx: Sender<String>) {
+    {
+        let mut comp = comp.write().await;
+        assert!(comp.get_type() == TnComponentType::AudioPlayer);
+        comp.remove_header("HX-Reswap".into()); // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
+        comp.set_state(ComponentState::Updating);
+    }
+
+    let comp = comp.read().await;
+    let msg = SseTriggerMsg {
+        server_side_trigger: TriggerData {
+            target: comp.tron_id().clone() ,
+            new_state: "updating".into(),
+        },
+    };
+    send_sse_msg_to_client(&sse_tx, msg).await;
+}
+
+pub fn stop_audio_playing_action(
+    context: Arc<RwLock<Context<'static>>>,
+    event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    let f = async move {
+        {
+            let context_guard = context.write().await;
+            let components_guard = context_guard.components.write().await;
+            let player_id = context_guard.get_component_id(&event.e_target.clone());
+            let mut player = components_guard.get(&player_id).unwrap().write().await;
+            player.set_header("HX-Reswap".into(), "none".into()); // we don't want to swap the element, or it will replay the audio
+            player.set_state(ComponentState::Ready);
+        }
+        {
+            let sse_tx = get_sse_tx_with_context(context.clone()).await;
+            let msg = SseTriggerMsg {
+                server_side_trigger: TriggerData {
+                    target: event.e_target.clone(),
+                    new_state: "ready".into(),
+                },
+            };
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
+    };
+    Box::pin(f)
 }

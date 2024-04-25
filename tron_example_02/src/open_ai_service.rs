@@ -1,4 +1,4 @@
-use std::{error::Error, sync::Arc};
+use std::sync::Arc;
 
 use async_openai::{
     types::{
@@ -7,18 +7,19 @@ use async_openai::{
     },
     Client,
 };
-use axum::extract::Query;
 use bytes::{BufMut, BytesMut};
-use reqwest;
 use serde_json::json;
-use tokio::sync::{mpsc::{Receiver, Sender}, RwLock};
-use tron_app::{SseTriggerMsg, TriggerData};
-use tron_components::{audio_player, ComponentState, Context, ServiceRequestMessage, TnAsset};
-use tron_app::{
-    utils::send_sse_msg_to_client, SseAudioRecorderTriggerMsg,
-
+use tokio::sync::{
+    mpsc::Receiver,
+    RwLock,
 };
-use tron_components::text;
+use tron_app::send_sse_msg_to_client;
+use tron_app::{SseTriggerMsg, TriggerData};
+use tron_components::{get_sse_tx_with_context, text};
+use tron_components::{
+    audio_player::start_audio,
+    get_component_with_contex, Context, ServiceRequestMessage, TnAsset,
+};
 
 pub async fn simulate_dialog(
     context: Arc<RwLock<Context<'static>>>,
@@ -68,7 +69,7 @@ pub async fn simulate_dialog(
                     choice.index, choice.message.role, choice.message.content
                 );
                 if let Some(s) = choice.message.content {
-                    llm_response = s.clone(); 
+                    llm_response = s.clone();
                     let json_data = json!({"text": s}).to_string();
                     let mut response = reqwest_client
                         .post("https://api.deepgram.com/v1/speak?model=aura-zeus-en")
@@ -80,6 +81,8 @@ pub async fn simulate_dialog(
                         .await
                         .unwrap();
                     println!("response: {:?}", response);
+
+                    // send TTS data to the player stream out
                     while let Some(chunk) = response.chunk().await.unwrap() {
                         println!("Chunk: {}", chunk.len());
                         {
@@ -98,31 +101,20 @@ pub async fn simulate_dialog(
                     // std::io::Write::write_all(&mut file, &buf).unwrap();
                 }
             }
-            {
-                let context_guard = context.write().await;
-                let components_guard = context_guard.components.write().await;
-                let player_id = context_guard.get_component_id("player");
-                let mut player = components_guard.get(&player_id).unwrap().write().await;
-                player.remove_header("HX-Reswap".into()); // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
-                player.set_state(ComponentState::Updating);
-            }
 
-            let msg = SseTriggerMsg {
-                server_side_trigger: TriggerData {
-                    target: "player".into(),
-                    new_state: "updating".into(),
-                },
-            };
-            let sse_tx = get_sse_tx(context.clone()).await; 
-            send_sse_msg_to_client(&sse_tx, msg).await;
+            // trigger playing
+            let player = get_component_with_contex(context.clone(), "player").await;
+            let sse_tx = get_sse_tx_with_context(context.clone()).await;
+            start_audio(player.clone(), sse_tx).await;
 
             {
-                let components = context.read().await.components.clone();
-                let transcript_area_id = context.read().await.get_component_id("transcript");
-                let components_guard = components.write().await;
-                let transcript_area =
-                    components_guard.get(&transcript_area_id).unwrap();
-                text::append_textarea_value(transcript_area.clone(), &format!(">> {} \n\n<<", llm_response), None).await;
+                let transcript_area = get_component_with_contex(context.clone(), "transcript").await;
+                text::append_textarea_value(
+                    transcript_area,
+                    &format!(">> {} \n\n<<", llm_response),
+                    None,
+                )
+                .await;
             }
             {
                 let msg = SseTriggerMsg {
@@ -131,24 +123,10 @@ pub async fn simulate_dialog(
                         new_state: "ready".into(),
                     },
                 };
+                let sse_tx = get_sse_tx_with_context(context.clone()).await;
                 send_sse_msg_to_client(&sse_tx, msg).await;
             }
         }
     }
-}
-
-async fn get_sse_tx(context: Arc<RwLock<Context<'static>>>) -> Sender<String> {
-    // unlock two layers of Rwlock !!
-    let sse_tx = context
-        .read()
-        .await
-        .sse_channels
-        .read()
-        .await
-        .as_ref()
-        .unwrap()
-        .tx
-        .clone();
-    sse_tx
 }
 

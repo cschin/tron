@@ -17,6 +17,7 @@ pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
 use serde_json::Value;
 pub use text::TnTextArea;
+pub use checklist::{TnCheckBox, TnCheckList};
 
 use rand::{thread_rng, Rng};
 

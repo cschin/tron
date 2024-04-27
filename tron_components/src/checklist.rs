@@ -48,6 +48,10 @@ impl<'a: 'static> TnCheckList<'a> {
             self.inner.tag
         )
     }
+
+    pub fn internal_first_render(&self) -> String {
+        self.internal_render()
+    }
 }
 
 #[derive(ComponentBase)]
@@ -122,6 +126,9 @@ impl<'a: 'static> TnCheckBox<'a> {
             self.inner.tag,
             self.generate_attr_string(),
         )
+    }
+    pub fn internal_first_render(&self) -> String {
+        self.internal_render()
     }
 }
 

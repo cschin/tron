@@ -8,8 +8,10 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    checklist, text::TnTextInput, ActionExecutionMethod, ComponentBaseTrait, ComponentState,
-    ComponentValue, Context, TnButton, TnEvent, TnEventActions, TnSelect, TnTextArea,
+    checklist,
+    text::{append_stream_textarea_value, TnStreamTextArea, TnTextInput},
+    ActionExecutionMethod, ComponentBaseTrait, ComponentState, ComponentValue, Context, TnButton,
+    TnEvent, TnEventActions, TnSelect, TnTextArea,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -33,7 +35,7 @@ fn test_evt_task(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = || async move {
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
         let mut i = 0;
         let sse_tx = {
             let context_guard = context.read().await;
@@ -67,19 +69,9 @@ fn test_evt_task(
                 {
                     let id = context_guard.get_component_id("textarea");
                     let mut components_guard = context_guard.components.write().await;
-                    let mut text_area = components_guard.get_mut(&id).unwrap().write().await;
-                    let origin_string =
-                        if let ComponentValue::String(origin_string) = text_area.value() {
-                            origin_string.clone()
-                        } else {
-                            "".to_string()
-                        };
-                    text_area.set_value(ComponentValue::String(format!(
-                        "{}\n {} -- {:02};",
-                        origin_string,
-                        event.e_target,
-                        v + 1
-                    )));
+                    let text_area = components_guard.get_mut(&id).unwrap().clone();
+                    let new_str = format!("{} -- {:02};\n", event.e_target, v + 1);
+                    append_stream_textarea_value(text_area, &new_str).await;
                 };
             }
 
@@ -146,17 +138,17 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         }
     }
 
-    let mut textarea = TnTextArea::<'static>::new(component_id, "textarea".into(), "".into());
+    let mut textarea = TnStreamTextArea::<'static>::new(component_id, "textarea".into(), vec![]);
 
     textarea.set_attribute(
         "class".into(),
         "textarea textarea-bordered flex-1 min-h-80v".into(),
     );
 
-    textarea.set_attribute(
-        "hx-swap".into(),
-        "outerHTML scroll:bottom focus-scroll:true".into(),
-    );
+    // textarea.set_attribute(
+    //     "hx-swap".into(),
+    //     "outerHTML scroll:bottom focus-scroll:true".into(),
+    // );
 
     context.add_component(textarea);
 
@@ -171,13 +163,13 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         "checkbox-6".to_string(),
     ];
     let checklist_tron_id = "checklist".to_string();
-    let container_attributes = vec![("class".to_string(),"flex-1".to_string())];
+    let container_attributes = vec![("class".to_string(), "flex-1".to_string())];
     checklist::add_checklist_to_context(
         &mut context,
         &mut component_id,
         checklist_tron_id,
         checklist_items,
-        container_attributes
+        container_attributes,
     );
     {
         let component_guard = context.components.blocking_read();
@@ -251,7 +243,7 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
         .collect::<Vec<String>>();
 
     let context_guard = context.blocking_read();
-    let textarea = context_guard.render_to_string("textarea");
+    let textarea = context_guard.first_render_to_string("textarea");
     let textinput = context_guard.render_to_string("textinput");
     let checklist = context_guard.render_to_string("checklist");
     let select = context_guard.render_to_string("select_one");

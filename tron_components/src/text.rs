@@ -46,6 +46,10 @@ impl<'a: 'static> TnTextArea<'a> {
             self.inner.tag
         )
     }
+
+    pub fn internal_first_render(&self) -> String {
+        self.internal_render()
+    }
 }
 
 pub async fn append_textarea_value(
@@ -70,6 +74,75 @@ pub async fn append_textarea_value(
 }
 
 #[derive(ComponentBase)]
+pub struct TnStreamTextArea<'a: 'static> {
+    inner: ComponentBase<'a>,
+}
+
+impl<'a: 'static> TnStreamTextArea<'a> {
+    pub fn new(id: ComponentId, name: String, value: Vec<String>) -> Self {
+        let mut component_base =
+            ComponentBase::new("textarea".into(), id, name, TnComponentType::StreamTextArea);
+        component_base.set_value(ComponentValue::VecString(value));
+        component_base.set_attribute("contenteditable".into(), "false".into());
+
+        component_base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
+        component_base.set_attribute("type".into(), "text".into());
+        component_base.set_attribute(
+            "hx-swap".into(),
+            "beforeend scroll:bottom focus-scroll:true ".into(),
+        );
+
+        Self {
+            inner: component_base,
+        }
+    }
+}
+
+impl<'a: 'static> Default for TnStreamTextArea<'a> {
+    fn default() -> Self {
+        Self {
+            inner: ComponentBase {
+                value: ComponentValue::VecString(vec![]),
+                ..Default::default()
+            },
+        }
+    }
+}
+
+impl<'a: 'static> TnStreamTextArea<'a> {
+    pub fn internal_first_render(&self) -> String {
+        format!(
+            r##"<{} {}>{}</{}>"##,
+            self.inner.tag,
+            self.generate_attr_string(),
+            match self.value() {
+                ComponentValue::VecString(s) => s.join(""),
+                _ => "".to_string(),
+            },
+            self.inner.tag
+        )
+    }
+
+    pub fn internal_render(&self) -> String {
+        let empty = "".to_string();
+        match self.value() {
+            ComponentValue::VecString(s) => s.last().unwrap_or(&empty).clone(),
+            _ => "".into(),
+        }
+    }
+}
+
+pub async fn append_stream_textarea_value(
+    comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>,
+    new_str: &str,
+) {
+    let mut comp = comp.write().await;
+    if let ComponentValue::VecString(v) = comp.get_mut_value() {
+        v.push(new_str.to_string());
+    }
+}
+
+#[derive(ComponentBase)]
 pub struct TnTextInput<'a: 'static> {
     inner: ComponentBase<'a>,
 }
@@ -88,7 +161,7 @@ impl<'a: 'static> TnTextInput<'a> {
             r##"js:{event_data:get_input_event(event)}"##.into(),
         ); //over-ride the default as we need the value of the input text
         component_base.set_attribute("hx-swap".into(), "none".into());
-     
+
         Self {
             inner: component_base,
         }
@@ -117,5 +190,9 @@ impl<'a: 'static> TnTextInput<'a> {
                 _ => "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Nullam eu pellentesque erat, ut sollicitudin nisi.".to_string()
             }
         )
+    }
+
+    pub fn internal_first_render(&self) -> String {
+        self.internal_render()
     }
 }

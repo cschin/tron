@@ -37,6 +37,8 @@ use serde::Deserialize;
 pub enum ComponentValue {
     None,
     String(String),
+    VecString(Vec<String>),
+    VecString2(Vec<(String, String)>),
     CheckItems(HashMap<String, bool>),
     CheckItem(bool),
 }
@@ -61,6 +63,7 @@ pub enum TnComponentType {
     CheckList,
     CheckBox,
     TextArea,
+    StreamTextArea,
     TextInput,
     Select,
     UserDefined(String),
@@ -157,6 +160,13 @@ impl<'a: 'static> Context<'a> {
         let component = component_guard.get(&id).unwrap().blocking_read();
         component.render()
     }
+
+    pub fn first_render_to_string(&self, tron_id: &str) -> String {
+        let id = self.get_component_id(tron_id);
+        let component_guard = self.components.blocking_read();
+        let component = component_guard.get(&id).unwrap().blocking_read();
+        component.first_render()
+    }
 }
 
 pub async fn set_value_with_context(
@@ -238,6 +248,7 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>>;
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
 
+    fn first_render(&self) -> String;
     fn render(&self) -> String;
 
     fn get_children(&self) -> &Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>;
@@ -406,6 +417,10 @@ where
 
     fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>> {
         Weak::upgrade(&self.parent).unwrap()
+    }
+
+    fn first_render(&self) -> String {
+        unimplemented!()
     }
 
     fn render(&self) -> String {

@@ -46,4 +46,8 @@ where
             self.inner.tag
         )
     }
+
+    pub fn internal_first_render(&self) -> String {
+        self.internal_render()
+    }
 }

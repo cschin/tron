@@ -88,6 +88,10 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.inner.get_mut_assets()
             }
 
+            fn first_render(&self) -> String {
+                self.internal_first_render()
+            }
+
             fn render(&self) -> String {
                 self.internal_render()
             }

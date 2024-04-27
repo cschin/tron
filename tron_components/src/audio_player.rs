@@ -49,6 +49,10 @@ where
             self.generate_attr_string(),
         )
     }
+
+    pub fn internal_first_render(&self) -> String {
+        self.internal_render()
+    }
 }
 
 pub async fn start_audio (

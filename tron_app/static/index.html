@@ -27,7 +27,7 @@
       const event_data = JSON.parse(event.data);
       const state = event_data["server_side_trigger"]["new_state"];
       const target = event_data["server_side_trigger"]["target"];
-      for (const key in window.process_special_events ) {
+      for (const key in window.process_special_events) {
         if (window.process_special_events.hasOwnProperty(key)) {
           window.process_special_events[key](target, state, event_data)
         }
@@ -53,38 +53,50 @@
   // standard event response functions
   // for input element, the value is stored in the attribute
   function get_input_event(event) {
-    return {
-      "tn_event":
-      {
-        "e_target": event.currentTarget.id,
-        "e_type": event.type,
-        "e_state": event.currentTarget.getAttribute('state')
-      },
-      "e_value": document.getElementById(event.currentTarget.id).value
-    };
+    if (event.type == "load") { // htxm may evaluate "load" event that does not has "getAttribute" 
+      return
+    } else {
+      return {
+        "tn_event":
+        {
+          "e_target": event.currentTarget.id,
+          "e_type": event.type,
+          "e_state": event.currentTarget.getAttribute('state')
+        },
+        "e_value": document.getElementById(event.currentTarget.id).value
+      };
+    }
   };
 
   function get_event(event) {
-    return {
-      "tn_event":
-      {
-        "e_target": event.currentTarget.id,
-        "e_type": event.type,
-        "e_state": event.currentTarget.getAttribute('state')
-      }
+    if (event.type == "load") { // htxm may evaluate "load" event that does not has "getAttribute" 
+      return
+    } else {
+      return {
+        "tn_event":
+        {
+          "e_target": event.currentTarget.id,
+          "e_type": event.type,
+          "e_state": event.currentTarget.getAttribute('state')
+        }
+      };
     };
   };
 
   // for non-input element, the value is stored in innerHTML
   function get_event_with_value(event) {
-    return {
-      "tn_event":
-      {
-        "e_target": event.currentTarget.id,
-        "e_type": event.type,
-        "e_state": event.currentTarget.getAttribute('state')
-      },
-      "e_value": document.getElementById(event.currentTarget.id).innerHTML
+    if (event.type == "load") { // htxm may evaluate "load" event that does not has "getAttribute" 
+      return
+    } else {
+      return {
+        "tn_event":
+        {
+          "e_target": event.currentTarget.id,
+          "e_type": event.type,
+          "e_state": event.currentTarget.getAttribute('state')
+        },
+        "e_value": document.getElementById(event.currentTarget.id).innerHTML
+      };
     };
   };
 </script>

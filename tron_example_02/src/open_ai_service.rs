@@ -117,6 +117,7 @@ pub async fn simulate_dialog(
                 )
                 .await;
             }
+            
             {
                 let msg = SseTriggerMsg {
                     server_side_trigger: TriggerData {

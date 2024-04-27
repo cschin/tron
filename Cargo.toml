@@ -2,5 +2,9 @@
 
 resolver = "2"
 
-members = [ "tron_app", "tron_components", "examples", "tron_macro" , "tron_utils"]
+members = [ "tron_app", "tron_components", "tron_macro" , "tron_utils",
+"examples/00_app_template/",
+"examples/01_widgets/",
+"examples/02_conversational_bot/"
+]
 

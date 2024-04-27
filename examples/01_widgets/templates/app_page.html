@@ -13,13 +13,23 @@
         {{ select }}
     </div>
     <div class="flex flex-row p-1">
-        <div class="flex flex-row flex-1 min-h-80">
+        <div class="flex flex-row flex-1 h-20">
+            {{stream_textarea}}
+        </div>
+    </div>
+    <div class="flex flex-row p-1">
+        <div class="flex flex-row flex-1 h-20">
             {{textarea}}
         </div>
     </div>
     <div class="flex flex-row p-1">
-        <div class="flex flex-row flex-1 min-h-80">
-            {{textinput}}
+        <div class="flex-col flex-1">
+            <div>
+                <label> text input </label>
+            </div>
+            <div class="flex flex-row flex-1 h-20">
+                {{textinput}}
+            </div>
         </div>
     </div>
 </div>

@@ -9,9 +9,9 @@ use serde_json::Value;
 use tracing::debug;
 use tron_components::{
     checklist,
-    text::{append_stream_textarea_value, TnStreamTextArea, TnTextInput},
+    text::{append_stream_textarea_value, append_textarea_value},
     ActionExecutionMethod, ComponentBaseTrait, ComponentState, ComponentValue, Context, TnButton,
-    TnEvent, TnEventActions, TnSelect, TnTextArea,
+    TnEvent, TnEventActions, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -29,7 +29,7 @@ async fn main() {
     tron_app::run(app_share_data).await
 }
 
-fn test_evt_task(
+fn test_event_actions(
     context: Arc<RwLock<Context<'static>>>,
     event: TnEvent,
     _payload: Value,
@@ -67,26 +67,40 @@ fn test_evt_task(
                 }
 
                 {
+                    let id = context_guard.get_component_id("stream_textarea");
+                    let mut components_guard = context_guard.components.write().await;
+                    let stream_textarea = components_guard.get_mut(&id).unwrap().clone();
+                    let new_str = format!("{} -- {:02};\n", event.e_target, v + 1);
+                    append_stream_textarea_value(stream_textarea, &new_str).await;
+                };
+
+                {
                     let id = context_guard.get_component_id("textarea");
                     let mut components_guard = context_guard.components.write().await;
-                    let text_area = components_guard.get_mut(&id).unwrap().clone();
-                    let new_str = format!("{} -- {:02};\n", event.e_target, v + 1);
-                    append_stream_textarea_value(text_area, &new_str).await;
+                    let textarea = components_guard.get_mut(&id).unwrap().clone();
+                    let new_str = format!("{} -- {:02};", event.e_target, v + 1);
+                    append_textarea_value(textarea, &new_str, Some("\n")).await;
                 };
             }
 
-            let data = format!(
+            let msg = format!(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"updating" }} }}"##,
                 event.e_target
             );
-            if sse_tx.send(data).await.is_err() {
+            if sse_tx.send(msg).await.is_err() {
                 debug!("tx dropped");
             }
 
-            let data =
-                r##"{"server_side_trigger": { "target":"textarea", "new_state":"ready" } }"##
-                    .to_string();
-            if sse_tx.send(data).await.is_err() {
+            let msg =
+            r##"{"server_side_trigger": { "target":"stream_textarea", "new_state":"ready" } }"##
+                .to_string();
+            if sse_tx.send(msg).await.is_err() {
+                debug!("tx dropped");
+            }
+
+            let msg = r##"{"server_side_trigger": { "target":"textarea", "new_state":"ready" } }"##
+                .to_string();
+            if sse_tx.send(msg).await.is_err() {
                 debug!("tx dropped");
             }
 
@@ -138,17 +152,31 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         }
     }
 
-    let mut textarea = TnStreamTextArea::<'static>::new(component_id, "textarea".into(), vec![]);
+    component_id += 1;
+    let mut stream_textarea = TnStreamTextArea::<'static>::new(
+        component_id,
+        "stream_textarea".into(),
+        vec!["This is a stream-able textarea\n".to_string()],
+    );
+
+    stream_textarea.set_attribute(
+        "class".into(),
+        "textarea textarea-bordered flex-1 h-20".into(),
+    );
+
+    context.add_component(stream_textarea);
+
+    component_id += 1;
+    let mut textarea = TnTextArea::<'static>::new(
+        component_id,
+        "textarea".into(),
+        "This is a textarea\n".to_string(),
+    );
 
     textarea.set_attribute(
         "class".into(),
-        "textarea textarea-bordered flex-1 min-h-80v".into(),
+        "textarea textarea-bordered flex-1 h-20".into(),
     );
-
-    // textarea.set_attribute(
-    //     "hx-swap".into(),
-    //     "outerHTML scroll:bottom focus-scroll:true".into(),
-    // );
 
     context.add_component(textarea);
 
@@ -210,7 +238,10 @@ fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActio
             e_type: "click".to_string(),
             e_state: "ready".to_string(),
         };
-        actions.insert(evt, (ActionExecutionMethod::Spawn, Arc::new(test_evt_task)));
+        actions.insert(
+            evt,
+            (ActionExecutionMethod::Spawn, Arc::new(test_event_actions)),
+        );
     }
     {
         let context_guard = context.blocking_read();
@@ -231,6 +262,7 @@ fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActio
 struct AppPageTemplate {
     buttons: Vec<String>,
     textarea: String,
+    stream_textarea: String,
     textinput: String,
     checklist: String,
     select: String,
@@ -243,7 +275,8 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
         .collect::<Vec<String>>();
 
     let context_guard = context.blocking_read();
-    let textarea = context_guard.first_render_to_string("textarea");
+    let textarea = context_guard.render_to_string("textarea");
+    let stream_textarea = context_guard.first_render_to_string("stream_textarea");
     let textinput = context_guard.render_to_string("textinput");
     let checklist = context_guard.render_to_string("checklist");
     let select = context_guard.render_to_string("select_one");
@@ -251,6 +284,7 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
     let html = AppPageTemplate {
         buttons,
         textarea,
+        stream_textarea,
         textinput,
         checklist,
         select,

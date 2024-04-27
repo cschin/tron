@@ -17,7 +17,7 @@ pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
 use serde_json::Value;
-pub use text::TnTextArea;
+pub use text::{TnTextArea, TnStreamTextArea, TnTextInput};
 pub use checklist::{TnCheckBox, TnCheckList};
 pub use select::TnSelect;
 

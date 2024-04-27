@@ -23,9 +23,7 @@ use tokio::sync::{
 };
 #[allow(unused_imports)]
 use tracing::{debug, info};
-use tron_app::{
-    send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData,
-};
+use tron_app::{send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData};
 use tron_components::*;
 
 #[tokio::main]
@@ -40,7 +38,11 @@ async fn main() {
     };
 
     //tron_app::run(app_share_data, Some("server=debug,tower_http=debug,tron_app=info")).await
-    tron_app::run(app_share_data, Some("server=info,tower_http=info,tron_app=info")).await
+    tron_app::run(
+        app_share_data,
+        Some("server=info,tower_http=info,tron_app=info"),
+    )
+    .await
 }
 
 fn build_session_context() -> Arc<RwLock<Context<'static>>> {
@@ -70,15 +72,12 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
 
     component_id += 1;
     let mut transcript_output =
-        TnTextArea::<'static>::new(component_id, "transcript".to_string(), "<< ".to_string());
+        TnChatBox::<'static>::new(component_id, "transcript".to_string(), vec![]);
     transcript_output.set_attribute(
         "class".to_string(),
         "textarea textarea-bordered flex-1 min-h-80v".to_string(),
     );
-    transcript_output.set_attribute(
-        "hx-swap".into(),
-        "outerHTML scroll:bottom focus-scroll:true".into(),
-    );
+
     context.add_component(transcript_output);
 
     let context = Arc::new(RwLock::new(context));
@@ -137,7 +136,7 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
     let btn = context_guard.render_to_string("rec_button");
     let recorder = context_guard.render_to_string("recorder");
     let player = context_guard.render_to_string("player");
-    let transcript = context_guard.render_to_string("transcript");
+    let transcript = context_guard.first_render_to_string("transcript");
     let html = AppPageTemplate {
         btn,
         recorder,
@@ -191,7 +190,10 @@ fn build_session_actions(_context: Arc<RwLock<Context<'static>>>) -> TnEventActi
     };
     actions.insert(
         evt,
-        (ActionExecutionMethod::Await, Arc::new(audio_player::stop_audio_playing_action)),
+        (
+            ActionExecutionMethod::Await,
+            Arc::new(audio_player::stop_audio_playing_action),
+        ),
     );
 
     actions
@@ -268,8 +270,6 @@ fn toggle_recording(
                                 tracing::debug!(target:"tron_app", "returned string: {}", out);
                             };
                         }
-
-
                     }
                     "Start Conversation" => {
                         set_value_with_context(
@@ -278,7 +278,8 @@ fn toggle_recording(
                             ComponentValue::String("Recording".into()),
                         )
                         .await;
-                        set_state_with_context(&context, "recorder", ComponentState::Updating).await;
+                        set_state_with_context(&context, "recorder", ComponentState::Updating)
+                            .await;
 
                         {
                             let context_guard = context.write().await;
@@ -480,22 +481,7 @@ async fn transcript_post_processing_service(
                             tracing::debug!(target: "tron_app", "returned string: {}", out);
                         };
                     }
-                    {
-                        let components_guard = components.write().await;
-                        let transcript_area = components_guard.get(&transcript_area_id).unwrap();
-                        text::append_textarea_value(transcript_area.clone(), " <END>\n", None)
-                            .await;
-                    }
-                    {
-                        let msg = SseTriggerMsg {
-                            server_side_trigger: TriggerData {
-                                target: "transcript".into(),
-                                new_state: "ready".into(),
-                            },
-                        };
-                        let sse_tx = get_sse_tx_with_context(context.clone()).await;
-                        send_sse_msg_to_client(&sse_tx, msg).await;
-                    }
+ 
                 }
             }
             "transcript_fragment" => {
@@ -508,10 +494,9 @@ async fn transcript_post_processing_service(
                             let components_guard = components.write().await;
                             let transcript_area =
                                 components_guard.get(&transcript_area_id).unwrap();
-                            text::append_textarea_value(
+                            chatbox::append_chatbox_value(
                                 transcript_area.clone(),
-                                &transcript,
-                                Some(" "),
+                                ("user".into(), transcript.clone()),
                             )
                             .await;
                         }

@@ -4,6 +4,7 @@ pub mod button;
 pub mod checklist;
 pub mod text;
 pub mod select;
+pub mod chatbox;
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -20,6 +21,7 @@ use serde_json::Value;
 pub use text::{TnTextArea, TnStreamTextArea, TnTextInput};
 pub use checklist::{TnCheckBox, TnCheckList};
 pub use select::TnSelect;
+pub use chatbox::TnChatBox;
 
 use rand::{thread_rng, Rng};
 
@@ -48,6 +50,7 @@ pub enum TnAsset {
     VecU8(Vec<u8>),
     VecString(Vec<String>),
     VecString2(Vec<(String, String)>),
+    HashMapString(HashMap<String, String>),
     String(String),
     Bytes(BytesMut),
     Value(Value), //json
@@ -65,6 +68,7 @@ pub enum TnComponentType {
     TextArea,
     StreamTextArea,
     TextInput,
+    ChatBox,
     Select,
     UserDefined(String),
 }

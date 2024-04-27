@@ -60,6 +60,7 @@ pub async fn append_textarea_value(
     let v;
     {
         let comp = comp.read().await;
+        assert!(comp.get_type() == TnComponentType::TextArea);
         let v0 = match comp.value() {
             ComponentValue::String(s) => s.clone(),
             _ => "".into(),
@@ -137,6 +138,7 @@ pub async fn append_stream_textarea_value(
     new_str: &str,
 ) {
     let mut comp = comp.write().await;
+    assert!(comp.get_type() == TnComponentType::StreamTextArea);
     if let ComponentValue::VecString(v) = comp.get_mut_value() {
         v.push(new_str.to_string());
     }

@@ -14,9 +14,10 @@ use tokio::sync::{mpsc::Receiver, RwLock};
 use tron_app::send_sse_msg_to_client;
 use tron_app::{SseTriggerMsg, TriggerData};
 use tron_components::{
-    audio_player::start_audio, get_component_with_contex, Context, ServiceRequestMessage, TnAsset,
+    audio_player::start_audio, chatbox, get_component_with_contex, Context, ServiceRequestMessage,
+    TnAsset,
 };
-use tron_components::{get_sse_tx_with_context, text};
+use tron_components::get_sse_tx_with_context;
 
 pub async fn simulate_dialog(
     context: Arc<RwLock<Context<'static>>>,
@@ -98,10 +99,10 @@ pub async fn simulate_dialog(
             {
                 let transcript_area =
                     get_component_with_contex(context.clone(), "transcript").await;
-                text::append_textarea_value(
-                    transcript_area,
-                    &format!(">> {} \n\n<<", llm_response),
-                    None,
+
+                chatbox::append_chatbox_value(
+                    transcript_area.clone(),
+                    ("bot".into(), llm_response.clone()),
                 )
                 .await;
             }

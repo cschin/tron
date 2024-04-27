@@ -8,11 +8,16 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    checklist, text::TnTextInput, ActionExecutionMethod, ComponentBaseTrait, ComponentState,
-    ComponentValue, Context, TnButton, TnEvent, TnEventActions, TnTextArea,
+    checklist, select, text::TnTextInput, ActionExecutionMethod, ComponentBaseTrait,
+    ComponentState, ComponentValue, Context, TnButton, TnEvent, TnEventActions, TnSelect,
+    TnTextArea,
 };
 //use std::sync::Mutex;
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{
+    collections::HashMap,
+    pin::Pin,
+    sync::Arc,
+};
 
 #[tokio::main]
 async fn main() {
@@ -174,6 +179,21 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     );
 
     component_id += 1;
+    let select_options = vec![
+        ("one".into(), "One".into()),
+        ("two".into(), "Two".into()),
+        ("three".into(), "Three".into()),
+    ];
+
+    let select = TnSelect::<'static>::new(
+        component_id,
+        "select_one".into(),
+        "one".into(),
+        select_options,
+    );
+    context.add_component(select);
+
+    component_id += 1;
     let mut textinput = TnTextInput::<'static>::new(component_id, "textinput".into(), "10".into());
     textinput.set_attribute("class".into(), "input w-full max-w-xs".into());
     textinput.set_attribute(
@@ -207,6 +227,18 @@ fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActio
             actions.insert(evt, (ActionExecutionMethod::Await, action));
         });
     }
+    {
+        let context_guard = context.blocking_read();
+        let select_id = context_guard.get_component_id("select_one");
+        let component_guard = context_guard.components.blocking_read();
+        let select = component_guard.get(&select_id).unwrap().clone();
+
+        let select_action = select::get_select_actions(select);
+        actions.insert(
+            select_action.0,
+            (ActionExecutionMethod::Await, select_action.1),
+        );
+    }
     actions
 }
 
@@ -217,27 +249,27 @@ struct AppPageTemplate {
     textarea: String,
     textinput: String,
     checklist: String,
+    select: String,
 }
 
 fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
-
     let context_guard = context.blocking_read();
     let buttons = (0..10)
-        .map(|i| {
-            context_guard.render_to_string(&format!("btn-{:02}", i))
-        })
+        .map(|i| context_guard.render_to_string(&format!("btn-{:02}", i)))
         .collect::<Vec<String>>();
 
     let context_guard = context.blocking_read();
-    let textarea = context_guard.render_to_string("textarea");    
-    let textinput = context_guard.render_to_string("textinput");    
+    let textarea = context_guard.render_to_string("textarea");
+    let textinput = context_guard.render_to_string("textinput");
     let checklist = context_guard.render_to_string("checklist");
+    let select = context_guard.render_to_string("select_one");
 
     let html = AppPageTemplate {
         buttons,
         textarea,
         textinput,
         checklist,
+        select,
     };
     html.render().unwrap()
 }

@@ -3,9 +3,10 @@ pub mod audio_recorder;
 pub mod button;
 pub mod checklist;
 pub mod text;
+pub mod select;
 
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{BTreeMap, HashMap, VecDeque},
     pin::Pin,
     sync::{Arc, Weak},
 };
@@ -18,6 +19,7 @@ pub use button::TnButton;
 use serde_json::Value;
 pub use text::TnTextArea;
 pub use checklist::{TnCheckBox, TnCheckList};
+pub use select::TnSelect;
 
 use rand::{thread_rng, Rng};
 
@@ -42,6 +44,8 @@ pub enum ComponentValue {
 pub enum TnAsset {
     None,
     VecU8(Vec<u8>),
+    VecString(Vec<String>),
+    VecString2(Vec<(String, String)>),
     String(String),
     Bytes(BytesMut),
     Value(Value), //json
@@ -58,6 +62,7 @@ pub enum TnComponentType {
     CheckBox,
     TextArea,
     TextInput,
+    Select,
     UserDefined(String),
 }
 

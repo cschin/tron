@@ -1,4 +1,3 @@
 /target
-/output
-*.lock
 /self_signed_certs
+*.lock

@@ -194,7 +194,7 @@ pub fn toggle_checkbox(
     payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
-        println!("paylod value {payload}");
+        // println!("paylod value {payload}");
         if let Value::String(checked) = &payload["event_data"]["e_value"] {
             let context_guard = context.read().await;
             let checkbox_id = context_guard.get_component_id(&event.e_target);

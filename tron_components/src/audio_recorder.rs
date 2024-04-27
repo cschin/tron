@@ -75,7 +75,6 @@ pub async fn append_audio_data(
         .or_insert(TnAsset::Bytes(BytesMut::default()));
     if let TnAsset::Bytes(audio_data) = e {
         (*audio_data).extend_from_slice(&new_bytes);
-        //println!("new stream data size: {}", (*audio_data).len());
     }
 }
 

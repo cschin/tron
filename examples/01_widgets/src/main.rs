@@ -26,7 +26,7 @@ async fn main() {
         build_session_actions: Arc::new(Box::new(build_session_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
-    tron_app::run(app_share_data).await
+    tron_app::run(app_share_data, None).await
 }
 
 fn test_event_actions(
@@ -123,7 +123,7 @@ fn test_event_actions(
                 event.e_target, "ready"
             );
             if sse_tx.send(data).await.is_err() {
-                println!("tx dropped");
+                tracing::debug!(target: "tron_app", "tx dropped");
             }
         }
     };

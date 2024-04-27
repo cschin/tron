@@ -28,7 +28,7 @@ async fn main() {
         build_session_actions: Arc::new(Box::new(build_session_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
-    tron_app::run(app_share_data).await
+    tron_app::run(app_share_data, None).await
 }
 
 fn build_session_context() -> Arc<RwLock<Context<'static>>> {

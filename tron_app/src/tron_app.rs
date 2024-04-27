@@ -54,12 +54,18 @@ pub struct AppData {
     pub build_layout: Arc<Box<LayoutFunction>>,
 }
 
-pub async fn run(app_share_data: AppData) {
+pub async fn run(app_share_data: AppData, log_level: Option<&str>) {
+    let log_level = if let Some(log_level) = log_level {
+        log_level
+    } else {
+        "server=info,tower_http=info,tron_app=info"
+    };
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
                 //.unwrap_or_else(|_| "server=debug,tower_http=debug".into()),
-                .unwrap_or_else(|_| "server=error,tower_http=error".into()),
+                .unwrap_or_else(|_| log_level.into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -120,7 +126,7 @@ pub async fn run(app_share_data: AppData) {
 
 async fn index(session: Session, _: Request) -> Html<String> {
     let index_html = include_str!("../static/index.html");
-    if  session.id().is_none() {
+    if session.id().is_none() {
         session.insert("session_set", true).await.unwrap();
     };
     Html::from(index_html.to_string())
@@ -140,7 +146,7 @@ async fn load_page(
         return Err(StatusCode::FORBIDDEN);
     };
 
-    {   
+    {
         let mut session_contexts = app_data.session_context.write().await;
         let context = if session_contexts.contains_key(&session_id) {
             session_contexts.get_mut(&session_id).unwrap()
@@ -209,15 +215,13 @@ async fn match_event(payload: &Value) -> Option<EventData> {
 async fn tron_entry(
     State(app_data): State<Arc<AppData>>,
     session: Session,
-    _headers: HeaderMap,
+    headers: HeaderMap,
     Path(tron_id): Path<ComponentId>,
     Json(payload): Json<Value>,
     //request: Request,
 ) -> impl IntoResponse {
-    // println!("req: {:?}", request);
-    // println!("req body: {:?}", to_bytes(request.into_body(), usize::MAX).await );
-    // let body_bytes =  to_bytes(request.into_body(), usize::MAX).await.unwrap();
-    // println!("header: {:?}", _headers);
+
+    tracing::debug!(target: "tron_app", "headers: {:?}", headers);
 
     let mut response_headers = HeaderMap::new();
     response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
@@ -225,7 +229,6 @@ async fn tron_entry(
     let session_id = if let Some(session_id) = session.id() {
         session_id
     } else {
-        //return Err(StatusCode::FORBIDDEN);
         return (StatusCode::FORBIDDEN, response_headers, Body::default());
     };
     {
@@ -236,10 +239,10 @@ async fn tron_entry(
         }
     }
 
-    //println!("payload: {:?}", payload);
+    tracing::debug!(target: "tron_app", "payload: {:?}", payload);
 
     if let Some(event_data) = match_event(&payload).await {
-        //println!("event matched, event_data: {:?}", event_data);
+        tracing::debug!(target: "tron_app", "event matched, event_data:{:?}", event_data);
         let evt = event_data.tn_event;
 
         if evt.e_type == "change" {
@@ -306,7 +309,6 @@ async fn tron_entry(
         let target = target_guard.read().await;
         tokio::task::block_in_place(|| target.render())
     });
-    //let body = Body::new(target.read().await.render());
     target_guard
         .write()
         .await
@@ -383,8 +385,6 @@ async fn sse_event_handler(
         } else {
             return Err(StatusCode::SERVICE_UNAVAILABLE);
         }
-
-        //let rx = channel_guard.as_mut().unwrap().rx.take().unwrap();
     };
 
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
@@ -434,7 +434,6 @@ async fn tron_stream(
         let session_guard = app_data.session_context.read().await;
         let context_guard = session_guard.get(&session_id).unwrap().write().await;
         let mut channels = context_guard.stream_data.write().await;
-        //let channels = &mut stream_data_guard.stream_data;
 
         let (protocol, data_queue) = channels.get_mut(&stream_id).unwrap();
         let data_queue = data_queue.iter().cloned().collect::<Vec<_>>();
@@ -456,10 +455,11 @@ async fn tron_stream(
         .collect::<Vec<_>>();
 
     if data_queue.is_empty() {
+        tracing::debug!(target: "tron_app", "stream data_queue empty");
         println!("stream data_queue empty");
         return (StatusCode::NOT_FOUND, default_header, Body::default());
     }
-    println!("stream data_queue NOT empty");
+    tracing::debug!(target: "tron_app", "stream data_queue NOT empty");
     let data_queue = futures_util::stream::iter(data_queue);
 
     let body = Body::from_stream(data_queue);

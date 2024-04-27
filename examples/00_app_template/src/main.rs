@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_imports)]
+
 use askama::Template;
 use futures_util::Future;
 
@@ -33,12 +36,12 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     context
 }
 
-fn layout(components: Arc<RwLock<Context>>) -> String {
+fn layout(context: Arc<RwLock<Context>>) -> String {
     "This is an template, please fill in the components and how to layout them.".into()
 }
 
-fn build_session_actions() -> TnEventActions {
-    let mut actions = TnEventActions::default();
+fn build_session_actions(context: Arc<RwLock<Context>>) -> TnEventActions {
+    let actions = TnEventActions::default();
     actions
 }
 

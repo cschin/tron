@@ -6,7 +6,7 @@ pub mod text;
 pub mod select;
 
 use std::{
-    collections::{BTreeMap, HashMap, VecDeque},
+    collections::{HashMap, VecDeque},
     pin::Pin,
     sync::{Arc, Weak},
 };
@@ -459,6 +459,32 @@ pub async fn get_component_with_contex(
     let comp_id = context_guard.get_component_id(tron_id);
     components_guard.get(&comp_id).unwrap().clone()
 }
+
+pub async fn set_component_value_with_context(
+    context: Arc<RwLock<Context<'static>>>,
+    tron_id: &str,
+    value: ComponentValue
+) {
+    let context_guard = context.read().await;
+    let id = context_guard.get_component_id(tron_id);
+    let components_guard = context_guard.components.read().await;
+    let mut component = components_guard.get(&id).unwrap().write().await;
+    component.set_value(value);
+}
+
+
+pub async fn set_component_state_with_context(
+    context: Arc<RwLock<Context<'static>>>,
+    tron_id: &str,
+    state: ComponentState
+) {
+    let context_guard = context.read().await;
+    let id = context_guard.get_component_id(tron_id);
+    let components_guard = context_guard.components.read().await;
+    let mut component = components_guard.get(&id).unwrap().write().await;
+    component.set_state(state);
+}
+
 
 pub async fn get_sse_tx_with_context(context: Arc<RwLock<Context<'static>>>) -> Sender<String> {
     // unlock two layers of Rwlock !!

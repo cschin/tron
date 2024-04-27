@@ -15,10 +15,8 @@
 <body>
   <div hx-get="/load_page" hx-swap="outerHTML" hx-trigger="load">Loading Page</div>
 </body>
+
 <script>
-
-
-
   window.addEventListener("load", (event) => {
     console.log("page is fully loaded");
     // Create a new EventSource instance pointing to the endpoint where your server sends the events
@@ -53,9 +51,7 @@
   })
 
   // standard event response functions
-
-
-  // for text input element, the value is stored in the attribute
+  // for input element, the value is stored in the attribute
   function get_input_event(event) {
     return {
       "tn_event":
@@ -67,8 +63,6 @@
       "e_value": document.getElementById(event.currentTarget.id).value
     };
   };
-
-
 
   function get_event(event) {
     return {

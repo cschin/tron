@@ -15,8 +15,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    ActionExecutionMethod, ComponentId, ComponentState, Context, SseMessageChannel, TnEvent,
-    TnEventActions,
+    set_component_value_with_context, ActionExecutionMethod, ComponentId, ComponentState, Context,
+    SseMessageChannel, TnEvent, TnEventActions,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
@@ -120,13 +120,14 @@ pub async fn run(app_share_data: AppData) {
 
 async fn index(session: Session, _: Request) -> Html<String> {
     let index_html = include_str!("../static/index.html");
-    session.insert("session_set", true).await.unwrap();
+    if  session.id().is_none() {
+        session.insert("session_set", true).await.unwrap();
+    };
     Html::from(index_html.to_string())
 }
 
 async fn get_session(session: Session, _: Request) {
     session.insert("session_set", true).await.unwrap();
-    //println!("session Id: {}", session.id().unwrap());
 }
 
 async fn load_page(
@@ -139,12 +140,17 @@ async fn load_page(
         return Err(StatusCode::FORBIDDEN);
     };
 
-    {
-        let context = tokio::task::block_in_place(|| (*app_data.build_session_context)());
+    {   
         let mut session_contexts = app_data.session_context.write().await;
-        let e = session_contexts.entry(session_id).or_insert(context);
+        let context = if session_contexts.contains_key(&session_id) {
+            session_contexts.get_mut(&session_id).unwrap()
+        } else {
+            let new_context = tokio::task::block_in_place(|| (*app_data.build_session_context)());
+            session_contexts.entry(session_id).or_insert(new_context)
+        };
+
         {
-            let context_guard = e.read().await;
+            let context_guard = context.read().await;
             let (tx, rx) = tokio::sync::mpsc::channel(16);
             let mut sse_channels_guard = context_guard.sse_channels.write().await;
             *sse_channels_guard = Some(SseMessageChannel { tx, rx: Some(rx) });
@@ -160,13 +166,17 @@ async fn load_page(
 
     let context = context_guard.get(&session_id).unwrap().clone();
     let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context));
-    
-    let context = context_guard.get(&session_id).unwrap().clone();
-    let context = context.read().await;
-    let components = context.components.read().await; 
-    let script = tokio::task::block_in_place(move || components.iter().flat_map( |(_, component) | component.blocking_read().get_script()).collect::<Vec<String>>());
-    let script = script.join("\n");
-    
+
+    let context = context_guard.get(&session_id).unwrap().read().await;
+    let components = context.components.read().await;
+    let script = tokio::task::block_in_place(move || {
+        components
+            .iter()
+            .flat_map(|(_, component)| component.blocking_read().get_script())
+            .collect::<Vec<String>>()
+    })
+    .join("\n");
+
     let html = [layout, "<div>".to_string(), script, "</div>".to_string()].join("\n");
     Ok(Html::from(html))
 }
@@ -226,7 +236,7 @@ async fn tron_entry(
         }
     }
 
-    println!("payload: {:?}", payload);
+    //println!("payload: {:?}", payload);
 
     if let Some(event_data) = match_event(&payload).await {
         //println!("event matched, event_data: {:?}", event_data);
@@ -234,13 +244,14 @@ async fn tron_entry(
 
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {
-                let session_context_guard = app_data.session_context.read().await;
-                let session_context = session_context_guard.get(&session_id).unwrap().clone();
-                let context_guard = session_context.write().await;
-                let id = context_guard.get_component_id(&evt.e_target.clone());
-                let components_guard = context_guard.components.read().await;
-                let mut component = components_guard.get(&id).unwrap().write().await;
-                component.set_value(tron_components::ComponentValue::String(value));
+                let context_guard = app_data.session_context.read().await;
+                let context = context_guard.get(&session_id).unwrap().clone();
+                set_component_value_with_context(
+                    context,
+                    &evt.e_target,
+                    tron_components::ComponentValue::String(value),
+                )
+                .await;
             }
         }
 
@@ -257,7 +268,6 @@ async fn tron_entry(
                 let id = context_guard.get_component_id(&evt.e_target.clone());
                 let mut components_guard = context_guard.components.write().await;
                 let component = components_guard.get_mut(&id).unwrap();
-                // println!("pending set");
                 if *component.read().await.state() == ComponentState::Ready {
                     component.write().await.set_state(ComponentState::Pending);
                 };
@@ -280,9 +290,9 @@ async fn tron_entry(
         }
     };
 
-    let session_context_guard = app_data.session_context.read().await;
+    let context_guard = app_data.session_context.read().await;
 
-    let components = &session_context_guard
+    let components = &context_guard
         .get(&session_id)
         .unwrap()
         .read()

@@ -138,10 +138,12 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
             format!("btn-{:02}", component_id),
             format!("{:02}", component_id),
         );
+
         btn.set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
+
         context.add_component(btn);
         component_id += 1;
         if component_id >= 10 {
@@ -150,14 +152,17 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     }
 
     let mut textarea = TnTextArea::<'static>::new(component_id, "textarea".into(), "".into());
+
     textarea.set_attribute(
         "class".into(),
         "textarea textarea-bordered flex-1 min-h-80v".into(),
     );
+
     textarea.set_attribute(
         "hx-swap".into(),
         "outerHTML scroll:bottom focus-scroll:true".into(),
     );
+
     context.add_component(textarea);
 
     component_id += 1;
@@ -168,7 +173,7 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         "checkbox-3".to_string(),
         "checkbox-4".to_string(),
         "checkbox-5".to_string(),
-        "checkbox-".to_string(),
+        "checkbox-6".to_string(),
     ];
     let checklist_tron_id = "checklist".to_string();
     checklist::add_checklist_to_context(
@@ -194,17 +199,13 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     context.add_component(select);
 
     component_id += 1;
-    let mut textinput = TnTextInput::<'static>::new(component_id, "textinput".into(), "10".into());
-    textinput.set_attribute("class".into(), "input w-full max-w-xs".into());
-    textinput.set_attribute(
-        "hx-swap".into(),
-        "outerHTML scroll:bottom focus-scroll:true".into(),
-    );
+    let mut textinput = TnTextInput::<'static>::new(component_id, "textinput".into(), "".into());
+    textinput.set_attribute("class".into(), "input w-full".into());
+    
     context.add_component(textinput);
 
     Arc::new(RwLock::new(context))
 
-    //Arc::new(RwLock::new(components))
 }
 
 fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActions {
@@ -227,18 +228,7 @@ fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActio
             actions.insert(evt, (ActionExecutionMethod::Await, action));
         });
     }
-    {
-        let context_guard = context.blocking_read();
-        let select_id = context_guard.get_component_id("select_one");
-        let component_guard = context_guard.components.blocking_read();
-        let select = component_guard.get(&select_id).unwrap().clone();
-
-        let select_action = select::get_select_actions(select);
-        actions.insert(
-            select_action.0,
-            (ActionExecutionMethod::Await, select_action.1),
-        );
-    }
+ 
     actions
 }
 

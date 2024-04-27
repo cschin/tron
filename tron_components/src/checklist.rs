@@ -66,6 +66,7 @@ impl<'a: 'static> TnCheckBox<'a> {
             "hx-vals".into(),
             r##"js:{event_data: get_checkbox_event(event)}"##.into(),
         );
+        component_base.set_attribute("hx-swap".into(), "none".into());
         //component_base.set_attribute("type".into(), "checkbox".into());
 
         Self {

@@ -87,7 +87,8 @@ impl<'a: 'static> TnTextInput<'a> {
             "hx-vals".into(),
             r##"js:{event_data:get_input_event(event)}"##.into(),
         ); //over-ride the default as we need the value of the input text
-
+        component_base.set_attribute("hx-swap".into(), "none".into());
+     
         Self {
             inner: component_base,
         }

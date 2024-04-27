@@ -1,5 +1,4 @@
 use super::*;
-use futures_util::Future;
 use tron_macro::*;
 
 #[derive(ComponentBase)]
@@ -31,6 +30,7 @@ impl<'a: 'static> TnSelect<'a> {
             "hx-vals".into(),
             r##"js:{event_data:get_input_event(event)}"##.into(),
         ); //over-ride the default as we need the value of the input text
+
         Self {
             inner: component_base,
         }
@@ -56,15 +56,13 @@ impl<'a: 'static> TnSelect<'a> {
                 options
                     .iter()
                     .map(|(k, v)| {
-                        if let ComponentValue::String(component_value) = self.value() {
-                            if *k == *component_value {
-                                format!(r#"<option value="{}" selected>{}</option>"#, k, v)
-                            } else {
-                                format!(r#"<option value="{}">{}</option>"#, k, v)
+                        let mut selected = "";
+                        if let ComponentValue::String(s) = self.value() {
+                            if *s == *k {
+                                selected = "selected"
                             }
-                        } else{
-                            format!(r#"<option value="{}">{}</option>"#, k, v)
                         } 
+                        format!(r#"<option value="{}" {}>{}</option>"#, k, selected, v)
                     })
                     .collect::<Vec<String>>()
                     .join("\n")
@@ -83,38 +81,4 @@ impl<'a: 'static> TnSelect<'a> {
             self.inner.tag
         )
     }
-}
-
-pub fn get_select_actions(
-    comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>,
-) -> (TnEvent, Arc<ActionFn>) {
-    let comp_guard = comp.blocking_write();
-    assert!(comp_guard.get_type() == TnComponentType::Select);
-    let evt = TnEvent {
-        e_target: comp_guard.tron_id().clone(),
-        e_type: "change".into(),
-        e_state: "ready".into(),
-    };
-    (evt, Arc::new(set_select))
-}
-
-pub fn set_select(
-    context: Arc<RwLock<Context<'static>>>,
-    event: TnEvent,
-    payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-    let f = async move {
-        // println!("paylod value {payload}");
-        if let Value::String(selected) = &payload["event_data"]["e_value"] {
-            let context_guard = context.read().await;
-            let select_id = context_guard.get_component_id(&event.e_target);
-            let components_guard = context_guard.components.write().await;
-            let mut select = components_guard.get(&select_id).unwrap().write().await;
-            select.set_value(ComponentValue::String(selected.clone()));
-
-            select.set_state(ComponentState::Ready);
-        };
-    };
-
-    Box::pin(f)
 }

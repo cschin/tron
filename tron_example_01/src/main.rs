@@ -8,16 +8,11 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    checklist, select, text::TnTextInput, ActionExecutionMethod, ComponentBaseTrait,
-    ComponentState, ComponentValue, Context, TnButton, TnEvent, TnEventActions, TnSelect,
-    TnTextArea,
+    checklist, text::TnTextInput, ActionExecutionMethod, ComponentBaseTrait, ComponentState,
+    ComponentValue, Context, TnButton, TnEvent, TnEventActions, TnSelect, TnTextArea,
 };
 //use std::sync::Mutex;
-use std::{
-    collections::HashMap,
-    pin::Pin,
-    sync::Arc,
-};
+use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 #[tokio::main]
 async fn main() {
@@ -201,11 +196,10 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     component_id += 1;
     let mut textinput = TnTextInput::<'static>::new(component_id, "textinput".into(), "".into());
     textinput.set_attribute("class".into(), "input w-full".into());
-    
+
     context.add_component(textinput);
 
     Arc::new(RwLock::new(context))
-
 }
 
 fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActions {
@@ -228,7 +222,7 @@ fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActio
             actions.insert(evt, (ActionExecutionMethod::Await, action));
         });
     }
- 
+
     actions
 }
 

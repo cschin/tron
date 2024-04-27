@@ -160,8 +160,15 @@ async fn load_page(
 
     let context = context_guard.get(&session_id).unwrap().clone();
     let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context));
-
-    Ok(Html::from(layout))
+    
+    let context = context_guard.get(&session_id).unwrap().clone();
+    let context = context.read().await;
+    let components = context.components.read().await; 
+    let script = tokio::task::block_in_place(move || components.iter().flat_map( |(_, component) | component.blocking_read().get_script()).collect::<Vec<String>>());
+    let script = script.join("\n");
+    
+    let html = [layout, "<div>".to_string(), script, "</div>".to_string()].join("\n");
+    Ok(Html::from(html))
 }
 
 #[derive(Clone, Debug, Deserialize)]

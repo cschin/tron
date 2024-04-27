@@ -107,6 +107,10 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>> {
                 self.inner.get_parent()
             }
+
+            fn get_script(&self) -> Option<String> {
+                self.inner.get_script()
+            }
         }
     };
     gen.into()

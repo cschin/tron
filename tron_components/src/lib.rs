@@ -81,6 +81,7 @@ pub struct ComponentBase<'a: 'static> {
     pub state: ComponentState,
     pub children: Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>,
     pub parent: Weak<RwLock<Box<dyn ComponentBaseTrait<'a>>>>,
+    pub script: Option<String>,
 }
 
 #[derive(Debug)]
@@ -239,6 +240,8 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
 
     fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
     fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>;
+
+    fn get_script(&self) -> Option<String>;
 }
 
 impl<'a: 'static> ComponentBase<'a> {
@@ -287,6 +290,7 @@ impl<'a: 'static> Default for ComponentBase<'a> {
             state: ComponentState::Ready,
             children: Vec::default(),
             parent: Weak::default(),
+            script: Option::default(),
         }
     }
 }
@@ -401,6 +405,10 @@ where
 
     fn render(&self) -> String {
         unimplemented!()
+    }
+
+    fn get_script(&self) -> Option<String> {
+        self.script.clone()
     }
 }
 // For Event Dispatcher

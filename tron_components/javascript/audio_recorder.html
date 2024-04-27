@@ -1,0 +1,53 @@
+<script>
+    const blobToBase64 = blob => {
+        const reader = new FileReader();
+        reader.readAsDataURL(blob);
+        return new Promise(resolve => {
+            reader.onloadend = () => {
+                resolve(reader.result);
+            };
+        });
+    };
+
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Your browser does not support audio recording.");
+    }
+
+    let mediaRecorder;
+
+    function recording_audio(element_id) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = event => {
+                    blobToBase64(event.data).then(encoded_chunk =>
+                        htmx.trigger(element_id, "streaming", { audio_data: encoded_chunk, streaming: true })
+                    );
+                };
+                mediaRecorder.onstop = () => {
+                    //setTimeout(() => htmx.trigger(element_id, "streaming", { streaming: false }), 1000);
+                };
+                mediaRecorder.start(250);
+            })
+            .catch(err => {
+                console.error("An error occurred:", err);
+                alert("An error occurred while trying to access the microphone. Please check microphone permissions.");
+            });
+    }
+
+    function stop_recording() {
+        if (mediaRecorder) {
+            mediaRecorder.stop();
+        }
+    }
+
+    window.process_special_events["recorder_control"] = (target, state, event_data) => {
+
+        if ("audio_recorder_control" in event_data && event_data["audio_recorder_control"] == "start") {
+            recording_audio("#" + target);
+        };
+        if ("audio_recorder_control" in event_data && event_data["audio_recorder_control"] == "stop") {
+            stop_recording();
+        }
+    }
+</script>

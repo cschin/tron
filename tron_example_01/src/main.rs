@@ -171,13 +171,21 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         "checkbox-6".to_string(),
     ];
     let checklist_tron_id = "checklist".to_string();
+    let container_attributes = vec![("class".to_string(),"flex-1".to_string())];
     checklist::add_checklist_to_context(
         &mut context,
         &mut component_id,
         checklist_tron_id,
         checklist_items,
+        container_attributes
     );
-
+    {
+        let component_guard = context.components.blocking_read();
+        let checklist_guard = component_guard.get(&component_id).unwrap();
+        checklist_guard
+            .blocking_write()
+            .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
+    }
     component_id += 1;
     let select_options = vec![
         ("one".into(), "One".into()),
@@ -195,7 +203,7 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
 
     component_id += 1;
     let mut textinput = TnTextInput::<'static>::new(component_id, "textinput".into(), "".into());
-    textinput.set_attribute("class".into(), "input w-full".into());
+    textinput.set_attribute("class".into(), "input input-bordered w-full".into());
 
     context.add_component(textinput);
 

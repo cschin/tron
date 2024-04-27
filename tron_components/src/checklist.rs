@@ -41,7 +41,7 @@ impl<'a: 'static> TnCheckList<'a> {
             .collect::<Vec<String>>()
             .join(" ");
         format!(
-            r##"<{} {} class="flex flex-row p-1 flex-1">{}</{}>"##,
+            r##"<{} {}>{}</{}>"##,
             self.inner.tag,
             self.generate_attr_string(),
             childred_render_results,
@@ -68,7 +68,7 @@ impl<'a: 'static> TnCheckBox<'a> {
         );
         component_base.set_attribute("hx-swap".into(), "none".into());
         //component_base.set_attribute("type".into(), "checkbox".into());
-
+        component_base.assets = Some(HashMap::default());
         Self {
             inner: component_base,
         }
@@ -100,9 +100,25 @@ impl<'a: 'static> TnCheckBox<'a> {
         let tron_id = self.tron_id();
         let parent_guard = self.get_parent().clone();
         let parent_guard = parent_guard.blocking_read();
-        let parent_tron_id = parent_guard.tron_id().clone(); 
+        let parent_tron_id = parent_guard.tron_id().clone();
+        let assets = self.get_assets().unwrap();
+        let container_attributes = if assets.contains_key("container_attributes") {
+            if let TnAsset::VecString2(container_attributes) =
+                assets.get("container_attributes").unwrap()
+            {
+                container_attributes
+                    .iter()
+                    .map(|(k, v)| format!(r#"{}={}"#, k, v))
+                    .collect::<Vec<String>>()
+                    .join(" ")
+            } else {
+                "".to_string()
+            }
+        } else {
+            "".to_string()
+        };
         format!(
-            r##"<div id="{tron_id}-container" class="flex-1"><{} {} type="checkbox" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{tron_id}</label></div>"##,
+            r##"<div id="{tron_id}-container" {container_attributes}><{} {} type="checkbox" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{tron_id}</label></div>"##,
             self.inner.tag,
             self.generate_attr_string(),
         )
@@ -114,13 +130,19 @@ pub fn add_checklist_to_context(
     component_id: &mut u32,
     checklist_tron_id: String,
     checklist_items: Vec<String>,
+    container_attributes: Vec<(String, String)>,
 ) {
     let children_ids = checklist_items
         .into_iter()
         .map(|child_trod_id| {
             *component_id += 1;
             let checkbox_id = *component_id;
-            let checkbox = TnCheckBox::new(checkbox_id, child_trod_id, false);
+            let mut checkbox = TnCheckBox::new(checkbox_id, child_trod_id, false);
+            let asset = checkbox.get_mut_assets().unwrap();
+            asset.insert(
+                "container_attributes".into(),
+                TnAsset::VecString2(container_attributes.clone()),
+            );
             context.add_component(checkbox);
             checkbox_id
         })

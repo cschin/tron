@@ -108,7 +108,7 @@ pub async fn deepgram_transcript_service(
                 transcript_tx.send(r).await.expect("transcript send fail");
             }
             Err(e) => {
-                println!("Err {:?}", e);
+                tracing::debug!(target: "tron_app", "in deepgram_transcript_service, Err {:?}", e );
                 return Err(e);
             }
         }
@@ -144,10 +144,9 @@ pub async fn trx_service(
         .header("sec-websocket-version", "13")
         .body(())?;
     let (ws_stream, _response) = tokio_tungstenite::connect_async(request).await?;
-    // println!("response: {:?}", response);
     let (mut write, mut read) = ws_stream.split();
     let (mut tx, rx) = futures::channel::mpsc::channel::<Result<StreamResponse>>(1);
-    println!("new dg ws established");
+    tracing::info!(target: "tron_app", "new dg ws established");
 
     let data_stream = tokio_stream::wrappers::ReceiverStream::new(audio_rx);
 
@@ -191,24 +190,23 @@ pub async fn trx_service(
                     }
                 }
                 Some(e) => {
-                    println!("message received error len={:?}", e);
+                    tracing::info!(target: "tron_app", "in recv_task, message received error len={:?}", e);
                     let _ = dbg!(e);
                     break;
                 }
             }
         }
         drop(read);
-        // println!("recv task end");
     };
 
     tokio::spawn(async move {
         //tokio::join!(send_task, recv_task);
         tokio::select! {
             _ = send_task => {
-                //println!("send task finish first");
+                tracing::debug!(target: "tron_app", "dg websocket send task end first");
             },
             _ = recv_task => {
-                //println!("recv task finish first");
+                tracing::debug!(target: "tron_app", "dg websocket recv task end first");
             },
         }
     });

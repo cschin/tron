@@ -39,7 +39,8 @@ async fn main() {
         build_layout: Arc::new(Box::new(layout)),
     };
 
-    tron_app::run(app_share_data, None).await
+    //tron_app::run(app_share_data, Some("server=debug,tower_http=debug,tron_app=info")).await
+    tron_app::run(app_share_data, Some("server=info,tower_http=info,tron_app=info")).await
 }
 
 fn build_session_context() -> Arc<RwLock<Context<'static>>> {

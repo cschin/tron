@@ -456,7 +456,6 @@ async fn tron_stream(
 
     if data_queue.is_empty() {
         tracing::debug!(target: "tron_app", "stream data_queue empty");
-        println!("stream data_queue empty");
         return (StatusCode::NOT_FOUND, default_header, Body::default());
     }
     tracing::debug!(target: "tron_app", "stream data_queue NOT empty");

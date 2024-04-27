@@ -12,20 +12,24 @@ impl<'a: 'static> TnChatBox<'a> {
         let mut component_base =
             ComponentBase::new("div".into(), id, name, TnComponentType::ChatBox);
         component_base.set_value(ComponentValue::VecString2(value));
-        component_base.set_attribute("contenteditable".into(), "false".into());
 
         component_base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         component_base.set_attribute(
             "hx-swap".into(),
             "beforeend scroll:bottom focus-scroll:true ".into(),
         );
+        component_base.set_attribute(
+            "class".into(),
+            "flex-col".into(),
+        );
         component_base.assets = Some(HashMap::default());
         let class = HashMap::from_iter(vec![
-            ("user".to_string(), "checkbox_user".to_string()),
-            ("bot".to_string(), "checkbox_bot".to_string()),
+            ("user".to_string(), "max-w-fill flex flex-row justify-end p-3 > bg-green-100 rounded-lg p-2 mb-2 text-right".to_string()),
+            ("bot".to_string(), "max-w-fill flex flex-row justify-start p-3 > bg-blue-100 rounded-lg p-2 mb-2 text-left".to_string()),
         ]);
         let assets: &mut HashMap<String, TnAsset> = component_base.assets.as_mut().unwrap();
         assets.insert("class".into(), TnAsset::HashMapString(class));
+        component_base.script = Some(include_str!("../javascript/chatbox.html").to_string());
 
         Self {
             inner: component_base,
@@ -65,10 +69,13 @@ impl<'a: 'static> TnChatBox<'a> {
                         None
                     };
                     if class_str.is_some() {
-                        let class_str = class_str.unwrap();
-                        format!(r#"<div class="{class_str}">{msg}</div>"#)
+                        let class_str = class_str.unwrap().clone();
+                        let mut class_strs = class_str.split('>');
+                        let class_parent = class_strs.next().unwrap(); 
+                        let class_str = class_strs.next().unwrap(); 
+                        format!(r#"<div class="{class_parent}"><div class="{class_str}">{msg}</div></div>"#)
                     } else {
-                        format!(r#"<div>{msg}</div>"#)
+                        format!(r#"<div><div>{msg}</div></div>"#)
                     }
                 })
                 .collect::<Vec<String>>()
@@ -108,9 +115,13 @@ impl<'a: 'static> TnChatBox<'a> {
                 None
             };
             if let Some(class_str) = class_str {
-                format!(r#"<div class="{class_str}">{msg}</div>"#)
+                let class_str = class_str.clone();
+                let mut class_strs = class_str.split('>');
+                let class_parent = class_strs.next().unwrap(); 
+                let class_str = class_strs.next().unwrap(); 
+                format!(r#"<div class="{class_parent}"><div class="{class_str}">{msg}</div></div>"#)
             } else {
-                format!(r#"<div>{msg}</div>"#)
+                format!(r#"<div><div>{msg}</div></div>"#)
             }
         } else {
             "".to_string()

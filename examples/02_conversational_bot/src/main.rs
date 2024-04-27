@@ -75,7 +75,7 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         TnChatBox::<'static>::new(component_id, "transcript".to_string(), vec![]);
     transcript_output.set_attribute(
         "class".to_string(),
-        "textarea textarea-bordered flex-1 min-h-80v".to_string(),
+        "flex flex-col overflow-auto border-2 border-gray-1000 rounded-lg flex-1 h-64 max-h-64 min-h-64".to_string(),
     );
 
     context.add_component(transcript_output);
@@ -350,6 +350,7 @@ fn audio_input_stream_processing(
                 if let Ok(out) = rx.await {
                     tracing::debug!(target: "tron_app", "sending audio, returned string: {}", out );
                 };
+                // XXXX
             }
         };
     };
@@ -473,30 +474,20 @@ async fn transcript_post_processing_service(
                         let (tx, rx) = oneshot::channel::<String>();
                         let llm_req_msg = ServiceRequestMessage {
                             request: "chat-complete".into(),
-                            payload: TnAsset::String(transcript),
+                            payload: TnAsset::String(transcript.clone()),
                             response: tx,
                         };
                         let _ = llm_tx.send(llm_req_msg).await;
                         if let Ok(out) = rx.await {
                             tracing::debug!(target: "tron_app", "returned string: {}", out);
                         };
-                    }
- 
-                }
-            }
-            "transcript_fragment" => {
-                if let TnAsset::String(transcript) = response.payload {
-                    if !transcript.is_empty() {
-                        let mut assets_guard = assets.write().await;
-                        let e = assets_guard.entry("transcript".into()).or_default();
-                        (*e).push(TnAsset::String(transcript.clone()));
                         {
                             let components_guard = components.write().await;
                             let transcript_area =
                                 components_guard.get(&transcript_area_id).unwrap();
                             chatbox::append_chatbox_value(
                                 transcript_area.clone(),
-                                ("user".into(), transcript.clone()),
+                                ("user".into(), transcript),
                             )
                             .await;
                         }
@@ -511,6 +502,16 @@ async fn transcript_post_processing_service(
                             send_sse_msg_to_client(&sse_tx, msg).await;
                         }
                     }
+                }
+            }
+            "transcript_fragment" => {
+                if let TnAsset::String(transcript) = response.payload {
+                    if !transcript.is_empty() {
+                        let mut assets_guard = assets.write().await;
+                        let e = assets_guard.entry("transcript".into()).or_default();
+                        (*e).push(TnAsset::String(transcript.clone()));
+                    }
+                    // maybe show the interim transcription results somewhere
                 }
             }
             _ => {}

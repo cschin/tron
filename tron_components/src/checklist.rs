@@ -97,14 +97,14 @@ impl<'a: 'static> TnCheckBox<'a> {
         } else {
             ""
         };
+        let tron_id = self.tron_id();
+        let parent_guard = self.get_parent().clone();
+        let parent_guard = parent_guard.blocking_read();
+        let parent_tron_id = parent_guard.tron_id().clone(); 
         format!(
-            r##"<div id="{}-container" class="flex-1"><{} {} type="checkbox" value="{}" name="chatlist" {checked} /><label for="{}">&nbsp;{}</label></div>"##,
-            self.tron_id(),
+            r##"<div id="{tron_id}-container" class="flex-1"><{} {} type="checkbox" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{tron_id}</label></div>"##,
             self.inner.tag,
             self.generate_attr_string(),
-            self.tron_id(),
-            self.tron_id(),
-            self.tron_id()
         )
     }
 }

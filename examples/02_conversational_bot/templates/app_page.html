@@ -1,12 +1,14 @@
 <title> TronApp </title>
 <div class="container mx-auto p-4">
     <div class="flex flex-row">
-        <div class="flex-1 flex flex-col">
-                <div class="flex flex-row flex-1 min-h-80">
+        <!-- The Left Column -->
+        <div class="flex-1 flex flex-col p-2">
+                <div class="flex flex-row flex-1 border-2 border-gray-1000 rounded-lg p-1 h-80 max-h-80 min-h-80">
                     {{ transcript }}
                 </div>
         </div>
-        <div class="basis-1/4 flex flex-col">
+        <!-- The Right Column -->
+        <div class="basis-1/4 flex flex-col p-2">
             <div class="flex flex-row p-1">
                 {{ btn }}
             </div>

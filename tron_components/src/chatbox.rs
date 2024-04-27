@@ -1,6 +1,5 @@
 use super::*;
 use tron_macro::*;
-use tracing;
 
 #[derive(ComponentBase)]
 pub struct TnChatBox<'a: 'static> {
@@ -24,8 +23,8 @@ impl<'a: 'static> TnChatBox<'a> {
         );
         component_base.assets = Some(HashMap::default());
         let class = HashMap::from_iter(vec![
-            ("user".to_string(), "max-w-fill flex flex-row justify-end p-3 > bg-green-100 rounded-lg p-2 mb-2 text-right".to_string()),
-            ("bot".to_string(), "max-w-fill flex flex-row justify-start p-3 > bg-blue-100 rounded-lg p-2 mb-2 text-left".to_string()),
+            ("user".to_string(), "max-w-fill flex flex-row justify-end p-1 > bg-green-100 rounded-lg p-2 mb-1 text-right".to_string()),
+            ("bot".to_string(), "max-w-fill flex flex-row justify-start p-1 > bg-blue-100 rounded-lg p-2 mb-1 text-left".to_string()),
         ]);
         let assets: &mut HashMap<String, TnAsset> = component_base.assets.as_mut().unwrap();
         assets.insert("class".into(), TnAsset::HashMapString(class));
@@ -50,7 +49,6 @@ impl<'a: 'static> Default for TnChatBox<'a> {
 
 impl<'a: 'static> TnChatBox<'a> {
     pub fn internal_first_render(&self) -> String {
-        tracing::info!(target: "tron_app", "internal_first_render");
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
         {
@@ -84,8 +82,6 @@ impl<'a: 'static> TnChatBox<'a> {
             "".to_string()
         };
 
-        tracing::info!(target: "tron_app", "{}", chat_recorders);
-
         format!(
             r##"<{} {}>{}</{}>"##,
             self.inner.tag,
@@ -96,7 +92,6 @@ impl<'a: 'static> TnChatBox<'a> {
     }
 
     pub fn internal_render(&self) -> String { 
-        tracing::info!(target: "tron_app", "internal_render");
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
         {
@@ -134,7 +129,6 @@ pub async fn append_chatbox_value(
     comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>,
     tag_msg: (String, String)
 ) {
-    tracing::info!(target: "tron_app", "append_chatbox_value");
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::ChatBox);
     if let ComponentValue::VecString2(v) = comp.get_mut_value() {

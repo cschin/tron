@@ -1,6 +1,6 @@
 mod dg_service;
-mod open_ai_service;
-use open_ai_service::simulate_dialog;
+mod openai_service;
+use openai_service::simulate_dialog;
 
 use askama::Template;
 use dg_service::{deepgram_transcript_service, DeepgramError, StreamResponse};
@@ -67,7 +67,7 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     component_id += 1;
     let mut player =
         TnAudioPlayer::<'static>::new(component_id, "player".to_string(), "Paused".to_string());
-    player.set_attribute("class".to_string(), "flex-1".to_string());
+    player.set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string());
     context.add_component(player);
 
     component_id += 1;
@@ -75,7 +75,7 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
         TnChatBox::<'static>::new(component_id, "transcript".to_string(), vec![]);
     transcript_output.set_attribute(
         "class".to_string(),
-        "flex flex-col overflow-auto border-2 border-gray-1000 rounded-lg flex-1 h-64 max-h-64 min-h-64".to_string(),
+        "flex flex-col overflow-auto flex-1 p-2".to_string(),
     );
 
     context.add_component(transcript_output);

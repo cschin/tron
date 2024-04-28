@@ -12,8 +12,7 @@ impl<'a: 'static> TnTextArea<'a> {
         let mut base =
             TnComponentBase::new("textarea".into(), id, name, TnComponentType::TextArea);
         base.set_value(TnComponentValue::String(value));
-        base.set_attribute("contenteditable".into(), "true".into());
-
+        base.set_attribute("disabled".into(), "".into());
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         base.set_attribute("type".into(), "text".into());
 
@@ -85,10 +84,10 @@ impl<'a: 'static> TnStreamTextArea<'a> {
         let mut base =
             TnComponentBase::new("textarea".into(), id, name, TnComponentType::StreamTextArea);
         base.set_value(TnComponentValue::VecString(value));
-        base.set_attribute("contenteditable".into(), "false".into());
 
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         base.set_attribute("type".into(), "text".into());
+        base.set_attribute("disabled".into(), "".into());
         base.set_attribute(
             "hx-swap".into(),
             "beforeend scroll:bottom focus-scroll:true ".into(),

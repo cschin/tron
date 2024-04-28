@@ -205,7 +205,7 @@ impl TnContext {
         components_guard.get(&comp_id).unwrap().clone()
     }
 
-    pub async fn get_value_for_component(&self, tron_id: &str) -> TnComponentValue {
+    pub async fn get_value_from_component(&self, tron_id: &str) -> TnComponentValue {
         let value = {
             let context_guard = self.read().await;
             let components_guard = context_guard.components.read().await;
@@ -395,7 +395,13 @@ where
     fn generate_attr_string(&self) -> String {
         self.attributes
             .iter()
-            .map(|(k, v)| format!(r#"{}="{}""#, k, tron_utils::html_escape_double_quote(v)))
+            .map(|(k, v)| {
+                if v.is_empty() {
+                    k.clone()
+                } else {
+                    format!(r#"{}="{}""#, k, tron_utils::html_escape_double_quote(v))
+                }
+            })
             .collect::<Vec<_>>()
             .join(" ")
     }

@@ -26,9 +26,11 @@
                     <div class="flex flex-row p-1">
                         {{ player }}
                     </div>
-                    <div class="flex flex-row p-1">
-                        <div> status </div>
-                        {{ status }}
+                    <div class="flex flex-row">
+                        <div class="flex-col flex-1">
+                            <div> Status </div>
+                            <div class="flex flex-row"> {{ status }}</div>
+                        </div>
                     </div>
                 </div>
 
@@ -39,5 +41,12 @@
 
     <input type="radio" name="tabs" role="tab" class="tab" aria-label="Configure
     " />
-    <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">Tab content 2</div>
+    <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+        <div class="flex flex-col"></div>
+        <div class="p-1">You can update the prompt below</div>
+        <div class="flex flex-row">
+            {{ prompt }}
+        </div>
+    </div>
+</div>
 </div>

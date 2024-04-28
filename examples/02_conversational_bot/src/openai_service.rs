@@ -14,26 +14,34 @@ use serde_json::json;
 use tokio::sync::mpsc::Receiver;
 use tron_app::send_sse_msg_to_client;
 use tron_app::{SseTriggerMsg, TriggerData};
-use tron_components::text::append_and_send_stream_textarea_with_context;
 use tron_components::{
     audio_player::start_audio, chatbox, TnAsset, TnContext, TnServiceRequestMsg,
 };
+use tron_components::{text::append_and_send_stream_textarea_with_context, TnComponentValue};
 
 pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceRequestMsg>) {
     let client = Client::new();
-    let prompt1 = include_str!("../templates/prompt1.txt");
+
     let reqwest_client = reqwest::Client::new();
     let dg_api_key = std::env::var("DG_API_KEY").unwrap();
 
     let mut history = Vec::<(String, String)>::new();
     while let Some(r) = rx.recv().await {
         let _ = r.response.send("got it".to_string());
+        let prompt1 = if let TnComponentValue::String(prompt) =
+            context.get_value_from_component("prompt").await
+        {
+            prompt.clone()
+        } else {
+            "You a useful assistant.".to_string()
+        };
+        tracing::info!(target: "tron_app", "prompt: {}", prompt1);
 
         if let TnAsset::String(query) = r.payload {
             history.push(("user".into(), query.clone()));
             let mut messages: Vec<ChatCompletionRequestMessage> =
                 vec![ChatCompletionRequestSystemMessageArgs::default()
-                    .content(prompt1)
+                    .content(&prompt1)
                     .build()
                     .expect("error")
                     .into()];

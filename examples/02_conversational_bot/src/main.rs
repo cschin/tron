@@ -109,6 +109,22 @@ fn build_session_context() -> TnContext {
 
     {
         component_id += 1;
+        let prompt = include_str!("../templates/prompt1.txt");
+        let mut prompt_box =
+            TnTextArea::<'static>::new(component_id, "prompt".into(), prompt.into());
+        prompt_box.remove_attribute("disabled".into());
+        prompt_box.set_attribute("hx-trigger".into(), "change, server_side_trigger".into()); // change will update the value one the textarea is out of focus
+
+        prompt_box.set_attribute(
+            "class".into(),
+            "flex-1 p-2 textarea textarea-bordered mx-auto h-80 max-h-80 min-h-80".into(),
+        );
+        prompt_box.set_attribute(
+            "hx-vals".into(),
+            r##"js:{event_data:get_input_event(event)}"##.into(),
+        );
+
+        context.add_component(prompt_box);
     }
 
     // create a TnContext so we can pass to some services which need to interact with the components
@@ -164,6 +180,7 @@ struct AppPageTemplate {
     player: String,
     transcript: String,
     status: String,
+    prompt: String,
 }
 
 fn layout(context: TnContext) -> String {
@@ -173,6 +190,7 @@ fn layout(context: TnContext) -> String {
     let player = guard.render_to_string("player");
     let transcript = guard.first_render_to_string("transcript");
     let status = guard.first_render_to_string("status");
+    let prompt = guard.first_render_to_string("prompt");
 
     let html = AppPageTemplate {
         btn,
@@ -180,6 +198,7 @@ fn layout(context: TnContext) -> String {
         player,
         transcript,
         status,
+        prompt,
     };
     html.render().unwrap()
 }
@@ -239,7 +258,30 @@ fn build_session_actions(_context: TnContext) -> TnEventActions {
             ),
         );
     }
+
     actions
+}
+
+fn _do_nothing(
+    context: TnContext,
+    event: TnEvent,
+    payload: Value,
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    let f = async move {
+        //let comp = context.get_component(&event.e_target);
+        tracing::info!(target: "tron_app", "{:?}", payload);
+        let sse_tx = context.get_sse_tx_with_context().await;
+        let msg = SseTriggerMsg {
+            server_side_trigger: TriggerData {
+                target: event.e_target.clone(),
+                new_state: "ready".into(),
+            },
+        };
+        send_sse_msg_to_client(&sse_tx, msg).await;
+        let comp = context.get_component(&event.e_target).await;
+        tracing::info!(target: "tron_app", "value: {:?}", comp.read().await.value());
+    };
+    Box::pin(f)
 }
 
 fn toggle_recording(
@@ -430,21 +472,19 @@ async fn transcript_service(
 ) {
     let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<StreamResponse>(1);
 
-    // start a loop for maintaining connection with DG, this calls the DG WS, 
+    // start a loop for maintaining connection with DG, this calls the DG WS,
     // it passes transcript_tx to deepgram_transcript_service(), so it can send the transcript back
     tokio::spawn(async move {
-
         tracing::debug!(target: "tran_app", "restart dg_trx");
-        
+
         let (mut audio_tx, audio_rx) =
             tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
-        
+
         let mut handle = tokio::spawn(deepgram_transcript_service(audio_rx, transcript_tx.clone()));
-        
+
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
 
         while let Some(req) = rx.recv().await {
-
             tracing::debug!(target: "tran_app", "req: {}", req.request);
 
             if handle.is_finished() {
@@ -465,7 +505,7 @@ async fn transcript_service(
         audio_tx.closed().await;
     });
 
-    // loop to get to the transcript output and pass to the transcript_post_processing_service() 
+    // loop to get to the transcript output and pass to the transcript_post_processing_service()
     let mut transcript_fragments = Vec::<String>::new();
 
     while let Some(trx_rtn) = transcript_rx.recv().await {

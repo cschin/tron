@@ -15,8 +15,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    ActionExecutionMethod, TnComponentId, TnComponentState, TnContext, TnEvent, TnEventActions,
-    TnSseMsgChannel,
+    ActionExecutionMethod, TnComponentId, TnComponentState, TnComponentValue, TnContext, TnEvent, TnEventActions, TnSseMsgChannel
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
@@ -240,7 +239,6 @@ async fn tron_entry(
     tracing::debug!(target: "tron_app", "payload: {:?}", payload);
 
     if let Some(event_data) = match_event(&payload).await {
-        tracing::debug!(target: "tron_app", "event matched, event_data:{:?}", event_data);
         let evt = event_data.tn_event;
 
         if evt.e_type == "change" {
@@ -250,7 +248,7 @@ async fn tron_entry(
                 context
                     .set_value_for_component(
                         &evt.e_target,
-                        tron_components::TnComponentValue::String(value),
+                        TnComponentValue::String(value),
                     )
                     .await;
             }

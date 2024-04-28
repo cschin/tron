@@ -15,6 +15,7 @@ use std::{
     collections::{HashMap, VecDeque},
     pin::Pin,
     sync::Arc,
+    time::SystemTime,
 };
 use tokio::sync::oneshot;
 use tokio::sync::{
@@ -24,7 +25,7 @@ use tokio::sync::{
 #[allow(unused_imports)]
 use tracing::{debug, info};
 use tron_app::{send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData};
-use tron_components::*;
+use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
 #[tokio::main]
 async fn main() {
@@ -80,6 +81,17 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
 
     context.add_component(transcript_output);
 
+    component_id += 1;
+    let mut status_output =
+        TnStreamTextArea::<'static>::new(component_id, "status".to_string(), vec![]);
+    status_output.set_attribute(
+        "class".to_string(),
+        "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),
+    );
+    status_output.set_attribute("hx-trigger".into(), "server_side_trigger".into());
+
+    context.add_component(status_output);
+
     let context = Arc::new(RwLock::new(context));
 
     // add services
@@ -129,6 +141,7 @@ struct AppPageTemplate {
     recorder: String,
     player: String,
     transcript: String,
+    status: String,
 }
 
 fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
@@ -137,11 +150,14 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
     let recorder = context_guard.render_to_string("recorder");
     let player = context_guard.render_to_string("player");
     let transcript = context_guard.first_render_to_string("transcript");
+    let status = context_guard.first_render_to_string("status");
+
     let html = AppPageTemplate {
         btn,
         recorder,
         player,
         transcript,
+        status,
     };
     html.render().unwrap()
 }
@@ -325,12 +341,14 @@ fn audio_input_stream_processing(
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
         let chunk: Option<AudioChunk> = serde_json::from_value(payload).unwrap_or(None);
+
         if let Some(chunk) = chunk {
             let b64data = chunk.audio_data.trim_end_matches('"');
             let mut split = b64data.split(',');
             let _head = split.next().unwrap();
             let b64str = split.next().unwrap();
             let chunk = Bytes::from(BASE64.decode(b64str.as_bytes()).unwrap());
+            let chunk_len = chunk.len();
 
             {
                 let recorder = get_component_with_contex(context.clone(), "recorder").await;
@@ -350,7 +368,21 @@ fn audio_input_stream_processing(
                 if let Ok(out) = rx.await {
                     tracing::debug!(target: "tron_app", "sending audio, returned string: {}", out );
                 };
-                // XXXX
+            }
+            {
+                let now = SystemTime::now()
+                    .duration_since(SystemTime::UNIX_EPOCH)
+                    .unwrap()
+                    .as_micros();
+                let now = now % 1_000_000;
+                if now < 100_000 { // sample 1/10 of the data
+                    append_and_send_stream_textarea_with_context(
+                        context.clone(),
+                        "status",
+                        &format!("recording audio, chunk length: {chunk_len}\n"),
+                    )
+                    .await;
+                }
             }
         };
     };
@@ -456,13 +488,21 @@ async fn transcript_post_processing_service(
 ) {
     let assets = context.read().await.assets.clone();
     let components = context.read().await.components.clone();
-    let transcript_area_id = context.read().await.get_component_id("transcript");
+    let transcript_area_id = context.clone().read().await.get_component_id("transcript");
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {
             "transcript_final" => {
                 if let TnAsset::String(transcript) = response.payload {
                     {
+                        append_and_send_stream_textarea_with_context(
+                            context.clone(),
+                            "status",
+                            &format!("ASR output: {transcript}\n"),
+                        )
+                        .await;
+
                         let llm_tx = context
+                            .clone()
                             .read()
                             .await
                             .services
@@ -472,22 +512,26 @@ async fn transcript_post_processing_service(
                             .clone();
 
                         let (tx, rx) = oneshot::channel::<String>();
+
                         let llm_req_msg = ServiceRequestMessage {
                             request: "chat-complete".into(),
                             payload: TnAsset::String(transcript.clone()),
                             response: tx,
                         };
+
                         let _ = llm_tx.send(llm_req_msg).await;
+
                         if let Ok(out) = rx.await {
                             tracing::debug!(target: "tron_app", "returned string: {}", out);
                         };
+
                         {
                             let components_guard = components.write().await;
                             let transcript_area =
                                 components_guard.get(&transcript_area_id).unwrap();
                             chatbox::append_chatbox_value(
                                 transcript_area.clone(),
-                                ("user".into(), transcript),
+                                ("user".into(), transcript.clone()),
                             )
                             .await;
                         }
@@ -510,6 +554,13 @@ async fn transcript_post_processing_service(
                         let mut assets_guard = assets.write().await;
                         let e = assets_guard.entry("transcript".into()).or_default();
                         (*e).push(TnAsset::String(transcript.clone()));
+
+                        append_and_send_stream_textarea_with_context(
+                            context.clone(),
+                            "status",
+                            &format!("trx fragment: {transcript}\n"),
+                        )
+                        .await;
                     }
                     // maybe show the interim transcription results somewhere
                 }

@@ -205,7 +205,7 @@ pub async fn set_state_with_context(
     component.set_state(s);
 }
 
-pub async fn context_get_value_for(
+pub async fn get_value_with_context(
     locked_context: &Arc<RwLock<Context<'static>>>,
     tron_id: &str,
 ) -> ComponentValue {

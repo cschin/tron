@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{sync::Arc, time::SystemTime};
 
 #[allow(unused_imports)]
 use async_openai::{
@@ -14,10 +14,12 @@ use serde_json::json;
 use tokio::sync::{mpsc::Receiver, RwLock};
 use tron_app::send_sse_msg_to_client;
 use tron_app::{SseTriggerMsg, TriggerData};
-use tron_components::get_sse_tx_with_context;
 use tron_components::{
     audio_player::start_audio, chatbox, get_component_with_contex, Context, ServiceRequestMessage,
     TnAsset,
+};
+use tron_components::{
+    get_sse_tx_with_context, text::append_and_send_stream_textarea_with_context,
 };
 
 pub async fn simulate_dialog(
@@ -64,6 +66,14 @@ pub async fn simulate_dialog(
                     .collect::<Vec<ChatCompletionRequestMessage>>(),
             );
 
+            let time = SystemTime::now();
+            append_and_send_stream_textarea_with_context(
+                context.clone(),
+                "status",
+                "LLM request start\n",
+            )
+            .await;
+
             let request = CreateChatCompletionRequestArgs::default()
                 .max_tokens(512u16)
                 //.model("gpt-4")
@@ -81,12 +91,30 @@ pub async fn simulate_dialog(
                 stream_data_guard.get_mut("player").unwrap().1.clear();
                 // clear the stream buffer
             }
+            let duration = time.elapsed().unwrap();
+            append_and_send_stream_textarea_with_context(
+                context.clone(),
+                "status",
+                &format!("LLM request done: {duration:?}\n"),
+            )
+            .await;
+
             let llm_response = if let Some(choice) = response.choices.first() {
                 let choice = choice.clone();
                 tracing::debug!( target:"tron_app", "chat response {}: Role: {}  Content: {:?}", choice.index, choice.message.role, choice.message.content);
                 if let Some(llm_response) = choice.message.content {
                     history.push(("bot".into(), llm_response.clone()));
                     let json_data = json!({"text": llm_response}).to_string();
+
+
+                    let time = SystemTime::now();
+                    append_and_send_stream_textarea_with_context(
+                        context.clone(),
+                        "status",
+                        "TTS request request start:\n",
+                    )
+                    .await;
+
                     let mut response = reqwest_client
                         .post("https://api.deepgram.com/v1/speak?model=aura-zeus-en")
                         //.post("https://api.deepgram.com/v1/speak?model=aura-stella-en")
@@ -98,6 +126,13 @@ pub async fn simulate_dialog(
                         .unwrap();
                     tracing::debug!( target:"tron_app", "response: {:?}", response);
 
+                    let duration = time.elapsed().unwrap();
+                    append_and_send_stream_textarea_with_context(
+                        context.clone(),
+                        "status",
+                        &format!("TTS request request done: {duration:?}\n"),
+                    )
+                    .await;
                     // send TTS data to the player stream out
                     while let Some(chunk) = response.chunk().await.unwrap() {
                         tracing::debug!( target:"tron_app", "Chunk: {}", chunk.len());

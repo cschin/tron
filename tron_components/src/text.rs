@@ -1,5 +1,6 @@
 use super::*;
 use tron_macro::*;
+use tron_utils::{send_sse_msg_to_client, SseTriggerMsg, TriggerData};
 
 #[derive(ComponentBase)]
 pub struct TnTextArea<'a: 'static> {
@@ -141,6 +142,30 @@ pub async fn append_stream_textarea_value(
     assert!(comp.get_type() == TnComponentType::StreamTextArea);
     if let ComponentValue::VecString(v) = comp.get_mut_value() {
         v.push(new_str.to_string());
+    }
+}
+
+pub async fn append_and_send_stream_textarea_with_context(
+    context: Arc<RwLock<Context<'static>>>,
+    tron_id: &str,
+    new_str: &str,
+) {
+    tracing::info!(target:"tron_app", "tron_id; {tron_id}, new_str: {new_str}");
+    {
+        let comp = get_component_with_contex(context.clone(), tron_id).await;
+        append_stream_textarea_value(
+            comp,
+            new_str,
+        )
+        .await;
+        let sse_tx = get_sse_tx_with_context(context).await;
+        let msg = SseTriggerMsg {
+            server_side_trigger: TriggerData {
+                target: "status".into(),
+                new_state: "ready".into(),
+            },
+        };
+        send_sse_msg_to_client(&sse_tx, msg).await;
     }
 }
 

@@ -301,6 +301,7 @@ fn _do_nothing(
     let f = async move {
         //let comp = context.get_component(&event.e_target);
         tracing::info!(target: "tron_app", "{:?}", payload);
+        context.set_state_for_component(&event.e_target.clone(), TnComponentState::Pending).await;
         let sse_tx = context.get_sse_tx_with_context().await;
         let msg = SseTriggerMsg {
             server_side_trigger: TriggerData {
@@ -352,7 +353,11 @@ fn reset_conversation(
             },
             chatbox_control: "clear".into()
         };
+        
         send_sse_msg_to_client(&sse_tx, msg).await;
+        context
+        .set_state_for_component("reset_button", TnComponentState::Ready)
+        .await;
 
         let msg = SseTriggerMsg { // update the button state
             server_side_trigger: TriggerData {

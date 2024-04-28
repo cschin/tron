@@ -8,10 +8,7 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    checklist,
-    text::{append_stream_textarea_value, append_textarea_value},
-    ActionExecutionMethod, ComponentBaseTrait, ComponentState, ComponentValue, Context, TnButton,
-    TnEvent, TnEventActions, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput,
+    checklist, text::{append_stream_textarea_value, append_textarea_value}, ActionExecutionMethod, ComponentBaseTrait, ComponentState, ComponentValue, Context, LockedContext, TnButton, TnEvent, TnEventActions, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -130,7 +127,7 @@ fn test_event_actions(
     Box::pin(f())
 }
 
-fn build_session_context() -> Arc<RwLock<Context<'static>>> {
+fn build_session_context() -> LockedContext {
     let mut context = Context::<'static>::default();
     let mut component_id = 0_u32;
     loop {
@@ -227,10 +224,10 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
 
     context.add_component(textinput);
 
-    Arc::new(RwLock::new(context))
+    LockedContext { context: Arc::new(RwLock::new(context)) }
 }
 
-fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActions {
+fn build_session_actions(context: LockedContext) -> TnEventActions {
     let mut actions = TnEventActions::default();
     for i in 0..10 {
         let evt = TnEvent {
@@ -244,6 +241,7 @@ fn build_session_actions(context: Arc<RwLock<Context<'static>>>) -> TnEventActio
         );
     }
     {
+        let context = context.context;
         let context_guard = context.blocking_read();
         let checklist_id = context_guard.get_component_id("checklist");
         let component_guard = context_guard.components.blocking_read();
@@ -268,7 +266,8 @@ struct AppPageTemplate {
     select: String,
 }
 
-fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
+fn layout(context: LockedContext) -> String {
+    let context = context.context;
     let context_guard = context.blocking_read();
     let buttons = (0..10)
         .map(|i| context_guard.render_to_string(&format!("btn-{:02}", i)))

@@ -12,8 +12,7 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    text::TnTextInput, ComponentBaseTrait, ComponentState, ComponentValue, Context, TnButton,
-    TnEvent, TnEventActions, TnTextArea,
+    text::TnTextInput, ComponentBaseTrait, ComponentState, ComponentValue, Context, LockedContext, TnButton, TnEvent, TnEventActions, TnTextArea
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -31,22 +30,22 @@ async fn main() {
     tron_app::run(app_share_data, None).await
 }
 
-fn build_session_context() -> Arc<RwLock<Context<'static>>> {
+fn build_session_context() -> LockedContext {
     let context = Arc::new(RwLock::new(Context::default()));
-    context
+    LockedContext { context }   
 }
 
-fn layout(context: Arc<RwLock<Context>>) -> String {
+fn layout(context: LockedContext) -> String {
     "This is an template, please fill in the components and how to layout them.".into()
 }
 
-fn build_session_actions(context: Arc<RwLock<Context>>) -> TnEventActions {
+fn build_session_actions(context: LockedContext) -> TnEventActions {
     let actions = TnEventActions::default();
     actions
 }
 
 fn test_event_action(
-    components: Arc<RwLock<Context<'static>>>,
+    context: LockedContext,
     tx: Sender<Json<Value>>,
     event: TnEvent,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {

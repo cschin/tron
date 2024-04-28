@@ -15,8 +15,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    set_component_value_with_context, ActionExecutionMethod, ComponentId, ComponentState, Context,
-    SseMessageChannel, TnEvent, TnEventActions,
+    set_component_value_with_context, ActionExecutionMethod, ComponentId, ComponentState, LockedContext, SseMessageChannel, TnEvent, TnEventActions
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
@@ -37,14 +36,16 @@ struct Ports {
     https: u16,
 }
 
+
+
 pub type SessionContext =
-    RwLock<HashMap<tower_sessions::session::Id, Arc<RwLock<Context<'static>>>>>;
+    RwLock<HashMap<tower_sessions::session::Id, LockedContext>>;
 
 pub type EventActions = RwLock<TnEventActions>;
 
-type ContextBuilder = dyn Fn() -> Arc<RwLock<Context<'static>>> + Send + Sync;
-type ActionFunctionTemplate = dyn Fn(Arc<RwLock<Context<'static>>>) -> TnEventActions + Send + Sync;
-type LayoutFunction = dyn Fn(Arc<RwLock<Context<'static>>>) -> String + Send + Sync;
+type ContextBuilder = dyn Fn() -> LockedContext + Send + Sync;
+type ActionFunctionTemplate = dyn Fn(LockedContext) -> TnEventActions + Send + Sync;
+type LayoutFunction = dyn Fn(LockedContext) -> String + Send + Sync;
 
 pub struct AppData {
     pub session_context: SessionContext,
@@ -167,11 +168,11 @@ async fn load_page(
     let context = context_guard.get(&session_id).unwrap().clone();
     let mut app_event_action_guard = app_data.event_actions.write().await;
     app_event_action_guard.clone_from(&tokio::task::block_in_place(|| {
-        (*app_data.build_session_actions)(context)
+        (*app_data.build_session_actions)(context.clone())
     }));
 
     let context = context_guard.get(&session_id).unwrap().clone();
-    let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context));
+    let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context.clone()));
 
     let context = context_guard.get(&session_id).unwrap().read().await;
     let components = context.components.read().await;
@@ -250,7 +251,7 @@ async fn tron_entry(
                 let context_guard = app_data.session_context.read().await;
                 let context = context_guard.get(&session_id).unwrap().clone();
                 set_component_value_with_context(
-                    context,
+                    context.context.clone(),
                     &evt.e_target,
                     tron_components::ComponentValue::String(value),
                 )
@@ -283,7 +284,7 @@ async fn tron_entry(
             let (action_exec_method, action_generator) =
                 event_action_guard.get(&evt).unwrap().clone();
 
-            let action = action_generator(context, evt, payload);
+            let action = action_generator(context.context.clone(), evt, payload);
             match action_exec_method {
                 ActionExecutionMethod::Spawn => {
                     tokio::task::spawn(action);

@@ -46,7 +46,7 @@ async fn main() {
     .await
 }
 
-fn build_session_context() -> Arc<RwLock<Context<'static>>> {
+fn build_session_context() -> LockedContext {
     let mut context = Context::<'static>::default();
     let mut component_id = 0_u32;
     let mut btn = TnButton::new(
@@ -131,7 +131,7 @@ fn build_session_context() -> Arc<RwLock<Context<'static>>> {
     }
 
     //components.component_layout = Some(layout(&components));
-    context
+    LockedContext{ context }
 }
 
 #[derive(Template)] // this will generate the code...
@@ -144,7 +144,8 @@ struct AppPageTemplate {
     status: String,
 }
 
-fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
+fn layout(context: LockedContext) -> String {
+    let context = context.context;
     let context_guard = context.blocking_read();
     let btn = context_guard.render_to_string("rec_button");
     let recorder = context_guard.render_to_string("recorder");
@@ -162,7 +163,7 @@ fn layout(context: Arc<RwLock<Context<'static>>>) -> String {
     html.render().unwrap()
 }
 
-fn build_session_actions(_context: Arc<RwLock<Context<'static>>>) -> TnEventActions {
+fn build_session_actions(_context: LockedContext) -> TnEventActions {
     let mut actions = TnEventActions::default();
     // for processing rec button click
     let evt = TnEvent {

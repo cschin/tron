@@ -173,6 +173,22 @@ impl<'a: 'static> Context<'a> {
     }
 }
 
+#[derive(Clone)]
+pub struct LockedContext {
+    pub context: Arc<RwLock<Context<'static>>> 
+} 
+
+impl LockedContext {
+    pub async fn read(&self) -> tokio::sync::RwLockReadGuard<Context<'static>> {
+        self.context.read().await
+    }
+
+    pub async fn write(&self) -> tokio::sync::RwLockWriteGuard<Context<'static>> {
+        self.context.write().await
+    }
+
+}
+
 pub async fn set_value_with_context(
     locked_context: &Arc<RwLock<Context<'static>>>,
     tron_id: &str,

@@ -8,7 +8,11 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    checklist, text::{append_stream_textarea_value, append_textarea_value}, ActionExecutionMethod, ComponentBaseTrait, ComponentState, ComponentValue, Context, LockedContext, TnButton, TnEvent, TnEventActions, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput
+    checklist,
+    text::{append_stream_textarea_value, append_textarea_value},
+    ActionExecutionMethod, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
+    TnContext, TnContextBase, TnEvent, TnEventActions, TnSelect, TnStreamTextArea, TnTextArea,
+    TnTextInput,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -27,7 +31,7 @@ async fn main() {
 }
 
 fn test_event_actions(
-    context: LockedContext,
+    context: TnContext,
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
@@ -51,15 +55,15 @@ fn test_event_actions(
                     {
                         let btn = components_guard.get_mut(&id).unwrap().read().await;
                         v = match btn.value() {
-                            ComponentValue::String(s) => s.parse::<u32>().unwrap(),
+                            TnComponentValue::String(s) => s.parse::<u32>().unwrap(),
                             _ => 0,
                         };
                     }
                     {
                         let mut btn = components_guard.get_mut(&id).unwrap().write().await;
 
-                        btn.set_value(ComponentValue::String(format!("{:02}", v + 1)));
-                        btn.set_state(ComponentState::Updating);
+                        btn.set_value(TnComponentValue::String(format!("{:02}", v + 1)));
+                        btn.set_state(TnComponentState::Updating);
                     }
                 }
 
@@ -114,7 +118,7 @@ fn test_event_actions(
             let id = context_guard.get_component_id(&event.e_target.clone());
             let mut components_guard = context_guard.components.write().await;
             let mut btn = components_guard.get_mut(&id).unwrap().write().await;
-            btn.set_state(ComponentState::Ready);
+            btn.set_state(TnComponentState::Ready);
             let data = format!(
                 r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"{}" }} }}"##,
                 event.e_target, "ready"
@@ -127,8 +131,8 @@ fn test_event_actions(
     Box::pin(f())
 }
 
-fn build_session_context() -> LockedContext {
-    let mut context = Context::<'static>::default();
+fn build_session_context() -> TnContext {
+    let mut context = TnContextBase::<'static>::default();
     let mut component_id = 0_u32;
     loop {
         let mut btn = TnButton::<'static>::new(
@@ -224,10 +228,12 @@ fn build_session_context() -> LockedContext {
 
     context.add_component(textinput);
 
-    LockedContext { context: Arc::new(RwLock::new(context)) }
+    TnContext {
+        base: Arc::new(RwLock::new(context)),
+    }
 }
 
-fn build_session_actions(context: LockedContext) -> TnEventActions {
+fn build_session_actions(context: TnContext) -> TnEventActions {
     let mut actions = TnEventActions::default();
     for i in 0..10 {
         let evt = TnEvent {
@@ -241,7 +247,6 @@ fn build_session_actions(context: LockedContext) -> TnEventActions {
         );
     }
     {
-        let context = context.context;
         let context_guard = context.blocking_read();
         let checklist_id = context_guard.get_component_id("checklist");
         let component_guard = context_guard.components.blocking_read();
@@ -266,8 +271,7 @@ struct AppPageTemplate {
     select: String,
 }
 
-fn layout(context: LockedContext) -> String {
-    let context = context.context;
+fn layout(context: TnContext) -> String {
     let context_guard = context.blocking_read();
     let buttons = (0..10)
         .map(|i| context_guard.render_to_string(&format!("btn-{:02}", i)))

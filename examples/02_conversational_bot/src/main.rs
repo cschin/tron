@@ -46,8 +46,8 @@ async fn main() {
     .await
 }
 
-fn build_session_context() -> LockedContext {
-    let mut context = Context::<'static>::default();
+fn build_session_context() -> TnContext {
+    let mut context = TnContextBase::<'static>::default();
     let mut component_id = 0_u32;
     let mut btn = TnButton::new(
         component_id,
@@ -92,16 +92,16 @@ fn build_session_context() -> LockedContext {
 
     context.add_component(status_output);
 
-    let context = LockedContext {
-        context: Arc::new(RwLock::new(context)),
+    let context = TnContext {
+        base: Arc::new(RwLock::new(context)),
     };
 
     // add services
     {
         let (transcript_request_tx, transcript_request_rx) =
-            tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
+            tokio::sync::mpsc::channel::<TnServiceRequestMsg>(1);
         let (transcript_response_tx, transcript_response_rx) =
-            tokio::sync::mpsc::channel::<ServiceResponseMessage>(1);
+            tokio::sync::mpsc::channel::<TnServiceResponseMsg>(1);
         context.blocking_write().services.insert(
             "transcript_service".into(),
             (transcript_request_tx.clone(), Mutex::new(None)),
@@ -115,8 +115,7 @@ fn build_session_context() -> LockedContext {
             transcript_response_rx,
         ));
 
-        let (llm_request_tx, llm_request_rx) =
-            tokio::sync::mpsc::channel::<ServiceRequestMessage>(1);
+        let (llm_request_tx, llm_request_rx) = tokio::sync::mpsc::channel::<TnServiceRequestMsg>(1);
         context.blocking_write().services.insert(
             "llm_service".into(),
             (llm_request_tx.clone(), Mutex::new(None)),
@@ -146,8 +145,8 @@ struct AppPageTemplate {
     status: String,
 }
 
-fn layout(context: LockedContext) -> String {
-    let context = context.context;
+fn layout(context: TnContext) -> String {
+    let context = context.base;
     let context_guard = context.blocking_read();
     let btn = context_guard.render_to_string("rec_button");
     let recorder = context_guard.render_to_string("recorder");
@@ -165,7 +164,7 @@ fn layout(context: LockedContext) -> String {
     html.render().unwrap()
 }
 
-fn build_session_actions(_context: LockedContext) -> TnEventActions {
+fn build_session_actions(_context: TnContext) -> TnEventActions {
     let mut actions = TnEventActions::default();
     // for processing rec button click
     let evt = TnEvent {
@@ -219,7 +218,7 @@ fn build_session_actions(_context: LockedContext) -> TnEventActions {
 }
 
 fn toggle_recording(
-    context: LockedContext,
+    context: TnContext,
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
@@ -231,15 +230,15 @@ fn toggle_recording(
             let mut rec_button = rec_button.write().await;
             previous_rec_button_value = (*rec_button.value()).clone();
 
-            if let ComponentValue::String(value) = rec_button.value() {
+            if let TnComponentValue::String(value) = rec_button.value() {
                 match value.as_str() {
                     "Stop Conversation" => {
-                        rec_button.set_value(ComponentValue::String("Start Conversation".into()));
-                        rec_button.set_state(ComponentState::Ready);
+                        rec_button.set_value(TnComponentValue::String("Start Conversation".into()));
+                        rec_button.set_state(TnComponentState::Ready);
                     }
                     "Start Conversation" => {
-                        rec_button.set_value(ComponentValue::String("Stop Conversation".into()));
-                        rec_button.set_state(ComponentState::Ready);
+                        rec_button.set_value(TnComponentValue::String("Stop Conversation".into()));
+                        rec_button.set_state(TnComponentState::Ready);
                     }
                     _ => {}
                 }
@@ -247,18 +246,18 @@ fn toggle_recording(
         }
         {
             // Fore stop and start the recording stream
-            if let ComponentValue::String(value) = previous_rec_button_value {
+            if let TnComponentValue::String(value) = previous_rec_button_value {
                 match value.as_str() {
                     "Stop Conversation" => {
                         {
                             context
                                 .set_value_for_component(
                                     "recorder",
-                                    ComponentValue::String("Paused".into()),
+                                    TnComponentValue::String("Paused".into()),
                                 )
                                 .await;
                             context
-                                .set_state_for_component("recorder", ComponentState::Updating)
+                                .set_state_for_component("recorder", TnComponentState::Updating)
                                 .await;
                             let mut delay =
                                 tokio::time::interval(tokio::time::Duration::from_millis(300));
@@ -280,7 +279,7 @@ fn toggle_recording(
                             let (trx_srv, _) =
                                 context_guard.services.get("transcript_service").unwrap();
                             let (tx, rx) = oneshot::channel::<String>();
-                            let trx_req_msg = ServiceRequestMessage {
+                            let trx_req_msg = TnServiceRequestMsg {
                                 request: "stop".into(),
                                 payload: TnAsset::VecU8(vec![]),
                                 response: tx,
@@ -295,11 +294,11 @@ fn toggle_recording(
                         context
                             .set_value_for_component(
                                 "recorder",
-                                ComponentValue::String("Recording".into()),
+                                TnComponentValue::String("Recording".into()),
                             )
                             .await;
                         context
-                            .set_state_for_component("recorder", ComponentState::Updating)
+                            .set_state_for_component("recorder", TnComponentState::Updating)
                             .await;
 
                         {
@@ -340,7 +339,7 @@ struct AudioChunk {
 }
 
 fn audio_input_stream_processing(
-    context: LockedContext,
+    context: TnContext,
     _event: TnEvent,
     payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
@@ -364,7 +363,7 @@ fn audio_input_stream_processing(
                 let context_guard = context.read().await;
                 let (trx_srv, _) = context_guard.services.get("transcript_service").unwrap();
                 let (tx, rx) = oneshot::channel::<String>();
-                let trx_req_msg = ServiceRequestMessage {
+                let trx_req_msg = TnServiceRequestMsg {
                     request: "sending audio".into(),
                     payload: TnAsset::VecU8(chunk.to_vec()),
                     response: tx,
@@ -397,8 +396,8 @@ fn audio_input_stream_processing(
 }
 
 async fn transcript_service(
-    mut rx: Receiver<ServiceRequestMessage>,
-    tx: Sender<ServiceResponseMessage>,
+    mut rx: Receiver<TnServiceRequestMsg>,
+    tx: Sender<TnServiceResponseMsg>,
 ) {
     let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<StreamResponse>(1);
     tokio::spawn(async move {
@@ -453,7 +452,7 @@ async fn transcript_service(
                         transcript_fragments.push(trx_fragment.clone());
                     }
                     let _ = tx
-                        .send(ServiceResponseMessage {
+                        .send(TnServiceResponseMsg {
                             response: "transcript_fragment".to_string(),
                             payload: TnAsset::String(trx_fragment),
                         })
@@ -463,7 +462,7 @@ async fn transcript_service(
                     let transcript = transcript_fragments.join(" ").trim().to_string();
                     if !transcript.is_empty() {
                         let _ = tx
-                            .send(ServiceResponseMessage {
+                            .send(TnServiceResponseMsg {
                                 response: "transcript_final".to_string(),
                                 payload: TnAsset::String(transcript),
                             })
@@ -476,7 +475,7 @@ async fn transcript_service(
                 let transcript = transcript_fragments.join(" ").trim().to_string();
                 if !transcript.is_empty() {
                     let _ = tx
-                        .send(ServiceResponseMessage {
+                        .send(TnServiceResponseMsg {
                             response: "transcript_final".to_string(),
                             payload: TnAsset::String(transcript),
                         })
@@ -489,10 +488,10 @@ async fn transcript_service(
 }
 
 async fn transcript_post_processing_service(
-    context: LockedContext,
-    mut response_rx: Receiver<ServiceResponseMessage>,
+    context: TnContext,
+    mut response_rx: Receiver<TnServiceResponseMsg>,
 ) {
-    let assets = context.read().await.assets.clone();
+    let assets = context.read().await.asset.clone();
     let components = context.read().await.components.clone();
     let transcript_area_id = context.clone().read().await.get_component_id("transcript");
     while let Some(response) = response_rx.recv().await {
@@ -519,7 +518,7 @@ async fn transcript_post_processing_service(
 
                         let (tx, rx) = oneshot::channel::<String>();
 
-                        let llm_req_msg = ServiceRequestMessage {
+                        let llm_req_msg = TnServiceRequestMsg {
                             request: "chat-complete".into(),
                             payload: TnAsset::String(transcript.clone()),
                             response: tx,

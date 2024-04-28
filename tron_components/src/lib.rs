@@ -27,16 +27,16 @@ use rand::{thread_rng, Rng};
 
 use axum::body::Bytes;
 use bytes::BytesMut;
-
-pub type ComponentId = u32;
-pub type ElmAttributes = HashMap<String, String>;
-pub type ExtraResponseHeader = HashMap<String, String>;
-pub type ElmTag = String;
-
 use serde::Deserialize;
 
+pub type TnComponentId = u32;
+pub type TnElmAttributes = HashMap<String, String>;
+pub type TnExtraResponseHeader = HashMap<String, String>;
+pub type TnElmTag = String;
+pub type TnComponent<'a> = Arc<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>;
+
 #[derive(Debug, Clone)]
-pub enum ComponentValue {
+pub enum TnComponentValue {
     None,
     String(String),
     VecString(Vec<String>),
@@ -74,68 +74,71 @@ pub enum TnComponentType {
 }
 
 #[derive(PartialEq, Eq, Debug, Clone)]
-pub enum ComponentState {
+pub enum TnComponentState {
     Ready,    // ready to receive new event on the UI end
     Pending,  // UI event receive, server function dispatched, waiting for server to response
     Updating, // server ready to send, change UI to update to receive server response, can repeate
     Finished, // no more new update to consider, will transition to Ready
     Disabled, // disabled, not interactive and not sending htmx get/post
 }
-pub struct ComponentBase<'a: 'static> {
-    pub tag: ElmTag,
+
+type TnComponentAsset = Option<HashMap<String, TnAsset>>;
+
+pub struct TnComponentBase<'a: 'static> {
+    pub tag: TnElmTag,
     pub type_: TnComponentType,
-    pub id: ComponentId,
+    pub id: TnComponentId,
     pub tron_id: String,
-    pub attributes: ElmAttributes,
-    pub value: ComponentValue,
-    pub extra_response_headers: ExtraResponseHeader,
-    pub assets: Option<HashMap<String, TnAsset>>,
-    pub state: ComponentState,
-    pub children: Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>,
-    pub parent: Weak<RwLock<Box<dyn ComponentBaseTrait<'a>>>>,
+    pub attributes: TnElmAttributes,
+    pub value: TnComponentValue,
+    pub extra_response_headers: TnExtraResponseHeader,
+    pub asset: TnComponentAsset,
+    pub state: TnComponentState,
+    pub children: Vec<TnComponent<'a>>,
+    pub parent: Weak<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>,
     pub script: Option<String>,
 }
 
 #[derive(Debug)]
-pub struct ServiceRequestMessage {
+pub struct TnServiceRequestMsg {
     pub request: String,
     pub payload: TnAsset,
     pub response: oneshot::Sender<String>,
 }
 
 #[derive(Debug)]
-pub struct ServiceResponseMessage {
+pub struct TnServiceResponseMsg {
     pub response: String,
     pub payload: TnAsset,
 }
 
-pub struct SseMessageChannel {
+pub struct TnSseMsgChannel {
     pub tx: Sender<String>,
     pub rx: Option<Receiver<String>>, // this will be moved out and replaced by None
 }
 
-pub type TnComponents<'a> = Arc<RwLock<HashMap<u32, Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>>>;
+pub type TnComponentMap<'a> = Arc<RwLock<HashMap<u32, TnComponent<'a>>>>;
 pub type TnStreamData = Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>;
-pub type TnAssets = Arc<RwLock<HashMap<String, Vec<TnAsset>>>>;
-pub type TnSeeChannels = Arc<RwLock<Option<SseMessageChannel>>>;
+pub type TnContextAsset = Arc<RwLock<HashMap<String, Vec<TnAsset>>>>;
+pub type TnSeeChannels = Arc<RwLock<Option<TnSseMsgChannel>>>;
 pub type TnService = (
-    Sender<ServiceRequestMessage>,
-    Mutex<Option<Receiver<ServiceResponseMessage>>>,
+    Sender<TnServiceRequestMsg>,
+    Mutex<Option<Receiver<TnServiceResponseMsg>>>,
 );
-pub struct Context<'a: 'static> {
-    pub components: TnComponents<'a>, // component ID mapped to Component structs
+pub struct TnContextBase<'a: 'static> {
+    pub components: TnComponentMap<'a>, // component ID mapped to Component structs
     pub stream_data: TnStreamData,
-    pub assets: TnAssets,
+    pub asset: TnContextAsset,
     pub sse_channels: TnSeeChannels,
     pub tron_id_to_id: HashMap<String, u32>,
     pub services: HashMap<String, TnService>,
 }
 
-impl<'a: 'static> Context<'a> {
+impl<'a: 'static> TnContextBase<'a> {
     pub fn new() -> Self {
-        Context {
+        TnContextBase {
             components: Arc::new(RwLock::new(HashMap::default())),
-            assets: Arc::new(RwLock::new(HashMap::default())),
+            asset: Arc::new(RwLock::new(HashMap::default())),
             tron_id_to_id: HashMap::default(),
             stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
@@ -143,7 +146,7 @@ impl<'a: 'static> Context<'a> {
         }
     }
 
-    pub fn add_component(&mut self, new_component: impl ComponentBaseTrait<'a> + 'static) {
+    pub fn add_component(&mut self, new_component: impl TnComponentBaseTrait<'a> + 'static) {
         let tron_id = new_component.tron_id().clone();
         let id = new_component.id();
         let mut component_guard = self.components.blocking_write();
@@ -160,8 +163,8 @@ impl<'a: 'static> Context<'a> {
 
     pub fn render_to_string(&self, tron_id: &str) -> String {
         let id = self.get_component_id(tron_id);
-        let component_guard = self.components.blocking_read();
-        let component = component_guard.get(&id).unwrap().blocking_read();
+        let components_guard = self.components.blocking_read();
+        let component = components_guard.get(&id).unwrap().blocking_read();
         component.render()
     }
 
@@ -174,38 +177,35 @@ impl<'a: 'static> Context<'a> {
 }
 
 #[derive(Clone)]
-pub struct LockedContext {
-    pub context: Arc<RwLock<Context<'static>>>,
+pub struct TnContext {
+    pub base: Arc<RwLock<TnContextBase<'static>>>,
 }
 
-impl LockedContext {
-    pub async fn read(&self) -> RwLockReadGuard<Context<'static>> {
-        self.context.read().await
+impl TnContext {
+    pub async fn read(&self) -> RwLockReadGuard<TnContextBase<'static>> {
+        self.base.read().await
     }
 
-    pub async fn write(&self) -> RwLockWriteGuard<Context<'static>> {
-        self.context.write().await
+    pub async fn write(&self) -> RwLockWriteGuard<TnContextBase<'static>> {
+        self.base.write().await
     }
 
-    pub fn blocking_read(&self) -> RwLockReadGuard<Context<'static>> {
-        self.context.blocking_read()
+    pub fn blocking_read(&self) -> RwLockReadGuard<TnContextBase<'static>> {
+        self.base.blocking_read()
     }
 
-    pub fn blocking_write(&self) -> RwLockWriteGuard<Context<'static>> {
-        self.context.blocking_write()
+    pub fn blocking_write(&self) -> RwLockWriteGuard<TnContextBase<'static>> {
+        self.base.blocking_write()
     }
 
-    pub async fn get_component(
-        &self,
-        tron_id: &str,
-    ) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>> {
+    pub async fn get_component(&self, tron_id: &str) -> TnComponent<'static> {
         let context_guard = self.write().await;
         let components_guard = context_guard.components.write().await;
         let comp_id = context_guard.get_component_id(tron_id);
         components_guard.get(&comp_id).unwrap().clone()
     }
 
-    pub async fn get_value_for_component(&self, tron_id: &str) -> ComponentValue {
+    pub async fn get_value_for_component(&self, tron_id: &str) -> TnComponentValue {
         let value = {
             let context_guard = self.read().await;
             let components_guard = context_guard.components.read().await;
@@ -216,7 +216,7 @@ impl LockedContext {
         value
     }
 
-    pub async fn set_value_for_component(&self, tron_id: &str, v: ComponentValue) {
+    pub async fn set_value_for_component(&self, tron_id: &str, v: TnComponentValue) {
         let context_guard = self.read().await;
         let mut components_guard = context_guard.components.write().await;
         let component_id = context_guard.get_component_id(tron_id);
@@ -228,7 +228,7 @@ impl LockedContext {
         component.set_value(v);
     }
 
-    pub async fn set_state_for_component(&self, tron_id: &str, s: ComponentState) {
+    pub async fn set_state_for_component(&self, tron_id: &str, s: TnComponentState) {
         let context_guard = self.read().await;
         let mut components_guard = context_guard.components.write().await;
         let component_id = context_guard.get_component_id(tron_id);
@@ -256,7 +256,7 @@ impl LockedContext {
     }
 }
 
-impl<'a: 'static> Default for Context<'a>
+impl<'a: 'static> Default for TnContextBase<'a>
 where
     'a: 'static,
 {
@@ -265,26 +265,26 @@ where
     }
 }
 
-pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
-    fn id(&self) -> ComponentId;
+pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
+    fn id(&self) -> TnComponentId;
     fn tron_id(&self) -> &String;
     fn get_type(&self) -> TnComponentType;
 
-    fn attributes(&self) -> &ElmAttributes;
+    fn attributes(&self) -> &TnElmAttributes;
     fn set_attribute(&mut self, key: String, value: String);
     fn remove_attribute(&mut self, key: String);
     fn generate_attr_string(&self) -> String;
 
-    fn extra_headers(&self) -> &ExtraResponseHeader;
+    fn extra_headers(&self) -> &TnExtraResponseHeader;
     fn set_header(&mut self, key: String, value: String);
     fn remove_header(&mut self, key: String);
 
-    fn value(&self) -> &ComponentValue;
-    fn get_mut_value(&mut self) -> &mut ComponentValue;
-    fn set_value(&mut self, value: ComponentValue);
+    fn value(&self) -> &TnComponentValue;
+    fn get_mut_value(&mut self) -> &mut TnComponentValue;
+    fn set_value(&mut self, value: TnComponentValue);
 
-    fn state(&self) -> &ComponentState;
-    fn set_state(&mut self, state: ComponentState);
+    fn state(&self) -> &TnComponentState;
+    fn set_state(&mut self, state: TnComponentState);
 
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>>;
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
@@ -292,17 +292,17 @@ pub trait ComponentBaseTrait<'a: 'static>: Send + Sync {
     fn first_render(&self) -> String;
     fn render(&self) -> String;
 
-    fn get_children(&self) -> &Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>;
-    fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
+    fn get_children(&self) -> &Vec<TnComponent<'a>>;
+    fn add_child(&mut self, child: TnComponent<'a>);
 
-    fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>);
-    fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>;
+    fn add_parent(&mut self, parent: TnComponent<'a>);
+    fn get_parent(&self) -> TnComponent<'a>;
 
     fn get_script(&self) -> Option<String>;
 }
 
-impl<'a: 'static> ComponentBase<'a> {
-    pub fn new(tag: String, id: ComponentId, tron_id: String, type_: TnComponentType) -> Self {
+impl<'a: 'static> TnComponentBase<'a> {
+    pub fn new(tag: String, id: TnComponentId, tron_id: String, type_: TnComponentType) -> Self {
         let mut attributes = HashMap::<String, String>::default();
         attributes.insert("id".into(), tron_id.clone());
         attributes.insert("hx-post".to_string(), format!("/tron/{}", id));
@@ -322,29 +322,29 @@ impl<'a: 'static> ComponentBase<'a> {
             tron_id,
             attributes,
             extra_response_headers: HashMap::default(),
-            value: ComponentValue::None,
-            assets: None,
-            state: ComponentState::Ready,
+            value: TnComponentValue::None,
+            asset: None,
+            state: TnComponentState::Ready,
             ..Default::default()
         }
     }
 }
 
-impl<'a: 'static> Default for ComponentBase<'a> {
-    fn default() -> ComponentBase<'a> {
+impl<'a: 'static> Default for TnComponentBase<'a> {
+    fn default() -> TnComponentBase<'a> {
         let mut rng = thread_rng();
         let id: u32 = rng.gen();
         let tron_id = format!("{:x}", id);
-        ComponentBase {
+        TnComponentBase {
             tag: "div".into(),
             type_: TnComponentType::Base,
             id,
             tron_id,
             attributes: HashMap::default(),
             extra_response_headers: HashMap::default(),
-            value: ComponentValue::None,
-            assets: None,
-            state: ComponentState::Ready,
+            value: TnComponentValue::None,
+            asset: None,
+            state: TnComponentState::Ready,
             children: Vec::default(),
             parent: Weak::default(),
             script: Option::default(),
@@ -352,7 +352,7 @@ impl<'a: 'static> Default for ComponentBase<'a> {
     }
 }
 
-impl<'a: 'static> ComponentBaseTrait<'a> for ComponentBase<'a>
+impl<'a: 'static> TnComponentBaseTrait<'a> for TnComponentBase<'a>
 where
     'a: 'static,
 {
@@ -368,7 +368,7 @@ where
         self.type_.clone()
     }
 
-    fn attributes(&self) -> &ElmAttributes {
+    fn attributes(&self) -> &TnElmAttributes {
         &self.attributes
     }
 
@@ -380,7 +380,7 @@ where
         self.attributes.remove(&key);
     }
 
-    fn extra_headers(&self) -> &ExtraResponseHeader {
+    fn extra_headers(&self) -> &TnExtraResponseHeader {
         &self.extra_response_headers
     }
 
@@ -395,41 +395,41 @@ where
     fn generate_attr_string(&self) -> String {
         self.attributes
             .iter()
-            .map(|(k, v)| format!(r#"{}="{}""#, k, html_escape_double_quote(v)))
+            .map(|(k, v)| format!(r#"{}="{}""#, k, tron_utils::html_escape_double_quote(v)))
             .collect::<Vec<_>>()
             .join(" ")
     }
 
-    fn value(&self) -> &ComponentValue {
+    fn value(&self) -> &TnComponentValue {
         &self.value
     }
 
-    fn get_mut_value(&mut self) -> &mut ComponentValue {
+    fn get_mut_value(&mut self) -> &mut TnComponentValue {
         &mut self.value
     }
 
-    fn set_value(&mut self, _new_value: ComponentValue) {
+    fn set_value(&mut self, _new_value: TnComponentValue) {
         self.value = _new_value;
     }
 
-    fn set_state(&mut self, new_state: ComponentState) {
+    fn set_state(&mut self, new_state: TnComponentState) {
         self.state = new_state;
         let state = match self.state {
-            ComponentState::Ready => "ready",
-            ComponentState::Pending => "pending",
-            ComponentState::Updating => "updating",
-            ComponentState::Finished => "finished",
-            ComponentState::Disabled => "disabled",
+            TnComponentState::Ready => "ready",
+            TnComponentState::Pending => "pending",
+            TnComponentState::Updating => "updating",
+            TnComponentState::Finished => "finished",
+            TnComponentState::Disabled => "disabled",
         };
         self.attributes.insert("state".into(), state.into());
     }
 
-    fn state(&self) -> &ComponentState {
+    fn state(&self) -> &TnComponentState {
         &self.state
     }
 
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>> {
-        if let Some(assets) = self.assets.as_ref() {
+        if let Some(assets) = self.asset.as_ref() {
             Some(assets)
         } else {
             None
@@ -437,26 +437,26 @@ where
     }
 
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>> {
-        if let Some(assets) = self.assets.as_mut() {
+        if let Some(assets) = self.asset.as_mut() {
             Some(assets)
         } else {
             None
         }
     }
 
-    fn get_children(&self) -> &Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>> {
+    fn get_children(&self) -> &Vec<TnComponent<'a>> {
         &self.children
     }
 
-    fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
+    fn add_child(&mut self, child: TnComponent<'a>) {
         self.children.push(child);
     }
 
-    fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
+    fn add_parent(&mut self, parent: TnComponent<'a>) {
         self.parent = Arc::downgrade(&parent);
     }
 
-    fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>> {
+    fn get_parent(&self) -> TnComponent<'a> {
         Weak::upgrade(&self.parent).unwrap()
     }
 
@@ -481,7 +481,7 @@ pub struct TnEvent {
 }
 use tokio::sync::{mpsc::Sender, RwLock};
 pub type ActionFn = fn(
-    LockedContext,
+    TnContext,
     event: TnEvent,
     payload: Value,
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
@@ -494,21 +494,9 @@ pub enum ActionExecutionMethod {
 
 pub type TnEventActions = HashMap<TnEvent, (ActionExecutionMethod, Arc<ActionFn>)>;
 
-pub fn html_escape_double_quote(input: &str) -> String {
-    let mut output = String::new();
-    for c in input.chars() {
-        if c == '"' {
-            output.push_str("&quot;");
-        } else {
-            output.push(c)
-        }
-    }
-    output
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::{ComponentBaseTrait, TnButton};
+    use crate::{TnButton, TnComponentBaseTrait};
 
     #[test]
     fn test_simple_button() {

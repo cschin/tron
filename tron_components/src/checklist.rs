@@ -4,28 +4,25 @@ use tron_macro::*;
 
 #[derive(ComponentBase)]
 pub struct TnCheckList<'a: 'static> {
-    inner: ComponentBase<'a>,
+    base: TnComponentBase<'a>,
 }
 
 impl<'a: 'static> TnCheckList<'a> {
-    pub fn new(id: ComponentId, name: String, value: HashMap<String, bool>) -> Self {
-        let mut component_base =
-            ComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
-        component_base.set_value(ComponentValue::CheckItems(value));
-        component_base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        component_base.set_attribute("type".into(), "checklist".into());
-        component_base.script = Some(include_str!("../javascript/checklist.html").to_string());
-        Self {
-            inner: component_base,
-        }
+    pub fn new(id: TnComponentId, name: String, value: HashMap<String, bool>) -> Self {
+        let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
+        base.set_value(TnComponentValue::CheckItems(value));
+        base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
+        base.set_attribute("type".into(), "checklist".into());
+        base.script = Some(include_str!("../javascript/checklist.html").to_string());
+        Self { base }
     }
 }
 
 impl<'a: 'static> Default for TnCheckList<'a> {
     fn default() -> Self {
         Self {
-            inner: ComponentBase {
-                value: ComponentValue::String("".into()),
+            base: TnComponentBase {
+                value: TnComponentValue::String("".into()),
                 ..Default::default()
             },
         }
@@ -34,18 +31,18 @@ impl<'a: 'static> Default for TnCheckList<'a> {
 
 impl<'a: 'static> TnCheckList<'a> {
     pub fn internal_render(&self) -> String {
-        let childred_render_results = self
+        let children_render_results = self
             .get_children()
             .iter()
-            .map(|c: &Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>| c.blocking_read().render())
+            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>| c.blocking_read().render())
             .collect::<Vec<String>>()
             .join(" ");
         format!(
             r##"<{} {}>{}</{}>"##,
-            self.inner.tag,
+            self.base.tag,
             self.generate_attr_string(),
-            childred_render_results,
-            self.inner.tag
+            children_render_results,
+            self.base.tag
         )
     }
 
@@ -56,34 +53,32 @@ impl<'a: 'static> TnCheckList<'a> {
 
 #[derive(ComponentBase)]
 pub struct TnCheckBox<'a: 'static> {
-    inner: ComponentBase<'a>,
+    base: TnComponentBase<'a>,
 }
 
 impl<'a: 'static> TnCheckBox<'a> {
-    pub fn new(id: ComponentId, name: String, value: bool) -> Self {
-        let mut component_base =
-            ComponentBase::new("input".into(), id, name.clone(), TnComponentType::CheckBox);
-        component_base.set_value(ComponentValue::CheckItem(value));
-        component_base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        component_base.set_attribute("hx-target".into(), format!("#{}-container", name));
-        component_base.set_attribute(
+    pub fn new(id: TnComponentId, name: String, value: bool) -> Self {
+        let mut base =
+            TnComponentBase::new("input".into(), id, name.clone(), TnComponentType::CheckBox);
+        base.set_value(TnComponentValue::CheckItem(value));
+        base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
+        base.set_attribute("hx-target".into(), format!("#{}-container", name));
+        base.set_attribute(
             "hx-vals".into(),
             r##"js:{event_data: get_checkbox_event(event)}"##.into(),
         );
-        component_base.set_attribute("hx-swap".into(), "none".into());
+        base.set_attribute("hx-swap".into(), "none".into());
         //component_base.set_attribute("type".into(), "checkbox".into());
-        component_base.assets = Some(HashMap::default());
-        Self {
-            inner: component_base,
-        }
+        base.asset = Some(HashMap::default());
+        Self { base }
     }
 }
 
 impl<'a: 'static> Default for TnCheckBox<'a> {
     fn default() -> Self {
         Self {
-            inner: ComponentBase {
-                value: ComponentValue::String("".into()),
+            base: TnComponentBase {
+                value: TnComponentValue::String("".into()),
                 ..Default::default()
             },
         }
@@ -92,7 +87,7 @@ impl<'a: 'static> Default for TnCheckBox<'a> {
 
 impl<'a: 'static> TnCheckBox<'a> {
     pub fn internal_render(&self) -> String {
-        let checked = if let &ComponentValue::CheckItem(v) = self.value() {
+        let checked = if let &TnComponentValue::CheckItem(v) = self.value() {
             if v {
                 "checked"
             } else {
@@ -123,7 +118,7 @@ impl<'a: 'static> TnCheckBox<'a> {
         };
         format!(
             r##"<div id="{tron_id}-container" {container_attributes}><{} {} type="checkbox" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{tron_id}</label></div>"##,
-            self.inner.tag,
+            self.base.tag,
             self.generate_attr_string(),
         )
     }
@@ -133,7 +128,7 @@ impl<'a: 'static> TnCheckBox<'a> {
 }
 
 pub fn add_checklist_to_context(
-    context: &mut Context<'static>,
+    context: &mut TnContextBase<'static>,
     component_id: &mut u32,
     checklist_tron_id: String,
     checklist_items: Vec<String>,
@@ -181,17 +176,17 @@ pub fn add_checklist_to_context(
     });
 }
 
-pub async fn checklist_update_value(comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>) {
+pub async fn checklist_update_value(comp: TnComponent<'static>) {
     let mut comp_guard = comp.write().await;
     assert!(comp_guard.get_type() == TnComponentType::CheckList);
     let children = comp_guard.get_children().clone();
-    if let ComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
+    if let TnComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
         value.clear();
     };
     for child in children {
         let child = child.read().await;
-        if let ComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
-            if let ComponentValue::CheckItem(b) = child.value() {
+        if let TnComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
+            if let TnComponentValue::CheckItem(b) = child.value() {
                 value.insert(child.tron_id().clone(), *b);
             }
         }
@@ -199,7 +194,7 @@ pub async fn checklist_update_value(comp: Arc<RwLock<Box<dyn ComponentBaseTrait<
 }
 
 pub fn get_checklist_actions(
-    comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>,
+    comp: TnComponent<'static>,
 ) -> Vec<(TnEvent, Arc<ActionFn>)> {
     let comp_guard = comp.blocking_write();
     assert!(comp_guard.get_type() == TnComponentType::CheckList);
@@ -218,7 +213,7 @@ pub fn get_checklist_actions(
 }
 
 pub fn toggle_checkbox(
-    context: LockedContext,
+    context: TnContext,
     event: TnEvent,
     payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
@@ -232,22 +227,22 @@ pub fn toggle_checkbox(
 
             if checked == &"true".to_string() {
                 // println!("set true");
-                checkbox.set_value(ComponentValue::CheckItem(true));
+                checkbox.set_value(TnComponentValue::CheckItem(true));
                 let parent_guard = checkbox.get_parent().clone();
                 let mut parent_guard = parent_guard.write().await;
-                if let ComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
+                if let TnComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
                     value.insert(event.e_target.clone(), true);
                 };
             } else {
                 // println!("set false");
-                checkbox.set_value(ComponentValue::CheckItem(false));
+                checkbox.set_value(TnComponentValue::CheckItem(false));
                 let parent_guard = checkbox.get_parent().clone();
                 let mut parent_guard = parent_guard.write().await;
-                if let ComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
+                if let TnComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
                     value.insert(event.e_target.clone(), false);
                 };
             }
-            checkbox.set_state(ComponentState::Ready);
+            checkbox.set_state(TnComponentState::Ready);
         };
     };
 

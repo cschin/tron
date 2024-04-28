@@ -16,10 +16,10 @@ use tron_app::send_sse_msg_to_client;
 use tron_app::{SseTriggerMsg, TriggerData};
 use tron_components::text::append_and_send_stream_textarea_with_context;
 use tron_components::{
-    audio_player::start_audio, chatbox, LockedContext, ServiceRequestMessage, TnAsset,
+    audio_player::start_audio, chatbox, TnAsset, TnContext, TnServiceRequestMsg,
 };
 
-pub async fn simulate_dialog(context: LockedContext, mut rx: Receiver<ServiceRequestMessage>) {
+pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceRequestMsg>) {
     let client = Client::new();
     let prompt1 = include_str!("../templates/prompt1.txt");
     let reqwest_client = reqwest::Client::new();

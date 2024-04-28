@@ -3,37 +3,34 @@ use tron_macro::*;
 
 #[derive(ComponentBase)]
 pub struct TnAudioRecorder<'a: 'static> {
-    inner: ComponentBase<'a>,
+    base: TnComponentBase<'a>,
 }
 
 impl<'a: 'static> TnAudioRecorder<'a> {
-    pub fn new(id: ComponentId, name: String, value: String) -> Self {
-        let mut component_base =
-            ComponentBase::new("div".to_string(), id, name, TnComponentType::AudioRecorder);
-        component_base.set_value(ComponentValue::String(value));
-        component_base.set_attribute("hx-trigger".into(), "streaming, server_side_trigger".into());
-        component_base.set_attribute(
+    pub fn new(id: TnComponentId, name: String, value: String) -> Self {
+        let mut base =
+            TnComponentBase::new("div".to_string(), id, name, TnComponentType::AudioRecorder);
+        base.set_value(TnComponentValue::String(value));
+        base.set_attribute("hx-trigger".into(), "streaming, server_side_trigger".into());
+        base.set_attribute(
             "hx-vals".into(),
             r##"js:{event_data:get_event(event), audio_data: event.detail.audio_data, streaming: event.detail.streaming}"##.into(),
         );
-        component_base.assets = Some(HashMap::<String, TnAsset>::default());
-        component_base
-            .assets
+        base.asset = Some(HashMap::<String, TnAsset>::default());
+        base.asset
             .as_mut()
             .unwrap()
             .insert("audio_data".into(), TnAsset::Bytes(BytesMut::default()));
-        component_base.script = Some(include_str!("../javascript/audio_recorder.html").to_string());
-        Self {
-            inner: component_base,
-        }
+        base.script = Some(include_str!("../javascript/audio_recorder.html").to_string());
+        Self { base }
     }
 }
 
 impl<'a: 'static> Default for TnAudioRecorder<'a> {
     fn default() -> Self {
         Self {
-            inner: ComponentBase {
-                value: ComponentValue::String("div".to_string()),
+            base: TnComponentBase {
+                value: TnComponentValue::String("div".to_string()),
                 ..Default::default()
             },
         }
@@ -47,27 +44,24 @@ where
     pub fn internal_render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
-            self.inner.tag,
+            self.base.tag,
             self.generate_attr_string(),
             match self.value() {
-                ComponentValue::String(s) => s,
+                TnComponentValue::String(s) => &s,
                 _ => "paused",
             },
-            self.inner.tag
+            self.base.tag
         )
     }
-    
+
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
 }
 
-pub async fn append_audio_data(
-    comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>,
-    new_bytes: Bytes,
-) {
+pub async fn append_audio_data(comp: TnComponent<'static>, new_bytes: Bytes) {
     let mut comp = comp.write().await;
-    assert!(comp.get_type()==TnComponentType::AudioRecorder);
+    assert!(comp.get_type() == TnComponentType::AudioRecorder);
     let e = comp
         .get_mut_assets()
         .unwrap()
@@ -78,9 +72,9 @@ pub async fn append_audio_data(
     }
 }
 
-pub async fn clear_audio_data(comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>>) {
+pub async fn clear_audio_data(comp: TnComponent<'static>) {
     let mut comp = comp.write().await;
-    assert!(comp.get_type()==TnComponentType::AudioRecorder);
+    assert!(comp.get_type() == TnComponentType::AudioRecorder);
     let e = comp
         .get_mut_assets()
         .unwrap()
@@ -91,9 +85,9 @@ pub async fn clear_audio_data(comp: Arc<RwLock<Box<dyn ComponentBaseTrait<'stati
     }
 }
 
-pub async fn write_audio_data_to_file(comp: Arc<RwLock<Box<&dyn ComponentBaseTrait<'static>>>>) {
+pub async fn write_audio_data_to_file(comp: TnComponent<'static>) {
     let comp = comp.read().await;
-    assert!(comp.get_type()==TnComponentType::AudioRecorder);
+    assert!(comp.get_type() == TnComponentType::AudioRecorder);
     let e = comp
         .get_assets()
         .as_ref()

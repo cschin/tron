@@ -10,82 +10,82 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
     // Build the trait implementation
     let name = &ast.ident;
     let gen = quote! {
-        impl<'a> ComponentBaseTrait<'a> for #name<'a> where 'a:'static {
-            fn id(&self) -> ComponentId {
-                self.inner.id()
+        impl<'a> TnComponentBaseTrait<'a> for #name<'a> where 'a:'static {
+            fn id(&self) -> TnComponentId {
+                self.base.id()
             }
 
             fn tron_id(&self) -> &String {
-                self.inner.tron_id()
+                self.base.tron_id()
             }
 
             fn get_type(&self) -> TnComponentType {
-                self.inner.get_type()
+                self.base.get_type()
             }
 
-            fn attributes(&self) -> &ElmAttributes {
-                self.inner.attributes()
+            fn attributes(&self) -> &TnElmAttributes {
+                self.base.attributes()
             }
 
             fn set_attribute(&mut self, key: String, val: String) {
-                self.inner
+                self.base
                     .attributes
                     .insert(key, val);
             }
 
             fn remove_attribute(&mut self, key: String) {
-                self.inner
+                self.base
                     .attributes
                     .remove(&key);
             }
 
-            fn extra_headers(&self) -> &ExtraResponseHeader {
-                self.inner.extra_headers()
+            fn extra_headers(&self) -> &TnExtraResponseHeader {
+                self.base.extra_headers()
             }
 
             fn set_header(&mut self, key: String, val: String) {
-                self.inner
+                self.base
                     .extra_response_headers
                     .insert(key, val);
             }
 
             fn remove_header(&mut self, key: String) {
-                self.inner
+                self.base
                     .extra_response_headers
                     .remove(&key);
             }
 
 
             fn generate_attr_string(&self) -> String {
-                self.inner.generate_attr_string()
+                self.base.generate_attr_string()
             }
 
-            fn value(&self) -> &ComponentValue {
-                &self.inner.value()
+            fn value(&self) -> &TnComponentValue {
+                &self.base.value()
             }
 
-            fn get_mut_value(&mut self) -> &mut ComponentValue {
-                self.inner.get_mut_value()
+            fn get_mut_value(&mut self) -> &mut TnComponentValue {
+                self.base.get_mut_value()
             }
-            fn set_value(&mut self, new_value: ComponentValue) {
-                self.inner.set_value(new_value);
-            }
-
-            fn state(&self) -> &ComponentState {
-                &self.inner.state()
+            fn set_value(&mut self, new_value: TnComponentValue) {
+                self.base.set_value(new_value);
             }
 
-            fn set_state(&mut self, new_state: ComponentState) {
-                self.inner.set_state(new_state);
+            fn state(&self) -> &TnComponentState {
+                &self.base.state()
+            }
+
+            fn set_state(&mut self, new_state: TnComponentState) {
+                self.base.set_state(new_state);
             }
 
             fn get_assets(&self) -> Option<&HashMap<String, TnAsset>> {
-                self.inner.get_assets()
+                self.base.get_assets()
             }
 
 
             fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>> {
-                self.inner.get_mut_assets()
+                self.base.get_mut_assets()
             }
 
             fn first_render(&self) -> String {
@@ -96,24 +96,24 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.internal_render()
             }
 
-            fn get_children(&self) -> &Vec<Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>>  {
-                self.inner.get_children()
+            fn get_children(&self) -> &Vec<TnComponent<'a>>  {
+                self.base.get_children()
             }
 
-            fn add_child(&mut self, child: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
-                self.inner.add_child(child);
+            fn add_child(&mut self, child: TnComponent<'a>) {
+                self.base.add_child(child);
             }
 
-            fn add_parent(&mut self, parent: Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>>) {
-                self.inner.add_parent(parent);
+            fn add_parent(&mut self, parent: TnComponent<'a>) {
+                self.base.add_parent(parent);
             }
 
-            fn get_parent(&self) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'a>>>> {
-                self.inner.get_parent()
+            fn get_parent(&self) -> TnComponent<'a> {
+                self.base.get_parent()
             }
 
             fn get_script(&self) -> Option<String> {
-                self.inner.get_script()
+                self.base.get_script()
             }
         }
     };

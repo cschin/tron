@@ -15,8 +15,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    ActionExecutionMethod, ComponentId, ComponentState, LockedContext, SseMessageChannel, TnEvent,
-    TnEventActions,
+    ActionExecutionMethod, TnComponentId, TnComponentState, TnContext, TnEvent, TnEventActions,
+    TnSseMsgChannel,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
@@ -37,20 +37,20 @@ struct Ports {
     https: u16,
 }
 
-pub type SessionContext = RwLock<HashMap<tower_sessions::session::Id, LockedContext>>;
+pub type SessionContext = RwLock<HashMap<tower_sessions::session::Id, TnContext>>;
 
 pub type EventActions = RwLock<TnEventActions>;
 
-type ContextBuilder = dyn Fn() -> LockedContext + Send + Sync;
-type ActionFunctionTemplate = dyn Fn(LockedContext) -> TnEventActions + Send + Sync;
-type LayoutFunction = dyn Fn(LockedContext) -> String + Send + Sync;
+type ContextBuilder = Arc<Box<dyn Fn() -> TnContext + Send + Sync>>;
+type ActionFunctionTemplate = Arc<Box<dyn Fn(TnContext) -> TnEventActions + Send + Sync>>;
+type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
 
 pub struct AppData {
     pub session_context: SessionContext,
     pub event_actions: EventActions,
-    pub build_session_context: Arc<Box<ContextBuilder>>,
-    pub build_session_actions: Arc<Box<ActionFunctionTemplate>>,
-    pub build_layout: Arc<Box<LayoutFunction>>,
+    pub build_session_context: ContextBuilder,
+    pub build_session_actions: ActionFunctionTemplate,
+    pub build_layout: LayoutFunction,
 }
 
 pub async fn run(app_share_data: AppData, log_level: Option<&str>) {
@@ -158,7 +158,7 @@ async fn load_page(
             let context_guard = context.read().await;
             let (tx, rx) = tokio::sync::mpsc::channel(16);
             let mut sse_channels_guard = context_guard.sse_channels.write().await;
-            *sse_channels_guard = Some(SseMessageChannel { tx, rx: Some(rx) });
+            *sse_channels_guard = Some(TnSseMsgChannel { tx, rx: Some(rx) });
         }
     };
 
@@ -215,7 +215,7 @@ async fn tron_entry(
     State(app_data): State<Arc<AppData>>,
     session: Session,
     headers: HeaderMap,
-    Path(tron_id): Path<ComponentId>,
+    Path(tron_id): Path<TnComponentId>,
     Json(payload): Json<Value>,
     //request: Request,
 ) -> impl IntoResponse {
@@ -250,7 +250,7 @@ async fn tron_entry(
                 context
                     .set_value_for_component(
                         &evt.e_target,
-                        tron_components::ComponentValue::String(value),
+                        tron_components::TnComponentValue::String(value),
                     )
                     .await;
             }
@@ -269,8 +269,8 @@ async fn tron_entry(
                 let id = context_guard.get_component_id(&evt.e_target.clone());
                 let mut components_guard = context_guard.components.write().await;
                 let component = components_guard.get_mut(&id).unwrap();
-                if *component.read().await.state() == ComponentState::Ready {
-                    component.write().await.set_state(ComponentState::Pending);
+                if *component.read().await.state() == TnComponentState::Ready {
+                    component.write().await.set_state(TnComponentState::Pending);
                 };
             }
 

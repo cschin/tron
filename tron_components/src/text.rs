@@ -146,19 +146,15 @@ pub async fn append_stream_textarea_value(
 }
 
 pub async fn append_and_send_stream_textarea_with_context(
-    context: Arc<RwLock<Context<'static>>>,
+    context: LockedContext,
     tron_id: &str,
     new_str: &str,
 ) {
     tracing::info!(target:"tron_app", "tron_id; {tron_id}, new_str: {new_str}");
     {
-        let comp = get_component_with_contex(context.clone(), tron_id).await;
-        append_stream_textarea_value(
-            comp,
-            new_str,
-        )
-        .await;
-        let sse_tx = get_sse_tx_with_context(context).await;
+        let comp = context.get_component(tron_id).await;
+        append_stream_textarea_value(comp, new_str).await;
+        let sse_tx = context.get_sse_tx_with_context().await;
         let msg = SseTriggerMsg {
             server_side_trigger: TriggerData {
                 target: "status".into(),

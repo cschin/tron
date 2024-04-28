@@ -15,7 +15,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    set_component_value_with_context, ActionExecutionMethod, ComponentId, ComponentState, LockedContext, SseMessageChannel, TnEvent, TnEventActions
+    ActionExecutionMethod, ComponentId, ComponentState, LockedContext, SseMessageChannel, TnEvent,
+    TnEventActions,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
@@ -36,10 +37,7 @@ struct Ports {
     https: u16,
 }
 
-
-
-pub type SessionContext =
-    RwLock<HashMap<tower_sessions::session::Id, LockedContext>>;
+pub type SessionContext = RwLock<HashMap<tower_sessions::session::Id, LockedContext>>;
 
 pub type EventActions = RwLock<TnEventActions>;
 
@@ -221,7 +219,6 @@ async fn tron_entry(
     Json(payload): Json<Value>,
     //request: Request,
 ) -> impl IntoResponse {
-
     tracing::debug!(target: "tron_app", "headers: {:?}", headers);
 
     let mut response_headers = HeaderMap::new();
@@ -250,12 +247,12 @@ async fn tron_entry(
             if let Some(value) = event_data.e_value {
                 let context_guard = app_data.session_context.read().await;
                 let context = context_guard.get(&session_id).unwrap().clone();
-                set_component_value_with_context(
-                    context.context.clone(),
-                    &evt.e_target,
-                    tron_components::ComponentValue::String(value),
-                )
-                .await;
+                context
+                    .set_value_for_component(
+                        &evt.e_target,
+                        tron_components::ComponentValue::String(value),
+                    )
+                    .await;
             }
         }
 
@@ -284,7 +281,7 @@ async fn tron_entry(
             let (action_exec_method, action_generator) =
                 event_action_guard.get(&evt).unwrap().clone();
 
-            let action = action_generator(context.context.clone(), evt, payload);
+            let action = action_generator(context, evt, payload);
             match action_exec_method {
                 ActionExecutionMethod::Spawn => {
                     tokio::task::spawn(action);

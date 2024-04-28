@@ -218,7 +218,7 @@ pub fn get_checklist_actions(
 }
 
 pub fn toggle_checkbox(
-    context: Arc<RwLock<Context<'static>>>,
+    context: LockedContext,
     event: TnEvent,
     payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {

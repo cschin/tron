@@ -1,27 +1,27 @@
 pub mod audio_player;
 pub mod audio_recorder;
 pub mod button;
-pub mod checklist;
-pub mod text;
-pub mod select;
 pub mod chatbox;
+pub mod checklist;
+pub mod select;
+pub mod text;
 
 use std::{
     collections::{HashMap, VecDeque},
     pin::Pin,
     sync::{Arc, Weak},
 };
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::{mpsc::Receiver, RwLockReadGuard, RwLockWriteGuard};
 use tokio::sync::{oneshot, Mutex};
 
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
-use serde_json::Value;
-pub use text::{TnTextArea, TnStreamTextArea, TnTextInput};
+pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
 pub use select::TnSelect;
-pub use chatbox::TnChatBox;
+use serde_json::Value;
+pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
 
 use rand::{thread_rng, Rng};
 
@@ -175,64 +175,85 @@ impl<'a: 'static> Context<'a> {
 
 #[derive(Clone)]
 pub struct LockedContext {
-    pub context: Arc<RwLock<Context<'static>>> 
-} 
+    pub context: Arc<RwLock<Context<'static>>>,
+}
 
 impl LockedContext {
-    pub async fn read(&self) -> tokio::sync::RwLockReadGuard<Context<'static>> {
+    pub async fn read(&self) -> RwLockReadGuard<Context<'static>> {
         self.context.read().await
     }
 
-    pub async fn write(&self) -> tokio::sync::RwLockWriteGuard<Context<'static>> {
+    pub async fn write(&self) -> RwLockWriteGuard<Context<'static>> {
         self.context.write().await
     }
 
-}
+    pub fn blocking_read(&self) -> RwLockReadGuard<Context<'static>> {
+        self.context.blocking_read()
+    }
 
-pub async fn set_value_with_context(
-    locked_context: &Arc<RwLock<Context<'static>>>,
-    tron_id: &str,
-    v: ComponentValue,
-) {
-    let context_guard = locked_context.read().await;
-    let mut components_guard = context_guard.components.write().await;
-    let component_id = context_guard.get_component_id(tron_id);
-    let mut component = components_guard
-        .get_mut(&component_id)
-        .unwrap()
-        .write()
-        .await;
-    component.set_value(v);
-}
+    pub fn blocking_write(&self) -> RwLockWriteGuard<Context<'static>> {
+        self.context.blocking_write()
+    }
 
-pub async fn set_state_with_context(
-    locked_context: &Arc<RwLock<Context<'static>>>,
-    tron_id: &str,
-    s: ComponentState,
-) {
-    let context_guard = locked_context.read().await;
-    let mut components_guard = context_guard.components.write().await;
-    let component_id = context_guard.get_component_id(tron_id);
-    let mut component = components_guard
-        .get_mut(&component_id)
-        .unwrap()
-        .write()
-        .await;
-    component.set_state(s);
-}
+    pub async fn get_component(
+        &self,
+        tron_id: &str,
+    ) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>> {
+        let context_guard = self.write().await;
+        let components_guard = context_guard.components.write().await;
+        let comp_id = context_guard.get_component_id(tron_id);
+        components_guard.get(&comp_id).unwrap().clone()
+    }
 
-pub async fn get_value_with_context(
-    locked_context: &Arc<RwLock<Context<'static>>>,
-    tron_id: &str,
-) -> ComponentValue {
-    let value = {
-        let context_guard = locked_context.read().await;
-        let components_guard = context_guard.components.read().await;
+    pub async fn get_value_for_component(&self, tron_id: &str) -> ComponentValue {
+        let value = {
+            let context_guard = self.read().await;
+            let components_guard = context_guard.components.read().await;
+            let component_id = context_guard.get_component_id(tron_id);
+            let components_guard = components_guard.get(&component_id).unwrap().read().await;
+            components_guard.value().clone()
+        };
+        value
+    }
+
+    pub async fn set_value_for_component(&self, tron_id: &str, v: ComponentValue) {
+        let context_guard = self.read().await;
+        let mut components_guard = context_guard.components.write().await;
         let component_id = context_guard.get_component_id(tron_id);
-        let components_guard = components_guard.get(&component_id).unwrap().read().await;
-        components_guard.value().clone()
-    };
-    value
+        let mut component = components_guard
+            .get_mut(&component_id)
+            .unwrap()
+            .write()
+            .await;
+        component.set_value(v);
+    }
+
+    pub async fn set_state_for_component(&self, tron_id: &str, s: ComponentState) {
+        let context_guard = self.read().await;
+        let mut components_guard = context_guard.components.write().await;
+        let component_id = context_guard.get_component_id(tron_id);
+        let mut component = components_guard
+            .get_mut(&component_id)
+            .unwrap()
+            .write()
+            .await;
+        component.set_state(s);
+    }
+
+    pub async fn get_sse_tx_with_context(&self) -> Sender<String> {
+        // unlock two layers of Rwlock !!
+        let sse_tx = self
+            .read()
+            .await
+            .sse_channels
+            .read()
+            .await
+            .as_ref()
+            .unwrap()
+            .tx
+            .clone();
+        sse_tx
+    }
 }
 
 impl<'a: 'static> Default for Context<'a>
@@ -460,7 +481,7 @@ pub struct TnEvent {
 }
 use tokio::sync::{mpsc::Sender, RwLock};
 pub type ActionFn = fn(
-    Arc<RwLock<Context<'static>>>,
+    LockedContext,
     event: TnEvent,
     payload: Value,
 ) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
@@ -483,57 +504,6 @@ pub fn html_escape_double_quote(input: &str) -> String {
         }
     }
     output
-}
-
-pub async fn get_component_with_contex(
-    context: Arc<RwLock<Context<'static>>>,
-    tron_id: &str,
-) -> Arc<RwLock<Box<dyn ComponentBaseTrait<'static>>>> {
-    let context_guard = context.write().await;
-    let components_guard = context_guard.components.write().await;
-    let comp_id = context_guard.get_component_id(tron_id);
-    components_guard.get(&comp_id).unwrap().clone()
-}
-
-pub async fn set_component_value_with_context(
-    context: Arc<RwLock<Context<'static>>>,
-    tron_id: &str,
-    value: ComponentValue
-) {
-    let context_guard = context.read().await;
-    let id = context_guard.get_component_id(tron_id);
-    let components_guard = context_guard.components.read().await;
-    let mut component = components_guard.get(&id).unwrap().write().await;
-    component.set_value(value);
-}
-
-
-pub async fn set_component_state_with_context(
-    context: Arc<RwLock<Context<'static>>>,
-    tron_id: &str,
-    state: ComponentState
-) {
-    let context_guard = context.read().await;
-    let id = context_guard.get_component_id(tron_id);
-    let components_guard = context_guard.components.read().await;
-    let mut component = components_guard.get(&id).unwrap().write().await;
-    component.set_state(state);
-}
-
-
-pub async fn get_sse_tx_with_context(context: Arc<RwLock<Context<'static>>>) -> Sender<String> {
-    // unlock two layers of Rwlock !!
-    let sse_tx = context
-        .read()
-        .await
-        .sse_channels
-        .read()
-        .await
-        .as_ref()
-        .unwrap()
-        .tx
-        .clone();
-    sse_tx
 }
 
 #[cfg(test)]

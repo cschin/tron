@@ -27,7 +27,7 @@ async fn main() {
 }
 
 fn test_event_actions(
-    context: Arc<RwLock<Context<'static>>>,
+    context: LockedContext,
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {

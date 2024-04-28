@@ -92,7 +92,9 @@ fn build_session_context() -> LockedContext {
 
     context.add_component(status_output);
 
-    let context = Arc::new(RwLock::new(context));
+    let context = LockedContext {
+        context: Arc::new(RwLock::new(context)),
+    };
 
     // add services
     {
@@ -131,7 +133,7 @@ fn build_session_context() -> LockedContext {
     }
 
     //components.component_layout = Some(layout(&components));
-    LockedContext{ context }
+    context
 }
 
 #[derive(Template)] // this will generate the code...
@@ -217,15 +219,15 @@ fn build_session_actions(_context: LockedContext) -> TnEventActions {
 }
 
 fn toggle_recording(
-    context: Arc<RwLock<Context<'static>>>,
+    context: LockedContext,
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
         let previous_rec_button_value;
-        let sse_tx = get_sse_tx_with_context(context.clone()).await;
+        let sse_tx = context.get_sse_tx_with_context().await;
         {
-            let rec_button = get_component_with_contex(context.clone(), "rec_button").await;
+            let rec_button = context.get_component("rec_button").await;
             let mut rec_button = rec_button.write().await;
             previous_rec_button_value = (*rec_button.value()).clone();
 
@@ -249,13 +251,14 @@ fn toggle_recording(
                 match value.as_str() {
                     "Stop Conversation" => {
                         {
-                            set_value_with_context(
-                                &context,
-                                "recorder",
-                                ComponentValue::String("Paused".into()),
-                            )
-                            .await;
-                            set_state_with_context(&context, "recorder", ComponentState::Updating)
+                            context
+                                .set_value_for_component(
+                                    "recorder",
+                                    ComponentValue::String("Paused".into()),
+                                )
+                                .await;
+                            context
+                                .set_state_for_component("recorder", ComponentState::Updating)
                                 .await;
                             let mut delay =
                                 tokio::time::interval(tokio::time::Duration::from_millis(300));
@@ -289,13 +292,14 @@ fn toggle_recording(
                         }
                     }
                     "Start Conversation" => {
-                        set_value_with_context(
-                            &context,
-                            "recorder",
-                            ComponentValue::String("Recording".into()),
-                        )
-                        .await;
-                        set_state_with_context(&context, "recorder", ComponentState::Updating)
+                        context
+                            .set_value_for_component(
+                                "recorder",
+                                ComponentValue::String("Recording".into()),
+                            )
+                            .await;
+                        context
+                            .set_state_for_component("recorder", ComponentState::Updating)
                             .await;
 
                         {
@@ -336,7 +340,7 @@ struct AudioChunk {
 }
 
 fn audio_input_stream_processing(
-    context: Arc<RwLock<Context<'static>>>,
+    context: LockedContext,
     _event: TnEvent,
     payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
@@ -352,7 +356,7 @@ fn audio_input_stream_processing(
             let chunk_len = chunk.len();
 
             {
-                let recorder = get_component_with_contex(context.clone(), "recorder").await;
+                let recorder = context.get_component("recorder").await;
                 audio_recorder::append_audio_data(recorder.clone(), chunk.clone()).await;
             }
 
@@ -376,7 +380,8 @@ fn audio_input_stream_processing(
                     .unwrap()
                     .as_micros();
                 let now = now % 1_000_000;
-                if now < 100_000 { // sample 1/10 of the data
+                if now < 100_000 {
+                    // sample 1/10 of the data
                     append_and_send_stream_textarea_with_context(
                         context.clone(),
                         "status",
@@ -484,7 +489,7 @@ async fn transcript_service(
 }
 
 async fn transcript_post_processing_service(
-    context: Arc<RwLock<Context<'static>>>,
+    context: LockedContext,
     mut response_rx: Receiver<ServiceResponseMessage>,
 ) {
     let assets = context.read().await.assets.clone();
@@ -543,7 +548,7 @@ async fn transcript_post_processing_service(
                                     new_state: "ready".into(),
                                 },
                             };
-                            let sse_tx = get_sse_tx_with_context(context.clone()).await;
+                            let sse_tx = context.get_sse_tx_with_context().await;
                             send_sse_msg_to_client(&sse_tx, msg).await;
                         }
                     }

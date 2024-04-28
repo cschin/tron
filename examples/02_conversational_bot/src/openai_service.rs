@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::SystemTime};
+use std::time::SystemTime;
 
 #[allow(unused_imports)]
 use async_openai::{
@@ -11,21 +11,15 @@ use async_openai::{
 };
 use bytes::{BufMut, BytesMut};
 use serde_json::json;
-use tokio::sync::{mpsc::Receiver, RwLock};
+use tokio::sync::mpsc::Receiver;
 use tron_app::send_sse_msg_to_client;
 use tron_app::{SseTriggerMsg, TriggerData};
+use tron_components::text::append_and_send_stream_textarea_with_context;
 use tron_components::{
-    audio_player::start_audio, chatbox, get_component_with_contex, Context, ServiceRequestMessage,
-    TnAsset,
-};
-use tron_components::{
-    get_sse_tx_with_context, text::append_and_send_stream_textarea_with_context,
+    audio_player::start_audio, chatbox, LockedContext, ServiceRequestMessage, TnAsset,
 };
 
-pub async fn simulate_dialog(
-    context: Arc<RwLock<Context<'static>>>,
-    mut rx: Receiver<ServiceRequestMessage>,
-) {
+pub async fn simulate_dialog(context: LockedContext, mut rx: Receiver<ServiceRequestMessage>) {
     let client = Client::new();
     let prompt1 = include_str!("../templates/prompt1.txt");
     let reqwest_client = reqwest::Client::new();
@@ -106,7 +100,6 @@ pub async fn simulate_dialog(
                     history.push(("bot".into(), llm_response.clone()));
                     let json_data = json!({"text": llm_response}).to_string();
 
-
                     let time = SystemTime::now();
                     append_and_send_stream_textarea_with_context(
                         context.clone(),
@@ -154,14 +147,13 @@ pub async fn simulate_dialog(
             };
 
             // trigger playing
-            let player = get_component_with_contex(context.clone(), "player").await;
-            let sse_tx = get_sse_tx_with_context(context.clone()).await;
+            let player = context.get_component("player").await;
+            let sse_tx = context.get_sse_tx_with_context().await;
             start_audio(player.clone(), sse_tx).await;
 
             if let Some(llm_response) = llm_response {
                 {
-                    let transcript_area =
-                        get_component_with_contex(context.clone(), "transcript").await;
+                    let transcript_area = context.get_component("transcript").await;
 
                     chatbox::append_chatbox_value(
                         transcript_area.clone(),
@@ -177,7 +169,7 @@ pub async fn simulate_dialog(
                             new_state: "ready".into(),
                         },
                     };
-                    let sse_tx = get_sse_tx_with_context(context.clone()).await;
+                    let sse_tx = context.get_sse_tx_with_context().await;
                     send_sse_msg_to_client(&sse_tx, msg).await;
                 }
             }

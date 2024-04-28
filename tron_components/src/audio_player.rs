@@ -75,7 +75,7 @@ pub async fn start_audio (
 }
 
 pub fn stop_audio_playing_action(
-    context: Arc<RwLock<Context<'static>>>,
+    context: LockedContext,
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
@@ -89,7 +89,7 @@ pub fn stop_audio_playing_action(
             player.set_state(ComponentState::Ready);
         }
         {
-            let sse_tx = get_sse_tx_with_context(context.clone()).await;
+            let sse_tx = context.get_sse_tx_with_context().await;
             let msg = SseTriggerMsg {
                 server_side_trigger: TriggerData {
                     target: event.e_target.clone(),

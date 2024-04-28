@@ -1,27 +1,37 @@
 <title> TronApp </title>
-<div class="container mx-auto p-4">
-    <div class="flex flex-row">
-        <!-- The Left Column -->
-        <div class="flex-1 flex flex-col p-2">
-                <div class="flex flex-row flex-1 border-2 border-gray-1000 rounded-lg p-1 h-80 max-h-80 min-h-80">
-                    {{ transcript }}
-                </div>
-        </div>
-        <!-- The Right Column -->
-        <div class="basis-1/4 flex flex-col p-2">
-            <div class="flex flex-row p-1">
-                {{ btn }}
-            </div>
-            <div class="flex flex-row p-1 justify-center">
-                {{ recorder }}
-            </div>
-            <div class="flex flex-row p-1">
-                {{ player }}
-            </div>
-            <div class="flex flex-row p-1">
-                {{ status }}
-            </div>
-        </div>
+<div class="container flex flex-row mx-auto justify-center"><h2 class="flex-1 text-center mx-auto"> Chat </h2></div>
+<div role="tablist" class="tabs tabs-lifted">
+    <input type="radio" name="tabs" role="tab" class="tab" aria-label="Conversation" checked />
 
+    <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+        <div class="container mx-auto p-4">
+            <div class="flex flex-row">
+                <!-- The Left Column -->
+                <div class="flex-1 flex flex-col p-2">
+                    <div class="flex flex-row flex-1 border-2 border-gray-1000 rounded-lg p-1 h-80 max-h-80 min-h-80">
+                        {{ transcript }}
+                    </div>
+                </div>
+                <!-- The Right Column -->
+                <div class="basis-1/4 flex flex-col p-2">
+                    <div class="flex flex-row p-1">
+                        {{ btn }}
+                    </div>
+                    <div class="flex flex-row p-1 justify-center">
+                        {{ recorder }}
+                    </div>
+                    <div class="flex flex-row p-1">
+                        {{ player }}
+                    </div>
+                    <div class="flex flex-row p-1">
+                        {{ status }}
+                    </div>
+                </div>
+
+            </div>
+        </div>
     </div>
-</div>
+
+    <input type="radio" name="tabs" role="tab" class="tab" aria-label="Prompt"  />
+    <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">Tab content 2</div>
+ </div>

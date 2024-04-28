@@ -23,8 +23,10 @@ impl<'a: 'static> TnChatBox<'a> {
         );
         component_base.assets = Some(HashMap::default());
         let class = HashMap::from_iter(vec![
-            ("user".to_string(), "max-w-fill flex flex-row justify-end p-1 > bg-green-100 rounded-lg p-2 mb-1 text-right".to_string()),
-            ("bot".to_string(), "max-w-fill flex flex-row justify-start p-1 > bg-blue-100 rounded-lg p-2 mb-1 text-left".to_string()),
+            // ("user".to_string(), "max-w-fill flex flex-row justify-end p-1 > bg-green-100 rounded-lg p-2 mb-1 text-right".to_string()),
+            // ("bot".to_string(), "max-w-fill flex flex-row justify-start p-1 > bg-blue-100 rounded-lg p-2 mb-1 text-left".to_string()),
+            ("user".to_string(), "chat chat-end > bg-green-900 chat-bubble".to_string()),
+            ("bot".to_string(), "chat chat-start > bg-blue-900 chat-bubble".to_string()),
         ]);
         let assets: &mut HashMap<String, TnAsset> = component_base.assets.as_mut().unwrap();
         assets.insert("class".into(), TnAsset::HashMapString(class));

@@ -49,49 +49,69 @@ async fn main() {
 fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
     let mut component_id = 0_u32;
-    let mut btn = TnButton::new(
-        component_id,
-        "rec_button".into(),
-        "Start Conversation".into(),
-    );
-    btn.set_attribute(
-        "class".to_string(),
-        "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-    );
-    context.add_component(btn);
 
-    component_id += 1;
-    let recorder =
-        TnAudioRecorder::<'static>::new(component_id, "recorder".to_string(), "Paused".to_string());
-    context.add_component(recorder);
+    {
+        // add a recorder button
+        let mut btn = TnButton::new(
+            component_id,
+            "rec_button".into(),
+            "Start Conversation".into(),
+        );
+        btn.set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        );
+        context.add_component(btn);
+    }
+    {
+        // add a recorder
+        component_id += 1;
+        let recorder = TnAudioRecorder::<'static>::new(
+            component_id,
+            "recorder".to_string(),
+            "Paused".to_string(),
+        );
+        context.add_component(recorder);
+    }
+    {
+        // add a player
+        component_id += 1;
+        let mut player =
+            TnAudioPlayer::<'static>::new(component_id, "player".to_string(), "Paused".to_string());
+        player.set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string());
+        context.add_component(player);
+    }
+    {
+        // add a chatbox
+        component_id += 1;
+        let mut transcript_output =
+            TnChatBox::<'static>::new(component_id, "transcript".to_string(), vec![]);
+        transcript_output.set_attribute(
+            "class".to_string(),
+            "flex flex-col overflow-auto flex-1 p-2".to_string(),
+        );
 
-    component_id += 1;
-    let mut player =
-        TnAudioPlayer::<'static>::new(component_id, "player".to_string(), "Paused".to_string());
-    player.set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string());
-    context.add_component(player);
+        context.add_component(transcript_output);
+    }
+    {
+        // add a status box
+        component_id += 1;
+        let mut status_output =
+            TnStreamTextArea::<'static>::new(component_id, "status".to_string(), vec![]);
+        status_output.set_attribute(
+            "class".to_string(),
+            "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),
+        );
+        status_output.set_attribute("hx-trigger".into(), "server_side_trigger".into());
 
-    component_id += 1;
-    let mut transcript_output =
-        TnChatBox::<'static>::new(component_id, "transcript".to_string(), vec![]);
-    transcript_output.set_attribute(
-        "class".to_string(),
-        "flex flex-col overflow-auto flex-1 p-2".to_string(),
-    );
+        context.add_component(status_output);
+    }
 
-    context.add_component(transcript_output);
+    {
+        component_id += 1;
+    }
 
-    component_id += 1;
-    let mut status_output =
-        TnStreamTextArea::<'static>::new(component_id, "status".to_string(), vec![]);
-    status_output.set_attribute(
-        "class".to_string(),
-        "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),
-    );
-    status_output.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-
-    context.add_component(status_output);
-
+    // create a TnContext so we can pass to some services which need to interact with the components
     let context = TnContext {
         base: Arc::new(RwLock::new(context)),
     };
@@ -106,15 +126,18 @@ fn build_session_context() -> TnContext {
             "transcript_service".into(),
             (transcript_request_tx.clone(), Mutex::new(None)),
         );
+        // service sending audio stream to deepgram
         tokio::task::spawn(transcript_service(
             transcript_request_rx,
             transcript_response_tx,
         ));
+        // service processing the output from deepgram
         tokio::task::spawn(transcript_post_processing_service(
             context.clone(),
             transcript_response_rx,
         ));
 
+        // service handling the LLM and TTS at once
         let (llm_request_tx, llm_request_rx) = tokio::sync::mpsc::channel::<TnServiceRequestMsg>(1);
         context.blocking_write().services.insert(
             "llm_service".into(),
@@ -124,14 +147,12 @@ fn build_session_context() -> TnContext {
     }
 
     {
+        // set up audio stream out
         let context_guard = context.blocking_write();
         let mut stream_data_guard = context_guard.stream_data.blocking_write();
-
-        // stream_data_guard.insert("player".into(), ("audio/webm".into(), VecDeque::default()));
         stream_data_guard.insert("player".into(), ("audio/mp3".into(), VecDeque::default()));
     }
 
-    //components.component_layout = Some(layout(&components));
     context
 }
 
@@ -146,13 +167,12 @@ struct AppPageTemplate {
 }
 
 fn layout(context: TnContext) -> String {
-    let context = context.base;
-    let context_guard = context.blocking_read();
-    let btn = context_guard.render_to_string("rec_button");
-    let recorder = context_guard.render_to_string("recorder");
-    let player = context_guard.render_to_string("player");
-    let transcript = context_guard.first_render_to_string("transcript");
-    let status = context_guard.first_render_to_string("status");
+    let guard = context.blocking_read();
+    let btn = guard.render_to_string("rec_button");
+    let recorder = guard.render_to_string("recorder");
+    let player = guard.render_to_string("player");
+    let transcript = guard.first_render_to_string("transcript");
+    let status = guard.first_render_to_string("status");
 
     let html = AppPageTemplate {
         btn,
@@ -166,54 +186,59 @@ fn layout(context: TnContext) -> String {
 
 fn build_session_actions(_context: TnContext) -> TnEventActions {
     let mut actions = TnEventActions::default();
-    // for processing rec button click
-    let evt = TnEvent {
-        e_target: "rec_button".into(),
-        e_type: "click".into(),
-        e_state: "ready".into(),
-    };
-    actions.insert(
-        evt,
-        (ActionExecutionMethod::Await, Arc::new(toggle_recording)),
-    );
+    {
+        // for processing rec button click
+        let evt = TnEvent {
+            e_target: "rec_button".into(),
+            e_type: "click".into(),
+            e_state: "ready".into(),
+        };
 
-    let evt = TnEvent {
-        e_target: "rec_button".into(),
-        e_type: "server_side_trigger".into(),
-        e_state: "ready".into(),
-    };
-    actions.insert(
-        evt,
-        (ActionExecutionMethod::Await, Arc::new(toggle_recording)),
-    );
+        actions.insert(
+            evt,
+            (ActionExecutionMethod::Await, Arc::new(toggle_recording)),
+        );
 
-    // for processing the incoming audio stream data
-    let evt = TnEvent {
-        e_target: "recorder".into(),
-        e_type: "streaming".into(),
-        e_state: "updating".into(),
-    };
-    actions.insert(
-        evt,
-        (
-            ActionExecutionMethod::Await,
-            Arc::new(audio_input_stream_processing),
-        ),
-    );
-
-    let evt = TnEvent {
-        e_target: "player".into(),
-        e_type: "ended".into(),
-        e_state: "updating".into(),
-    };
-    actions.insert(
-        evt,
-        (
-            ActionExecutionMethod::Await,
-            Arc::new(audio_player::stop_audio_playing_action),
-        ),
-    );
-
+        let evt = TnEvent {
+            e_target: "rec_button".into(),
+            e_type: "server_side_trigger".into(),
+            e_state: "ready".into(),
+        };
+        actions.insert(
+            evt,
+            (ActionExecutionMethod::Await, Arc::new(toggle_recording)),
+        );
+    }
+    {
+        // for processing the incoming audio stream data
+        let evt = TnEvent {
+            e_target: "recorder".into(),
+            e_type: "streaming".into(),
+            e_state: "updating".into(),
+        };
+        actions.insert(
+            evt,
+            (
+                ActionExecutionMethod::Await,
+                Arc::new(audio_input_stream_processing),
+            ),
+        );
+    }
+    {
+        // handling player ended event
+        let evt = TnEvent {
+            e_target: "player".into(),
+            e_type: "ended".into(),
+            e_state: "updating".into(),
+        };
+        actions.insert(
+            evt,
+            (
+                ActionExecutionMethod::Await,
+                Arc::new(audio_player::stop_audio_playing_action),
+            ),
+        );
+    }
     actions
 }
 
@@ -290,6 +315,7 @@ fn toggle_recording(
                             };
                         }
                     }
+
                     "Start Conversation" => {
                         context
                             .set_value_for_component(
@@ -297,6 +323,7 @@ fn toggle_recording(
                                 TnComponentValue::String("Recording".into()),
                             )
                             .await;
+
                         context
                             .set_state_for_component("recorder", TnComponentState::Updating)
                             .await;
@@ -321,6 +348,7 @@ fn toggle_recording(
                 }
             }
         }
+
         let msg = SseTriggerMsg {
             server_side_trigger: TriggerData {
                 target: event.e_target,
@@ -373,6 +401,7 @@ fn audio_input_stream_processing(
                     tracing::debug!(target: "tron_app", "sending audio, returned string: {}", out );
                 };
             }
+
             {
                 let now = SystemTime::now()
                     .duration_since(SystemTime::UNIX_EPOCH)
@@ -400,14 +429,24 @@ async fn transcript_service(
     tx: Sender<TnServiceResponseMsg>,
 ) {
     let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<StreamResponse>(1);
+
+    // start a loop for maintaining connection with DG, this calls the DG WS, 
+    // it passes transcript_tx to deepgram_transcript_service(), so it can send the transcript back
     tokio::spawn(async move {
+
         tracing::debug!(target: "tran_app", "restart dg_trx");
+        
         let (mut audio_tx, audio_rx) =
             tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
+        
         let mut handle = tokio::spawn(deepgram_transcript_service(audio_rx, transcript_tx.clone()));
+        
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
         while let Some(req) = rx.recv().await {
+
             tracing::debug!(target: "tran_app", "req: {}", req.request);
+
             if handle.is_finished() {
                 audio_tx.closed().await;
                 let (audio_tx0, audio_rx) =
@@ -416,6 +455,7 @@ async fn transcript_service(
                 handle = tokio::spawn(deepgram_transcript_service(audio_rx, transcript_tx.clone()));
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             }
+
             if let TnAsset::VecU8(payload) = req.payload {
                 tracing::debug!(target: "tran_app", "req received: {}, payload: {}", req.request, payload.len());
                 let _ = audio_tx.send(Ok(Bytes::from_iter(payload))).await;
@@ -425,7 +465,9 @@ async fn transcript_service(
         audio_tx.closed().await;
     });
 
+    // loop to get to the transcript output and pass to the transcript_post_processing_service() 
     let mut transcript_fragments = Vec::<String>::new();
+
     while let Some(trx_rtn) = transcript_rx.recv().await {
         match trx_rtn {
             StreamResponse::TerminalResponse {

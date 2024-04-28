@@ -24,7 +24,7 @@ use tokio::sync::{
 };
 #[allow(unused_imports)]
 use tracing::{debug, info};
-use tron_app::{send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseTriggerMsg, TriggerData};
+use tron_app::{send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseChatboxMsg, SseTriggerMsg, TriggerData};
 use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
 #[tokio::main]
@@ -80,6 +80,21 @@ fn build_session_context() -> TnContext {
             TnAudioPlayer::<'static>::new(component_id, "player".to_string(), "Paused".to_string());
         player.set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string());
         context.add_component(player);
+    }
+
+    {
+        // add a reset button
+        component_id += 1;
+        let mut btn = TnButton::new(
+            component_id,
+            "reset_button".into(),
+            "Reset The Conversation".into(),
+        );
+        btn.set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        );
+        context.add_component(btn);
     }
     {
         // add a chatbox
@@ -181,6 +196,7 @@ struct AppPageTemplate {
     transcript: String,
     status: String,
     prompt: String,
+    reset_button: String,
 }
 
 fn layout(context: TnContext) -> String {
@@ -191,6 +207,7 @@ fn layout(context: TnContext) -> String {
     let transcript = guard.first_render_to_string("transcript");
     let status = guard.first_render_to_string("status");
     let prompt = guard.first_render_to_string("prompt");
+    let reset_button = guard.first_render_to_string("reset_button");
 
     let html = AppPageTemplate {
         btn,
@@ -199,6 +216,7 @@ fn layout(context: TnContext) -> String {
         transcript,
         status,
         prompt,
+        reset_button,
     };
     html.render().unwrap()
 }
@@ -258,6 +276,19 @@ fn build_session_actions(_context: TnContext) -> TnEventActions {
             ),
         );
     }
+    {
+        // for processing reset button click
+        let evt = TnEvent {
+            e_target: "reset_button".into(),
+            e_type: "click".into(),
+            e_state: "ready".into(),
+        };
+
+        actions.insert(
+            evt,
+            (ActionExecutionMethod::Await, Arc::new(reset_conversation)),
+        );
+    }
 
     actions
 }
@@ -280,6 +311,56 @@ fn _do_nothing(
         send_sse_msg_to_client(&sse_tx, msg).await;
         let comp = context.get_component(&event.e_target).await;
         tracing::info!(target: "tron_app", "value: {:?}", comp.read().await.value());
+    };
+    Box::pin(f)
+}
+
+fn reset_conversation(
+    context: TnContext,
+    _event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    let f = async move {
+        context
+            .set_value_for_component("transcript", TnComponentValue::VecString2(vec![]))
+            .await;
+
+        let llm_tx = context
+            .read()
+            .await
+            .services
+            .get("llm_service")
+            .unwrap()
+            .0
+            .clone();
+        let (tx, mut rx) = oneshot::channel::<String>();
+
+        let llm_req_msg = TnServiceRequestMsg {
+            request: "clear-history".into(),
+            payload: TnAsset::String("".into()),
+            response: tx,
+        };
+
+        let _ = llm_tx.send(llm_req_msg).await;
+        let _ = rx.try_recv();
+
+        let sse_tx = context.get_sse_tx_with_context().await;
+        let msg = SseChatboxMsg {
+            server_side_trigger: TriggerData {
+                target: "transcript".into(),
+                new_state: "ready".into(),
+            },
+            chatbox_control: "clear".into()
+        };
+        send_sse_msg_to_client(&sse_tx, msg).await;
+
+        let msg = SseTriggerMsg { // update the button state
+            server_side_trigger: TriggerData {
+                target: "reset_button".into(),
+                new_state: "ready".into(),
+            },
+        };
+        send_sse_msg_to_client(&sse_tx, msg).await;
     };
     Box::pin(f)
 }

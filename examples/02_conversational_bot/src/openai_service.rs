@@ -27,6 +27,12 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
 
     let mut history = Vec::<(String, String)>::new();
     while let Some(r) = rx.recv().await {
+        if r.request == "clear-history" {
+            history.clear();
+            let _ = r.response.send("got it".to_string());
+            continue; 
+        }
+
         let _ = r.response.send("got it".to_string());
         let prompt1 = if let TnComponentValue::String(prompt) =
             context.get_value_from_component("prompt").await

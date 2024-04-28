@@ -18,6 +18,14 @@ pub struct SseAudioRecorderTriggerMsg {
     pub audio_recorder_control: String,
 }
 
+
+#[derive(Serialize)]
+pub struct SseChatboxMsg {
+    pub server_side_trigger: TriggerData,
+    pub chatbox_control: String,
+}
+
+
 #[derive(Serialize)]
 pub struct SseAudioPlayerTriggerMsg {
     pub server_side_trigger: TriggerData,

@@ -78,10 +78,9 @@ pub fn stop_audio_playing_action(
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
         {
-            let context_guard = context.write().await;
-            let components_guard = context_guard.components.write().await;
-            let player_id = context_guard.get_component_id(&event.e_target.clone());
-            let mut player = components_guard.get(&player_id).unwrap().write().await;
+            let guard = context.get_component(&event.e_target.clone()).await;
+            let mut player = guard.write().await;
+
             player.set_header("HX-Reswap".into(), "none".into()); // we don't want to swap the element, or it will replay the audio
             player.set_state(TnComponentState::Ready);
         }

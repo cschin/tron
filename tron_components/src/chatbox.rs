@@ -133,6 +133,7 @@ pub async fn append_chatbox_value(
 ) {
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::ChatBox);
+    comp.remove_header("hx-reswap".into()); // after reset this is set, remove it for appending the text
     if let TnComponentValue::VecString2(v) = comp.get_mut_value() {
         v.push(tag_msg);
     }

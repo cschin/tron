@@ -1,11 +1,3 @@
 <style>
     
 </style>
-<script>
-    window.process_special_events["chatbox_control"] = (target, state, event_data) => {
-
-    if ("chatbox_control" in event_data && event_data["chatbox_control"] == "clear") {
-        document.getElementById(target).innerHTML="<div></div>";
-    };
-}
-</script>

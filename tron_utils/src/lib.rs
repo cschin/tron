@@ -12,26 +12,6 @@ pub struct SseTriggerMsg {
     pub server_side_trigger: TriggerData,
 }
 
-#[derive(Serialize)]
-pub struct SseAudioRecorderTriggerMsg {
-    pub server_side_trigger: TriggerData,
-    pub audio_recorder_control: String,
-}
-
-
-#[derive(Serialize)]
-pub struct SseChatboxMsg {
-    pub server_side_trigger: TriggerData,
-    pub chatbox_control: String,
-}
-
-
-#[derive(Serialize)]
-pub struct SseAudioPlayerTriggerMsg {
-    pub server_side_trigger: TriggerData,
-    pub audio_player_control: String,
-}
-
 pub async fn send_sse_msg_to_client(tx: &Sender<String>, msg: impl Serialize) {
     let json_string = serde_json::to_string(&msg).unwrap();
     if tx.send(json_string).await.is_err() {

@@ -24,7 +24,8 @@ use tokio::sync::{
 };
 #[allow(unused_imports)]
 use tracing::{debug, info};
-use tron_app::{send_sse_msg_to_client, SseAudioRecorderTriggerMsg, SseChatboxMsg, SseTriggerMsg, TriggerData};
+use tron_app::{send_sse_msg_to_client, SseTriggerMsg, TriggerData};
+use tron_components::audio_recorder::SseAudioRecorderTriggerMsg;
 use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
 #[tokio::main]
@@ -132,7 +133,7 @@ fn build_session_context() -> TnContext {
 
         prompt_box.set_attribute(
             "class".into(),
-            "flex-1 p-2 textarea textarea-bordered mx-auto h-80 max-h-80 min-h-80".into(),
+            "flex-1 p-2 textarea textarea-bordered mx-auto h-96 max-h-96 min-h-96".into(),
         );
         prompt_box.set_attribute(
             "hx-vals".into(),
@@ -301,7 +302,9 @@ fn _do_nothing(
     let f = async move {
         //let comp = context.get_component(&event.e_target);
         tracing::info!(target: "tron_app", "{:?}", payload);
-        context.set_state_for_component(&event.e_target.clone(), TnComponentState::Pending).await;
+        context
+            .set_state_for_component(&event.e_target.clone(), TnComponentState::Pending)
+            .await;
         let sse_tx = context.get_sse_tx_with_context().await;
         let msg = SseTriggerMsg {
             server_side_trigger: TriggerData {
@@ -322,10 +325,6 @@ fn reset_conversation(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
-        context
-            .set_value_for_component("transcript", TnComponentValue::VecString2(vec![]))
-            .await;
-
         let llm_tx = context
             .read()
             .await
@@ -346,26 +345,42 @@ fn reset_conversation(
         let _ = rx.try_recv();
 
         let sse_tx = context.get_sse_tx_with_context().await;
-        let msg = SseChatboxMsg {
-            server_side_trigger: TriggerData {
-                target: "transcript".into(),
-                new_state: "ready".into(),
-            },
-            chatbox_control: "clear".into()
-        };
-        
-        send_sse_msg_to_client(&sse_tx, msg).await;
-        context
-        .set_state_for_component("reset_button", TnComponentState::Ready)
-        .await;
+        {
+            // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML
+            // once the server side trigger for an update, the content will be empty
+            // the hx-reswap will be removed when there is new text in append_chatbox_value()
+            context
+                .set_value_for_component("transcript", TnComponentValue::VecString2(vec![]))
+                .await;
+            let guard = context.get_component("transcript").await;
+            guard
+                .write()
+                .await
+                .set_header("hx-reswap".into(), "innerHTML".into());
 
-        let msg = SseTriggerMsg { // update the button state
-            server_side_trigger: TriggerData {
-                target: "reset_button".into(),
-                new_state: "ready".into(),
-            },
-        };
-        send_sse_msg_to_client(&sse_tx, msg).await;
+            let msg = SseTriggerMsg {
+                server_side_trigger: TriggerData {
+                    target: "transcript".into(),
+                    new_state: "ready".into(),
+                },
+            };
+
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
+        {
+            context
+                .set_state_for_component("reset_button", TnComponentState::Ready)
+                .await;
+
+            let msg = SseTriggerMsg {
+                // update the button state
+                server_side_trigger: TriggerData {
+                    target: "reset_button".into(),
+                    new_state: "ready".into(),
+                },
+            };
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
     };
     Box::pin(f)
 }

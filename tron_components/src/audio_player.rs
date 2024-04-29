@@ -1,7 +1,14 @@
 use super::*;
 use futures_util::Future;
+use serde::Serialize;
 use tron_macro::*;
 use tron_utils::*;
+
+#[derive(Serialize)]
+pub struct SseAudioPlayerTriggerMsg {
+    pub server_side_trigger: TriggerData,
+    pub audio_player_control: String,
+}
 
 #[derive(ComponentBase)]
 pub struct TnAudioPlayer<'a: 'static> {

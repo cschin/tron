@@ -11,7 +11,7 @@
             <div class="flex flex-row">
                 <!-- The Left Column -->
                 <div class="flex-1 flex flex-col p-2">
-                    <div class="flex flex-row flex-1 border-2 border-gray-1000 rounded-lg p-1 h-80 max-h-80 min-h-80">
+                    <div class="flex flex-row flex-1 border-2 border-gray-600 rounded-lg p-1 h-96 max-h-96 min-h-96">
                         {{ transcript }}
                     </div>
                 </div>
@@ -32,7 +32,7 @@
                     <div class="flex flex-row">
                         <div class="flex-col flex-1">
                             <div> Status </div>
-                            <div class="flex flex-row"> {{ status }}</div>
+                            <div class="flex flex-row p-1 textarea textarea-bordered"> {{ status }}</div>
                         </div>
                     </div>
                 </div>
@@ -44,7 +44,7 @@
 
     <input type="radio" name="tabs" role="tab" class="tab" aria-label="Configure
     " />
-    <div role="tabpanel" class="tab-content bg-base-100 border-base-300 rounded-box p-6">
+    <div role="tabpanel" class="tab-content bg-base-1 textarea textarea-bordered00 border-base-300 rounded-box p-6">
         <div class="flex flex-col"></div>
         <div class="p-1">You can update the prompt below</div>
         <div class="flex flex-row">

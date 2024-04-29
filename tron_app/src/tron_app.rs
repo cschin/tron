@@ -182,7 +182,7 @@ async fn load_page(
     })
     .join("\n");
 
-    let html = [layout, "<div>".to_string(), script, "</div>".to_string()].join("\n");
+    let html = [layout, script].join("\n");
     Ok(Html::from(html))
 }
 

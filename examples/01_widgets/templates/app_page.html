@@ -13,23 +13,34 @@
         {{ select }}
     </div>
     <div class="flex flex-row p-1">
+        <div class="flex flex-row flex-1 p-1">
+            {{ clean_stream_textarea }}
+        </div>
+        <div class="flex flex-row flex-1 p-1">
+            {{ clean_textarea }}
+        </div>
+        <div class="flex flex-row flex-1 p-1">
+            {{ clean_textinput }}
+        </div>
+    </div>
+    <div class="flex flex-col p-1">
+        <div> stream_textarea </div>
         <div class="flex flex-row flex-1 h-20">
             {{stream_textarea}}
         </div>
     </div>
-    <div class="flex flex-row p-1">
+    <div class="flex flex-col p-1">
+        <div> textarea </div>
         <div class="flex flex-row flex-1 h-20">
             {{textarea}}
         </div>
     </div>
-    <div class="flex flex-row p-1">
-        <div class="flex-col flex-1">
-            <div>
-                <label> text input </label>
-            </div>
-            <div class="flex flex-row flex-1 h-20">
-                {{textinput}}
-            </div>
+    <div class="flex flex-col p-1">
+        <div>
+            <label> text input </label>
+        </div>
+        <div class="flex flex-row flex-1 h-20">
+            {{textinput}}
         </div>
     </div>
 </div>

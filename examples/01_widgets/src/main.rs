@@ -8,11 +8,7 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    checklist,
-    text::{append_stream_textarea_value, append_textarea_value},
-    ActionExecutionMethod, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
-    TnContext, TnContextBase, TnEvent, TnEventActions, TnSelect, TnStreamTextArea, TnTextArea,
-    TnTextInput,
+    checklist, set_ready_with_context_for, text::{self, append_stream_textarea, append_textarea_value}, ActionExecutionMethod, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -72,7 +68,7 @@ fn test_event_actions(
                     let mut components_guard = context_guard.components.write().await;
                     let stream_textarea = components_guard.get_mut(&id).unwrap().clone();
                     let new_str = format!("{} -- {:02};\n", event.e_target, v + 1);
-                    append_stream_textarea_value(stream_textarea, &new_str).await;
+                    append_stream_textarea(stream_textarea, &new_str).await;
                 };
 
                 {
@@ -207,27 +203,73 @@ fn build_session_context() -> TnContext {
             .blocking_write()
             .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
     }
-    component_id += 1;
-    let select_options = vec![
-        ("one".into(), "One".into()),
-        ("two".into(), "Two".into()),
-        ("three".into(), "Three".into()),
-    ];
+    {
+        component_id += 1;
+        let select_options = vec![
+            ("one".into(), "One".into()),
+            ("two".into(), "Two".into()),
+            ("three".into(), "Three".into()),
+        ];
 
-    let select = TnSelect::<'static>::new(
-        component_id,
-        "select_one".into(),
-        "one".into(),
-        select_options,
-    );
-    context.add_component(select);
+        let select = TnSelect::<'static>::new(
+            component_id,
+            "select_one".into(),
+            "one".into(),
+            select_options,
+        );
+        context.add_component(select);
+    }
 
-    component_id += 1;
-    let mut textinput = TnTextInput::<'static>::new(component_id, "textinput".into(), "".into());
-    textinput.set_attribute("class".into(), "input input-bordered w-full".into());
+    {
+        component_id += 1;
+        let mut clean_button = TnButton::<'static>::new(
+            component_id,
+            "clean_stream_textarea".into(),
+            "clean_stream_textarea".into(),
+        );
+        clean_button.set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        );
+        context.add_component(clean_button);
+    }
 
-    context.add_component(textinput);
+    {
+        component_id += 1;
+        let mut clean_button = TnButton::<'static>::new(
+            component_id,
+            "clean_textarea".into(),
+            "clean_textarea".into(),
+        );
+        clean_button.set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        );
+        context.add_component(clean_button);
+    }
 
+    {
+        component_id += 1;
+        let mut clean_button = TnButton::<'static>::new(
+            component_id,
+            "clean_textinput".into(),
+            "clean_textinput".into(),
+        );
+        clean_button.set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        );
+        context.add_component(clean_button);
+    }
+
+    {
+        component_id += 1;
+        let mut textinput =
+            TnTextInput::<'static>::new(component_id, "textinput".into(), "".into());
+        textinput.set_attribute("class".into(), "input input-bordered w-full".into());
+
+        context.add_component(textinput);
+    }
     TnContext {
         base: Arc::new(RwLock::new(context)),
     }
@@ -256,8 +298,70 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
             actions.insert(evt, (ActionExecutionMethod::Await, action));
         });
     }
+    {
+        let evt = TnEvent {
+            e_target: "clean_stream_textarea".into(),
+            e_type: "click".to_string(),
+            e_state: "ready".to_string(),
+        };
+        actions.insert(evt, (ActionExecutionMethod::Spawn, Arc::new(clean_stream_textarea)));
+    }
+
+    {
+        let evt = TnEvent {
+            e_target: "clean_textarea".into(),
+            e_type: "click".to_string(),
+            e_state: "ready".to_string(),
+        };
+        actions.insert(evt, (ActionExecutionMethod::Spawn, Arc::new(clean_textarea)));
+    }
+
+    {
+        let evt = TnEvent {
+            e_target: "clean_textinput".into(),
+            e_type: "click".to_string(),
+            e_state: "ready".to_string(),
+        };
+        actions.insert(evt, (ActionExecutionMethod::Spawn, Arc::new(clean_textinput)));
+    }
 
     actions
+}
+
+fn clean_stream_textarea(
+    context: TnContext,
+    event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    let f =  || async move {
+        text::clean_stream_textarea_with_context(context.clone(), "stream_textarea").await;
+        set_ready_with_context_for(context, &event.e_target).await;
+    };
+    Box::pin(f())
+}
+
+fn clean_textarea(
+    context: TnContext,
+    event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    let f =  || async move {
+        text::clean_textarea_with_context(context.clone(), "textarea").await;
+        set_ready_with_context_for(context, &event.e_target).await;
+    };
+    Box::pin(f())
+}
+
+fn clean_textinput(
+    context: TnContext,
+    event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    let f =  || async move {
+        text::clean_textinput_with_context(context.clone(), "textinput").await;
+        set_ready_with_context_for(context, &event.e_target).await;
+    };
+    Box::pin(f())
 }
 
 #[derive(Template)] // this will generate the code...
@@ -269,6 +373,9 @@ struct AppPageTemplate {
     textinput: String,
     checklist: String,
     select: String,
+    clean_stream_textarea: String,
+    clean_textarea: String,
+    clean_textinput: String,
 }
 
 fn layout(context: TnContext) -> String {
@@ -283,6 +390,9 @@ fn layout(context: TnContext) -> String {
     let textinput = context_guard.render_to_string("textinput");
     let checklist = context_guard.render_to_string("checklist");
     let select = context_guard.render_to_string("select_one");
+    let clean_stream_textarea = context_guard.render_to_string("clean_stream_textarea");
+    let clean_textarea = context_guard.render_to_string("clean_textarea");
+    let clean_textinput = context_guard.render_to_string("clean_textinput");
 
     let html = AppPageTemplate {
         buttons,
@@ -291,6 +401,9 @@ fn layout(context: TnContext) -> String {
         textinput,
         checklist,
         select,
+        clean_stream_textarea,
+        clean_textarea,
+        clean_textinput
     };
     html.render().unwrap()
 }

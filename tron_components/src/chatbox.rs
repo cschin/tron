@@ -146,23 +146,27 @@ pub async fn clean_chatbox_with_context(context: TnContext, tron_id: &str) {
         // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML
         // once the server side trigger for an update, the content will be empty
         // the hx-reswap will be removed when there is new text in append_chatbox_value()
+        assert!(context.get_component(tron_id).await.read().await.get_type() == TnComponentType::ChatBox); 
+
         context
             .set_value_for_component(tron_id, TnComponentValue::VecString2(vec![]))
             .await;
-        let guard = context.get_component(tron_id).await;
-        guard
-            .write()
-            .await
-            .set_header("hx-reswap".into(), "innerHTML".into());
+        let comp = context.get_component(tron_id).await;
+        assert!(comp.read().await.get_type() == TnComponentType::ChatBox);
+        {
+            let mut guard = comp.write().await;
+            guard.set_state(TnComponentState::Ready);
+            guard.set_header("hx-reswap".into(), "innerHTML".into());
 
-        let msg = SseTriggerMsg {
-            server_side_trigger: TriggerData {
-                target: tron_id.into(),
-                new_state: "ready".into(),
-            },
-        };
+            let msg = SseTriggerMsg {
+                server_side_trigger: TriggerData {
+                    target: tron_id.into(),
+                    new_state: "ready".into(),
+                },
+            };
 
-        send_sse_msg_to_client(&sse_tx, msg).await;
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
     }
  
 }

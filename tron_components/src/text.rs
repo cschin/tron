@@ -2,6 +2,10 @@ use super::*;
 use tron_macro::*;
 use tron_utils::{send_sse_msg_to_client, SseTriggerMsg, TriggerData};
 
+//
+// For TextArea
+//
+
 #[derive(ComponentBase)]
 pub struct TnTextArea<'a: 'static> {
     base: TnComponentBase<'a>,
@@ -66,6 +70,15 @@ pub async fn append_textarea_value(comp: TnComponent<'static>, new_str: &str, se
         comp.set_value(TnComponentValue::String(v.join(sep)));
     }
 }
+pub async fn append_textarea_value_with_context(
+    context: TnContext,
+    tron_id: &str,
+    new_str: &str,
+    sep: Option<&str>,
+) {
+    let comp = context.get_component(tron_id).await;
+    append_textarea_value(comp, new_str, sep).await;
+}
 
 pub async fn update_and_send_textarea_with_context(
     context: TnContext,
@@ -78,9 +91,9 @@ pub async fn update_and_send_textarea_with_context(
             assert!(comp.read().await.get_type() == TnComponentType::TextArea);
         }
         {
-            comp.write()
-                .await
-                .set_value(TnComponentValue::String(new_str.to_string()));
+            let mut guard = comp.write().await;
+            guard.set_value(TnComponentValue::String(new_str.to_string()));
+            guard.set_state(TnComponentState::Ready);
             let sse_tx = context.get_sse_tx_with_context().await;
             let msg = SseTriggerMsg {
                 server_side_trigger: TriggerData {
@@ -92,6 +105,14 @@ pub async fn update_and_send_textarea_with_context(
         }
     }
 }
+
+pub async fn clean_textarea_with_context(context: TnContext, tron_id: &str) {
+    update_and_send_textarea_with_context(context, tron_id, "").await;
+}
+
+//
+// For Streamable TextArea
+//
 
 #[derive(ComponentBase)]
 pub struct TnStreamTextArea<'a: 'static> {
@@ -150,9 +171,10 @@ impl<'a: 'static> TnStreamTextArea<'a> {
     }
 }
 
-pub async fn append_stream_textarea_value(comp: TnComponent<'static>, new_str: &str) {
+pub async fn append_stream_textarea(comp: TnComponent<'static>, new_str: &str) {
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::StreamTextArea);
+    comp.remove_header("hx-reswap".into()); // we may want to find a way only call this once
     if let TnComponentValue::VecString(v) = comp.get_mut_value() {
         v.push(new_str.to_string());
     }
@@ -166,7 +188,7 @@ pub async fn append_and_send_stream_textarea_with_context(
     tracing::info!(target:"tron_app", "tron_id; {tron_id}, new_str: {new_str}");
     {
         let comp = context.get_component(tron_id).await;
-        append_stream_textarea_value(comp, new_str).await;
+        append_stream_textarea(comp, new_str).await;
         let sse_tx = context.get_sse_tx_with_context().await;
         let msg = SseTriggerMsg {
             server_side_trigger: TriggerData {
@@ -178,6 +200,40 @@ pub async fn append_and_send_stream_textarea_with_context(
     }
 }
 
+pub async fn clean_stream_textarea_with_context(context: TnContext, tron_id: &str) {
+    let sse_tx = context.get_sse_tx_with_context().await;
+    {
+        // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML
+        // once the server side trigger for an update, the content will be empty
+        // the hx-reswap will be removed when there is new text in append_chatbox_value()
+        assert!(
+            context.get_component(tron_id).await.read().await.get_type()
+                == TnComponentType::StreamTextArea
+        );
+        context
+            .set_value_for_component(tron_id, TnComponentValue::VecString(vec![]))
+            .await;
+        let comp = context.get_component(tron_id).await;
+        {
+            let mut guard = comp.write().await;
+            guard.set_state(TnComponentState::Ready);
+            guard.set_header("hx-reswap".into(), "innerHTML".into());
+
+            let msg = SseTriggerMsg {
+                server_side_trigger: TriggerData {
+                    target: tron_id.into(),
+                    new_state: "ready".into(),
+                },
+            };
+
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
+    }
+}
+
+//
+// For TextInput
+//
 #[derive(ComponentBase)]
 pub struct TnTextInput<'a: 'static> {
     base: TnComponentBase<'a>,
@@ -187,7 +243,6 @@ impl<'a: 'static> TnTextInput<'a> {
     pub fn new(id: TnComponentId, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("input".into(), id, name, TnComponentType::TextInput);
         base.set_value(TnComponentValue::String(value.to_string()));
-        base.set_attribute("contenteditable".into(), "true".into());
 
         base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
         base.set_attribute("type".into(), "text".into());
@@ -195,7 +250,7 @@ impl<'a: 'static> TnTextInput<'a> {
             "hx-vals".into(),
             r##"js:{event_data:get_input_event(event)}"##.into(),
         ); //over-ride the default as we need the value of the input text
-        base.set_attribute("hx-swap".into(), "none".into());
+        base.set_attribute("hx-swap".into(), "outerHTML".into());
 
         Self { base }
     }
@@ -227,5 +282,27 @@ impl<'a: 'static> TnTextInput<'a> {
 
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
+    }
+}
+
+pub async fn clean_textinput_with_context(context: TnContext, tron_id: &str) {
+    {
+        let comp = context.get_component(tron_id).await;
+        {
+            assert!(comp.read().await.get_type() == TnComponentType::TextInput);
+        }
+        {
+            let mut guard = comp.write().await;
+            guard.set_value(TnComponentValue::String(String::default()));
+            guard.set_state(TnComponentState::Ready);
+            let sse_tx = context.get_sse_tx_with_context().await;
+            let msg = SseTriggerMsg {
+                server_side_trigger: TriggerData {
+                    target: tron_id.to_string(),
+                    new_state: "ready".into(),
+                },
+            };
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
     }
 }

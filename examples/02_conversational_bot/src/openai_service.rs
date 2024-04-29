@@ -118,10 +118,11 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                                 // tracing::info!(target: "tron_app", "LLM delta content: {}", content);
                                 llm_response.push(content.clone());
                                 let s = llm_response.join("");
+                                let s = s.chars().collect::<Vec<_>>();
                                 let last_100 = s.len() % 100;
                                 
                                 let s = if last_100 > 0 {
-                                    s[s.len()-last_100..].to_string()
+                                    s[s.len()-last_100..].iter().cloned().collect::<String>()
                                 } else {
                                     "".into()
                                 }; 
@@ -135,9 +136,10 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                 }
             }
             let s = llm_response.join("");
+            let s = s.chars().collect::<Vec<_>>();
             let last_100 = s.len() % 100;
             let s = if last_100 > 0 {
-                s[s.len()-last_100..].to_string()
+                s[s.len()-last_100..].iter().cloned().collect::<String>()
             } else {
                 "".into()
             }; 

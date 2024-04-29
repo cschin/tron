@@ -390,44 +390,8 @@ fn reset_conversation(
             let _ = rx.try_recv();
         }
 
-        let sse_tx = context.get_sse_tx_with_context().await;
-        {
-            // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML
-            // once the server side trigger for an update, the content will be empty
-            // the hx-reswap will be removed when there is new text in append_chatbox_value()
-            context
-                .set_value_for_component("transcript", TnComponentValue::VecString2(vec![]))
-                .await;
-            let guard = context.get_component("transcript").await;
-            guard
-                .write()
-                .await
-                .set_header("hx-reswap".into(), "innerHTML".into());
-
-            let msg = SseTriggerMsg {
-                server_side_trigger: TriggerData {
-                    target: "transcript".into(),
-                    new_state: "ready".into(),
-                },
-            };
-
-            send_sse_msg_to_client(&sse_tx, msg).await;
-        }
-        {
-            // set the reset button back to the ready state
-            context
-                .set_state_for_component("reset_button", TnComponentState::Ready)
-                .await;
-
-            let msg = SseTriggerMsg {
-                // update the button state
-                server_side_trigger: TriggerData {
-                    target: "reset_button".into(),
-                    new_state: "ready".into(),
-                },
-            };
-            send_sse_msg_to_client(&sse_tx, msg).await;
-        }
+        chatbox::clean_chatbox_with_context(context.clone(), "transcript").await;
+        set_ready_with_context_for(context.clone(), "reset_button").await;
     };
     Box::pin(f)
 }

@@ -491,6 +491,7 @@ pub struct TnEvent {
     pub e_state: String, // should use the Component::State enum
 }
 use tokio::sync::{mpsc::Sender, RwLock};
+use tron_utils::{send_sse_msg_to_client, SseTriggerMsg, TriggerData};
 pub type ActionFn = fn(
     TnContext,
     event: TnEvent,
@@ -504,6 +505,26 @@ pub enum ActionExecutionMethod {
 }
 
 pub type TnEventActions = HashMap<TnEvent, (ActionExecutionMethod, Arc<ActionFn>)>;
+
+
+pub async fn set_ready_with_context_for(context: TnContext, tron_id: &str) {
+    {
+        let sse_tx = context.get_sse_tx_with_context().await;
+        // set the reset button back to the ready state
+        context
+            .set_state_for_component(tron_id, TnComponentState::Ready)
+            .await;
+
+        let msg = SseTriggerMsg {
+            // update the button state
+            server_side_trigger: TriggerData {
+                target: tron_id.into(),
+                new_state: "ready".into(),
+            },
+        };
+        send_sse_msg_to_client(&sse_tx, msg).await;
+    }
+}
 
 #[cfg(test)]
 mod tests {

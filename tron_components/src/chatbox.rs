@@ -1,5 +1,6 @@
 use super::*;
 use tron_macro::*;
+use tron_utils::{send_sse_msg_to_client, SseTriggerMsg, TriggerData};
 
 #[derive(ComponentBase)]
 pub struct TnChatBox<'a: 'static> {
@@ -138,3 +139,31 @@ pub async fn append_chatbox_value(
         v.push(tag_msg);
     }
 }
+
+pub async fn clean_chatbox_with_context(context: TnContext, tron_id: &str) {
+    let sse_tx = context.get_sse_tx_with_context().await;
+    {
+        // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML
+        // once the server side trigger for an update, the content will be empty
+        // the hx-reswap will be removed when there is new text in append_chatbox_value()
+        context
+            .set_value_for_component(tron_id, TnComponentValue::VecString2(vec![]))
+            .await;
+        let guard = context.get_component(tron_id).await;
+        guard
+            .write()
+            .await
+            .set_header("hx-reswap".into(), "innerHTML".into());
+
+        let msg = SseTriggerMsg {
+            server_side_trigger: TriggerData {
+                target: tron_id.into(),
+                new_state: "ready".into(),
+            },
+        };
+
+        send_sse_msg_to_client(&sse_tx, msg).await;
+    }
+ 
+}
+

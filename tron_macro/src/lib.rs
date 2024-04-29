@@ -55,6 +55,9 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                     .remove(&key);
             }
 
+            fn clear_header(&mut self) {
+                self.base.extra_response_headers.clear();
+            }
 
             fn generate_attr_string(&self) -> String {
                 self.base.generate_attr_string()

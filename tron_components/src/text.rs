@@ -9,16 +9,13 @@ pub struct TnTextArea<'a: 'static> {
 
 impl<'a: 'static> TnTextArea<'a> {
     pub fn new(id: TnComponentId, name: String, value: String) -> Self {
-        let mut base =
-            TnComponentBase::new("textarea".into(), id, name, TnComponentType::TextArea);
+        let mut base = TnComponentBase::new("textarea".into(), id, name, TnComponentType::TextArea);
         base.set_value(TnComponentValue::String(value));
         base.set_attribute("disabled".into(), "".into());
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         base.set_attribute("type".into(), "text".into());
 
-        Self {
-            base,
-        }
+        Self { base }
     }
 }
 
@@ -52,11 +49,7 @@ impl<'a: 'static> TnTextArea<'a> {
     }
 }
 
-pub async fn append_textarea_value(
-    comp: TnComponent<'static>,
-    new_str: &str,
-    sep: Option<&str>,
-) {
+pub async fn append_textarea_value(comp: TnComponent<'static>, new_str: &str, sep: Option<&str>) {
     let v;
     {
         let comp = comp.read().await;
@@ -74,6 +67,32 @@ pub async fn append_textarea_value(
     }
 }
 
+pub async fn update_and_send_textarea_with_context(
+    context: TnContext,
+    tron_id: &str,
+    new_str: &str,
+) {
+    {
+        let comp = context.get_component(tron_id).await;
+        {
+            assert!(comp.read().await.get_type() == TnComponentType::TextArea);
+        }
+        {
+            comp.write()
+                .await
+                .set_value(TnComponentValue::String(new_str.to_string()));
+            let sse_tx = context.get_sse_tx_with_context().await;
+            let msg = SseTriggerMsg {
+                server_side_trigger: TriggerData {
+                    target: tron_id.to_string(),
+                    new_state: "ready".into(),
+                },
+            };
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
+    }
+}
+
 #[derive(ComponentBase)]
 pub struct TnStreamTextArea<'a: 'static> {
     base: TnComponentBase<'a>,
@@ -87,15 +106,13 @@ impl<'a: 'static> TnStreamTextArea<'a> {
 
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         base.set_attribute("type".into(), "text".into());
-        base.set_attribute("disabled".into(), "".into());
+        //base.set_attribute("disabled".into(), "".into());
         base.set_attribute(
             "hx-swap".into(),
             "beforeend scroll:bottom focus-scroll:true ".into(),
         );
 
-        Self {
-            base,
-        }
+        Self { base }
     }
 }
 
@@ -133,10 +150,7 @@ impl<'a: 'static> TnStreamTextArea<'a> {
     }
 }
 
-pub async fn append_stream_textarea_value(
-    comp: TnComponent<'static>,
-    new_str: &str,
-) {
+pub async fn append_stream_textarea_value(comp: TnComponent<'static>, new_str: &str) {
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::StreamTextArea);
     if let TnComponentValue::VecString(v) = comp.get_mut_value() {
@@ -156,7 +170,7 @@ pub async fn append_and_send_stream_textarea_with_context(
         let sse_tx = context.get_sse_tx_with_context().await;
         let msg = SseTriggerMsg {
             server_side_trigger: TriggerData {
-                target: "status".into(),
+                target: tron_id.to_string(),
                 new_state: "ready".into(),
             },
         };
@@ -171,8 +185,7 @@ pub struct TnTextInput<'a: 'static> {
 
 impl<'a: 'static> TnTextInput<'a> {
     pub fn new(id: TnComponentId, name: String, value: String) -> Self {
-        let mut base =
-            TnComponentBase::new("input".into(), id, name, TnComponentType::TextInput);
+        let mut base = TnComponentBase::new("input".into(), id, name, TnComponentType::TextInput);
         base.set_value(TnComponentValue::String(value.to_string()));
         base.set_attribute("contenteditable".into(), "true".into());
 
@@ -184,9 +197,7 @@ impl<'a: 'static> TnTextInput<'a> {
         ); //over-ride the default as we need the value of the input text
         base.set_attribute("hx-swap".into(), "none".into());
 
-        Self {
-            base,
-        }
+        Self { base }
     }
 }
 
@@ -209,7 +220,7 @@ impl<'a: 'static> TnTextInput<'a> {
             self.generate_attr_string(),
             match self.value() {
                 TnComponentValue::String(s) => tron_utils::html_escape_double_quote(&s.clone()),
-                _ => "".to_string()
+                _ => "".to_string(),
             }
         )
     }

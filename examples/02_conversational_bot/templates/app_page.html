@@ -1,6 +1,6 @@
 <title> TronApp </title>
 <div class="container flex flex-row mx-auto justify-center">
-    <h2 class="flex-1 text-center mx-auto"> Chat </h2>
+    <p class="flex-1 text-center mx-auto text-2xl"> Talk with GPTOmics </p>
 </div>
 <div role="tablist" class="tabs tabs-lifted">
     <input type="radio" name="tabs" role="tab" class="tab" aria-label="Conversation" checked />
@@ -11,8 +11,11 @@
             <div class="flex flex-row">
                 <!-- The Left Column -->
                 <div class="flex-1 flex flex-col p-2">
-                    <div class="flex flex-row flex-1 border-2 border-gray-600 rounded-lg p-1 h-96 max-h-96 min-h-96">
+                    <div class="flex flex-row flex-1 border-2 mb-1 border-gray-600 rounded-lg p-1 h-96 max-h-96 min-h-96">
                         {{ transcript }}
+                    </div>
+                    <div class="flex flex-row flex-1 border-2 border-gray-600 rounded-lg p-1 h-20 max-h-20 min-h-20">
+                        {{ llm_stream_output }}
                     </div>
                 </div>
                 <!-- The Right Column -->

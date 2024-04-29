@@ -15,7 +15,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    ActionExecutionMethod, TnComponentId, TnComponentState, TnComponentValue, TnContext, TnEvent, TnEventActions, TnSseMsgChannel
+    ActionExecutionMethod, TnComponentId, TnComponentState, TnComponentValue, TnContext, TnEvent,
+    TnEventActions, TnSseMsgChannel,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
@@ -246,10 +247,7 @@ async fn tron_entry(
                 let context_guard = app_data.session_context.read().await;
                 let context = context_guard.get(&session_id).unwrap().clone();
                 context
-                    .set_value_for_component(
-                        &evt.e_target,
-                        TnComponentValue::String(value),
-                    )
+                    .set_value_for_component(&evt.e_target, TnComponentValue::String(value))
                     .await;
             }
         }
@@ -316,7 +314,7 @@ async fn tron_entry(
                 HeaderValue::from_bytes(v.as_bytes()).unwrap(),
             );
         });
-    // println!("response_headers: {:?}", response_headers);
+                                                        // println!("response_headers: {:?}", response_headers);
     (StatusCode::OK, response_headers, body)
 }
 

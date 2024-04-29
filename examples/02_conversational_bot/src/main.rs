@@ -110,6 +110,18 @@ fn build_session_context() -> TnContext {
         context.add_component(transcript_output);
     }
     {
+        // add a textarea showing partial stream content
+        component_id += 1;
+        let mut llm_stream_output =
+            TnTextArea::<'static>::new(component_id, "llm_stream_output".to_string(), "".into());
+        llm_stream_output.set_attribute(
+            "class".to_string(),
+            "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19".to_string(),
+        );
+        context.add_component(llm_stream_output);
+    }
+
+    {
         // add a status box
         component_id += 1;
         let mut status_output =
@@ -223,7 +235,8 @@ struct AppPageTemplate {
     status: String,
     prompt: String,
     reset_button: String,
-    tts_model_select: String
+    tts_model_select: String,
+    llm_stream_output: String,
 }
 
 fn layout(context: TnContext) -> String {
@@ -235,7 +248,8 @@ fn layout(context: TnContext) -> String {
     let status = guard.first_render_to_string("status");
     let prompt = guard.first_render_to_string("prompt");
     let reset_button = guard.first_render_to_string("reset_button");
-    let tts_model_select = guard.first_render_to_string("tts_model_select"); 
+    let tts_model_select = guard.first_render_to_string("tts_model_select");
+    let llm_stream_output = guard.first_render_to_string("llm_stream_output");
 
     let html = AppPageTemplate {
         btn,
@@ -245,7 +259,8 @@ fn layout(context: TnContext) -> String {
         status,
         prompt,
         reset_button,
-        tts_model_select
+        tts_model_select,
+        llm_stream_output,
     };
     html.render().unwrap()
 }

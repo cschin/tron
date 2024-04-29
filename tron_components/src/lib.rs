@@ -278,6 +278,7 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn extra_headers(&self) -> &TnExtraResponseHeader;
     fn set_header(&mut self, key: String, value: String);
     fn remove_header(&mut self, key: String);
+    fn clear_header(&mut self);
 
     fn value(&self) -> &TnComponentValue;
     fn get_mut_value(&mut self) -> &mut TnComponentValue;
@@ -390,6 +391,10 @@ where
 
     fn remove_header(&mut self, key: String) {
         self.extra_response_headers.remove(&key);
+    }
+
+    fn clear_header(&mut self) {
+        self.extra_response_headers.clear();
     }
 
     fn generate_attr_string(&self) -> String {

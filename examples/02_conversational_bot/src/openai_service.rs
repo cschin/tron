@@ -30,7 +30,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
         if r.request == "clear-history" {
             history.clear();
             let _ = r.response.send("got it".to_string());
-            continue; 
+            continue;
         }
 
         let _ = r.response.send("got it".to_string());
@@ -122,8 +122,18 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                     )
                     .await;
 
+                    let tts_model = if let TnComponentValue::String(tts_model) =
+                        context.get_value_from_component("tts_model_select").await
+                    {
+                        tts_model
+                    } else {
+                        "aura-zeus-en".into()
+                    };
+
+                    tracing::info!(target: "tron_app", "tts model: {}", tts_model);
+
                     let mut response = reqwest_client
-                        .post("https://api.deepgram.com/v1/speak?model=aura-zeus-en")
+                        .post(format!("https://api.deepgram.com/v1/speak?model={tts_model}"))
                         //.post("https://api.deepgram.com/v1/speak?model=aura-stella-en")
                         .header("Content-Type", "application/json")
                         .header("Authorization", format!("Token {}", dg_api_key))

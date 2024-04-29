@@ -143,6 +143,31 @@ fn build_session_context() -> TnContext {
         context.add_component(prompt_box);
     }
 
+    {
+        component_id += 1;
+        let default_mode = "aura-arcas-en".into();
+        let model_options = vec![
+            ("aura-asteria-en".into(), "Asteria (F)".into()),
+            ("aura-luna-en".into(), "Luna (F)".into()),
+            ("aura-stella-en".into(), "Stella (F)".into()),
+            ("aura-hera-en".into(), "Hera (F)".into()),
+            ("aura-orion-en".into(), "Orion (M)".into()),
+            ("aura-arcas-en".into(), "Arcas (M)".into()),
+            ("aura-perseus-en".into(), "Perseus (M)".into()),
+            ("aura-angus-en".into(), "Angus (M)".into()),
+            ("aura-orpheus-en".into(), "Orpheus (M)".into()),
+            ("aura-helios-en".into(), "Helios (M)".into()),
+            ("aura-zeus-en".into(), "Zeus (M)".into()),
+        ];
+        let tts_model_select = TnSelect::<'static>::new(
+            component_id,
+            "tts_model_select".into(),
+            default_mode,
+            model_options,
+        );
+        context.add_component(tts_model_select);
+    }
+
     // create a TnContext so we can pass to some services which need to interact with the components
     let context = TnContext {
         base: Arc::new(RwLock::new(context)),
@@ -198,6 +223,7 @@ struct AppPageTemplate {
     status: String,
     prompt: String,
     reset_button: String,
+    tts_model_select: String
 }
 
 fn layout(context: TnContext) -> String {
@@ -209,6 +235,7 @@ fn layout(context: TnContext) -> String {
     let status = guard.first_render_to_string("status");
     let prompt = guard.first_render_to_string("prompt");
     let reset_button = guard.first_render_to_string("reset_button");
+    let tts_model_select = guard.first_render_to_string("tts_model_select"); 
 
     let html = AppPageTemplate {
         btn,
@@ -218,6 +245,7 @@ fn layout(context: TnContext) -> String {
         status,
         prompt,
         reset_button,
+        tts_model_select
     };
     html.render().unwrap()
 }
@@ -325,24 +353,27 @@ fn reset_conversation(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
-        let llm_tx = context
-            .read()
-            .await
-            .services
-            .get("llm_service")
-            .unwrap()
-            .0
-            .clone();
-        let (tx, mut rx) = oneshot::channel::<String>();
+        {
+            // send message to the llm service to clean up the history
+            let llm_tx = context
+                .read()
+                .await
+                .services
+                .get("llm_service")
+                .unwrap()
+                .0
+                .clone();
+            let (tx, mut rx) = oneshot::channel::<String>();
 
-        let llm_req_msg = TnServiceRequestMsg {
-            request: "clear-history".into(),
-            payload: TnAsset::String("".into()),
-            response: tx,
-        };
+            let llm_req_msg = TnServiceRequestMsg {
+                request: "clear-history".into(),
+                payload: TnAsset::String("".into()),
+                response: tx,
+            };
 
-        let _ = llm_tx.send(llm_req_msg).await;
-        let _ = rx.try_recv();
+            let _ = llm_tx.send(llm_req_msg).await;
+            let _ = rx.try_recv();
+        }
 
         let sse_tx = context.get_sse_tx_with_context().await;
         {
@@ -368,6 +399,7 @@ fn reset_conversation(
             send_sse_msg_to_client(&sse_tx, msg).await;
         }
         {
+            // set the reset button back to the ready state
             context
                 .set_state_for_component("reset_button", TnComponentState::Ready)
                 .await;

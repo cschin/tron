@@ -45,17 +45,19 @@
     <input type="radio" name="tabs" role="tab" class="tab" aria-label="Configure
     " />
     <div role="tabpanel" class="tab-content bg-base-1 textarea textarea-bordered00 border-base-300 rounded-box p-6">
-        <div class="flex flow-row">
-            <div class="basis-4/5 flex-col p-2">
-                <div class="p-1">You can update the prompt below</div>
-                <div class="flex flex-row">
-                    {{ prompt }}
+        <div class="container mx-auto p-4">
+            <div class="flex flow-row">
+                <div class="basis-4/5 flex-col p-2">
+                    <div class="p-1">You can update the prompt below</div>
+                    <div class="flex flex-row">
+                        {{ prompt }}
+                    </div>
                 </div>
-            </div>
-            <div class="basis-1/5 flex-col p-2">
-                <div class="p-1">Choose voice</div>
-                <div class="flex flex-row">
-                    {{ tts_model_select }}
+                <div class="basis-1/5 flex-col p-2">
+                    <div class="p-1">Choose voice</div>
+                    <div class="flex flex-row">
+                        {{ tts_model_select }}
+                    </div>
                 </div>
             </div>
         </div>

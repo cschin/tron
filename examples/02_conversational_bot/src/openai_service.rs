@@ -43,7 +43,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
         } else {
             "You a useful assistant.".to_string()
         };
-        tracing::info!(target: "tron_app", "prompt: {}", prompt1);
+        // tracing::info!(target: "tron_app", "prompt: {}", prompt1);
 
         if let TnAsset::String(query) = r.payload {
             history.push(("user".into(), query.clone()));
@@ -118,8 +118,13 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                                 // tracing::info!(target: "tron_app", "LLM delta content: {}", content);
                                 llm_response.push(content.clone());
                                 let s = llm_response.join("");
-                                let last_100 = s.len() % 100;
-                                let s = s[s.len()-last_100..].to_string(); 
+                                let last_100 = s.len() % 100 + 1;
+                                
+                                let s = if s.len()-last_100 > 0 {
+                                    s[s.len()-last_100..].to_string()
+                                } else {
+                                    s
+                                }; 
                                 text::update_and_send_textarea_with_context(context.clone(), "llm_stream_output", &s).await;
                             }
                         }
@@ -130,8 +135,12 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                 }
             }
             let s = llm_response.join("");
-            let last_100 = s.len() % 100;
-            let s = s[s.len()-last_100..].to_string(); 
+            let last_100 = s.len() % 100 + 1;
+            let s = if s.len()-last_100 > 0 {
+                s[s.len()-last_100..].to_string()
+            } else {
+                s
+            }; 
             text::update_and_send_textarea_with_context(context.clone(), "llm_stream_output", &s).await;
 
             let llm_response = llm_response.join("");

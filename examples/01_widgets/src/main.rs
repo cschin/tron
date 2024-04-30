@@ -17,10 +17,10 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 async fn main() {
     // set app state
     let app_share_data = tron_app::AppData {
-        session_context: RwLock::new(HashMap::default()),
+        context: RwLock::new(HashMap::default()),
         event_actions: RwLock::new(TnEventActions::default()),
-        build_session_context: Arc::new(Box::new(build_session_context)),
-        build_session_actions: Arc::new(Box::new(build_session_actions)),
+        build_context: Arc::new(Box::new(build_session_context)),
+        build_actions: Arc::new(Box::new(build_session_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
     tron_app::run(app_share_data, None).await

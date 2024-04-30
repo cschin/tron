@@ -46,10 +46,10 @@ type ActionFunctionTemplate = Arc<Box<dyn Fn(TnContext) -> TnEventActions + Send
 type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
 
 pub struct AppData {
-    pub session_context: SessionContext,
+    pub context: SessionContext,
     pub event_actions: EventActions,
-    pub build_session_context: ContextBuilder,
-    pub build_session_actions: ActionFunctionTemplate,
+    pub build_context: ContextBuilder,
+    pub build_actions: ActionFunctionTemplate,
     pub build_layout: LayoutFunction,
 }
 
@@ -146,11 +146,11 @@ async fn load_page(
     };
 
     {
-        let mut session_contexts = app_data.session_context.write().await;
+        let mut session_contexts = app_data.context.write().await;
         let context = if session_contexts.contains_key(&session_id) {
             session_contexts.get_mut(&session_id).unwrap()
         } else {
-            let new_context = tokio::task::block_in_place(|| (*app_data.build_session_context)());
+            let new_context = tokio::task::block_in_place(|| (*app_data.build_context)());
             session_contexts.entry(session_id).or_insert(new_context)
         };
 
@@ -162,11 +162,11 @@ async fn load_page(
         }
     };
 
-    let context_guard = app_data.session_context.read().await;
+    let context_guard = app_data.context.read().await;
     let context = context_guard.get(&session_id).unwrap().clone();
     let mut app_event_action_guard = app_data.event_actions.write().await;
     app_event_action_guard.clone_from(&tokio::task::block_in_place(|| {
-        (*app_data.build_session_actions)(context.clone())
+        (*app_data.build_actions)(context.clone())
     }));
 
     let context = context_guard.get(&session_id).unwrap().clone();
@@ -230,7 +230,7 @@ async fn tron_entry(
         return (StatusCode::FORBIDDEN, response_headers, Body::default());
     };
     {
-        let context = app_data.session_context.read().await;
+        let context = app_data.context.read().await;
         if !context.contains_key(&session_id) {
             //return Err(StatusCode::FORBIDDEN);
             return (StatusCode::FORBIDDEN, response_headers, Body::default());
@@ -244,7 +244,7 @@ async fn tron_entry(
 
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {
-                let context_guard = app_data.session_context.read().await;
+                let context_guard = app_data.context.read().await;
                 let context = context_guard.get(&session_id).unwrap().clone();
                 context
                     .set_value_for_component(&evt.e_target, TnComponentValue::String(value))
@@ -259,7 +259,7 @@ async fn tron_entry(
 
         if has_event_action {
             {
-                let session_guard = app_data.session_context.read().await;
+                let session_guard = app_data.context.read().await;
                 let context = session_guard.get(&session_id).unwrap().clone();
                 let component = context.get_component(&evt.e_target).await;
                 if *component.read().await.state() == TnComponentState::Ready {
@@ -267,7 +267,7 @@ async fn tron_entry(
                 };
             }
 
-            let context_guard = app_data.session_context.read().await;
+            let context_guard = app_data.context.read().await;
             let context = context_guard.get(&session_id).unwrap().clone();
 
             let event_action_guard = app_data.event_actions.write().await;
@@ -284,7 +284,7 @@ async fn tron_entry(
         }
     };
 
-    let context_guard = app_data.session_context.read().await;
+    let context_guard = app_data.context.read().await;
     let components = &context_guard
         .get(&session_id)
         .unwrap()
@@ -372,14 +372,14 @@ async fn sse_event_handler(
     };
 
     {
-        let context_guard = app_data.session_context.read().await;
+        let context_guard = app_data.context.read().await;
         if !context_guard.contains_key(&session_id) {
             return Err(StatusCode::FORBIDDEN);
         }
     }
 
     let stream = {
-        let mut session_guard = app_data.session_context.write().await;
+        let mut session_guard = app_data.context.write().await;
         let context_guard = session_guard.get_mut(&session_id).unwrap().write().await;
         let mut channel_guard = context_guard.sse_channels.write().await;
         if let Some(rx) = channel_guard.as_mut().unwrap().rx.take() {
@@ -417,14 +417,14 @@ async fn tron_stream(
         return (StatusCode::FORBIDDEN, default_header, Body::default());
     };
     {
-        let context_guard = app_data.session_context.read().await;
+        let context_guard = app_data.context.read().await;
         if !context_guard.contains_key(&session_id) {
             return (StatusCode::FORBIDDEN, default_header, Body::default());
         }
     }
 
     {
-        let session_guard = app_data.session_context.read().await;
+        let session_guard = app_data.context.read().await;
         let context_guard = session_guard.get(&session_id).unwrap().read().await;
         let stream_data_guard = &context_guard.stream_data.read().await;
         if !stream_data_guard.contains_key(&stream_id) {
@@ -433,7 +433,7 @@ async fn tron_stream(
     }
 
     let (protocol, data_queue) = {
-        let session_guard = app_data.session_context.read().await;
+        let session_guard = app_data.context.read().await;
         let context_guard = session_guard.get(&session_id).unwrap().write().await;
         let mut channels = context_guard.stream_data.write().await;
 

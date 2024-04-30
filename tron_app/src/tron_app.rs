@@ -72,7 +72,7 @@ pub async fn run(app_share_data: AppData, log_level: Option<&str>) {
     let session_store = MemoryStore::default();
     let session_layer = SessionManagerLayer::new(session_store.clone())
         .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::minutes(10)));
+        .with_expiry(Expiry::OnInactivity(Duration::minutes(20)));
 
     let serve_dir = ServeDir::new("static").not_found_service(ServeFile::new("static/index.html"));
 
@@ -259,12 +259,9 @@ async fn tron_entry(
 
         if has_event_action {
             {
-                let session_context_guard = app_data.session_context.read().await;
-                let session_context = session_context_guard.get(&session_id).unwrap().clone();
-                let context_guard = session_context.write().await;
-                let id = context_guard.get_component_id(&evt.e_target.clone());
-                let mut components_guard = context_guard.components.write().await;
-                let component = components_guard.get_mut(&id).unwrap();
+                let session_guard = app_data.session_context.read().await;
+                let context = session_guard.get(&session_id).unwrap().clone();
+                let component = context.get_component(&evt.e_target).await;
                 if *component.read().await.state() == TnComponentState::Ready {
                     component.write().await.set_state(TnComponentState::Pending);
                 };
@@ -288,7 +285,6 @@ async fn tron_entry(
     };
 
     let context_guard = app_data.session_context.read().await;
-
     let components = &context_guard
         .get(&session_id)
         .unwrap()
@@ -303,7 +299,9 @@ async fn tron_entry(
         let target = target_guard.read().await;
         tokio::task::block_in_place(|| target.render())
     });
+
     let mut header_to_be_removed = Vec::<String>::new();
+
     target_guard
         .write()
         .await
@@ -314,13 +312,17 @@ async fn tron_entry(
                 HeaderName::from_bytes(k.as_bytes()).unwrap(),
                 HeaderValue::from_bytes(v.0.as_bytes()).unwrap(),
             );
-            if v.1 {header_to_be_removed.push(k.clone());};
+            if v.1 {
+                header_to_be_removed.push(k.clone());
+            };
         });
-    
+
+    // remove the header items that we only want to use it once
     for k in header_to_be_removed {
         target_guard.write().await.remove_header(k);
-    }  
-                                                        // println!("response_headers: {:?}", response_headers);
+    }
+
+    // println!("response_headers: {:?}", response_headers);
     (StatusCode::OK, response_headers, body)
 }
 
@@ -439,6 +441,7 @@ async fn tron_stream(
         let data_queue = data_queue.iter().cloned().collect::<Vec<_>>();
         (protocol.clone(), data_queue)
     };
+
     let header = [
         (header::CONTENT_TYPE, protocol),
         (
@@ -458,9 +461,12 @@ async fn tron_stream(
         tracing::debug!(target: "tron_app", "stream data_queue empty");
         return (StatusCode::NOT_FOUND, default_header, Body::default());
     }
+
     tracing::debug!(target: "tron_app", "stream data_queue NOT empty");
+
     let data_queue = futures_util::stream::iter(data_queue);
 
     let body = Body::from_stream(data_queue);
+
     (StatusCode::OK, header, body)
 }

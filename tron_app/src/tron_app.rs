@@ -303,6 +303,7 @@ async fn tron_entry(
         let target = target_guard.read().await;
         tokio::task::block_in_place(|| target.render())
     });
+    let mut header_to_be_removed = Vec::<String>::new();
     target_guard
         .write()
         .await
@@ -311,9 +312,14 @@ async fn tron_entry(
         .for_each(|(k, v)| {
             response_headers.insert(
                 HeaderName::from_bytes(k.as_bytes()).unwrap(),
-                HeaderValue::from_bytes(v.as_bytes()).unwrap(),
+                HeaderValue::from_bytes(v.0.as_bytes()).unwrap(),
             );
+            if v.1 {header_to_be_removed.push(k.clone());};
         });
+    
+    for k in header_to_be_removed {
+        target_guard.write().await.remove_header(k);
+    }  
                                                         // println!("response_headers: {:?}", response_headers);
     (StatusCode::OK, response_headers, body)
 }

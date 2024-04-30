@@ -134,7 +134,6 @@ pub async fn append_chatbox_value(
 ) {
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::ChatBox);
-    comp.remove_header("hx-reswap".into()); // after reset this is set, remove it for appending the text
     if let TnComponentValue::VecString2(v) = comp.get_mut_value() {
         v.push(tag_msg);
     }
@@ -156,7 +155,7 @@ pub async fn clean_chatbox_with_context(context: TnContext, tron_id: &str) {
         {
             let mut guard = comp.write().await;
             guard.set_state(TnComponentState::Ready);
-            guard.set_header("hx-reswap".into(), "innerHTML".into());
+            guard.set_header("hx-reswap".into(), ("innerHTML".into(), true));
 
             let msg = SseTriggerMsg {
                 server_side_trigger: TriggerData {

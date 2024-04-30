@@ -174,7 +174,6 @@ impl<'a: 'static> TnStreamTextArea<'a> {
 pub async fn append_stream_textarea(comp: TnComponent<'static>, new_str: &str) {
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::StreamTextArea);
-    comp.remove_header("hx-reswap".into()); // we may want to find a way only call this once
     if let TnComponentValue::VecString(v) = comp.get_mut_value() {
         v.push(new_str.to_string());
     }
@@ -217,7 +216,7 @@ pub async fn clean_stream_textarea_with_context(context: TnContext, tron_id: &st
         {
             let mut guard = comp.write().await;
             guard.set_state(TnComponentState::Ready);
-            guard.set_header("hx-reswap".into(), "innerHTML".into());
+            guard.set_header("hx-reswap".into(), ("innerHTML".into(), true));
 
             let msg = SseTriggerMsg {
                 server_side_trigger: TriggerData {

@@ -31,7 +31,7 @@ use serde::Deserialize;
 
 pub type TnComponentId = u32;
 pub type TnElmAttributes = HashMap<String, String>;
-pub type TnExtraResponseHeader = HashMap<String, String>;
+pub type TnExtraResponseHeader = HashMap<String, (String, bool)>; // (String, bool) = (value, remove after use?)
 pub type TnElmTag = String;
 pub type TnComponent<'a> = Arc<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>;
 
@@ -276,7 +276,7 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn generate_attr_string(&self) -> String;
 
     fn extra_headers(&self) -> &TnExtraResponseHeader;
-    fn set_header(&mut self, key: String, value: String);
+    fn set_header(&mut self, key: String, value: (String, bool));
     fn remove_header(&mut self, key: String);
     fn clear_header(&mut self);
 
@@ -385,7 +385,7 @@ where
         &self.extra_response_headers
     }
 
-    fn set_header(&mut self, key: String, val: String) {
+    fn set_header(&mut self, key: String, val: (String, bool)) {
         self.extra_response_headers.insert(key, val);
     }
 

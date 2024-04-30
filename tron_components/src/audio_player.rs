@@ -64,7 +64,8 @@ pub async fn start_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
     {
         let mut comp = comp.write().await;
         assert!(comp.get_type() == TnComponentType::AudioPlayer);
-        comp.remove_header("HX-Reswap".into()); // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
+        // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
+        comp.remove_header("HX-Reswap".into()); 
         comp.set_state(TnComponentState::Updating);
     }
 
@@ -87,8 +88,8 @@ pub fn stop_audio_playing_action(
         {
             let guard = context.get_component(&event.e_target.clone()).await;
             let mut player = guard.write().await;
-
-            player.set_header("HX-Reswap".into(), "none".into()); // we don't want to swap the element, or it will replay the audio
+            // we don't want to swap the element, or it will replay the audio. the "false" make the header persist until next play event
+            player.set_header("HX-Reswap".into(), ("none".into(), false)); 
             player.set_state(TnComponentState::Ready);
         }
         {

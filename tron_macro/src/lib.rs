@@ -43,7 +43,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.base.extra_headers()
             }
 
-            fn set_header(&mut self, key: String, val: String) {
+            fn set_header(&mut self, key: String, val: (String, bool)) {
                 self.base
                     .extra_response_headers
                     .insert(key, val);

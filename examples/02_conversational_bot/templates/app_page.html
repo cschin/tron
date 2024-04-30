@@ -56,7 +56,12 @@
                         {{ prompt }}
                     </div>
                 </div>
+
                 <div class="basis-1/5 flex-col p-2">
+                    <div class="p-1">Select prompt preset</div>
+                    <div class="flex flex-row">
+                        {{ preset_prompt_select }}
+                    </div>
                     <div class="p-1">Choose voice</div>
                     <div class="flex flex-row">
                         {{ tts_model_select }}

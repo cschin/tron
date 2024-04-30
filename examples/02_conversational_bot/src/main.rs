@@ -137,7 +137,7 @@ fn build_session_context() -> TnContext {
 
     {
         component_id += 1;
-        let prompt = include_str!("../templates/prompt1.txt");
+        let prompt = include_str!("../templates/drunk-bioinformatist.txt");
         let mut prompt_box =
             TnTextArea::<'static>::new(component_id, "prompt".into(), prompt.into());
         prompt_box.remove_attribute("disabled".into());
@@ -157,7 +157,7 @@ fn build_session_context() -> TnContext {
 
     {
         component_id += 1;
-        let default_mode = "aura-arcas-en".into();
+        let default_model = "aura-arcas-en".into();
         let model_options = vec![
             ("aura-asteria-en".into(), "Asteria (F)".into()),
             ("aura-luna-en".into(), "Luna (F)".into()),
@@ -171,13 +171,52 @@ fn build_session_context() -> TnContext {
             ("aura-helios-en".into(), "Helios (M)".into()),
             ("aura-zeus-en".into(), "Zeus (M)".into()),
         ];
-        let tts_model_select = TnSelect::<'static>::new(
+        let mut tts_model_select = TnSelect::<'static>::new(
             component_id,
             "tts_model_select".into(),
-            default_mode,
+            default_model,
             model_options,
         );
+
+        tts_model_select.set_attribute(
+            "class".into(),
+            "select select-bordered w-full max-w-xs".into(),
+        );
         context.add_component(tts_model_select);
+    }
+
+    {
+        component_id += 1;
+        let default_prompt = "drunk-bioinformatist".into();
+        let prompt_options = vec![
+            ("drunk-bioinformatist".into(), "Drunk Bioinformatist".into()),
+            ("socrat".into(), "Socrat".into()),
+            ("poet".into(), "Poet".into()),
+        ];
+        let mut preset_prompt_select = TnSelect::<'static>::new(
+            component_id,
+            "preset_prompt_select".into(),
+            default_prompt,
+            prompt_options,
+        );
+        preset_prompt_select.set_attribute(
+            "class".into(),
+            "select select-bordered w-full max-w-xs".into(),
+        );
+        context.add_component(preset_prompt_select);
+
+        let mut prompts = HashMap::<String, String>::default();
+        let prompt = include_str!("../templates/drunk-bioinformatist.txt");
+        prompts.insert("drunk-bioinformatist".into(), prompt.into());
+        let prompt = include_str!("../templates/Socrat.txt");
+        prompts.insert("socrat".into(), prompt.into());
+        let prompt = include_str!("../templates/poet.txt");
+        prompts.insert("poet".into(), prompt.into());
+        let prompts = TnAsset::HashMapString(prompts);
+        context
+            .asset
+            .blocking_write()
+            .insert("prompts".into(), prompts);
     }
 
     // create a TnContext so we can pass to some services which need to interact with the components
@@ -237,6 +276,7 @@ struct AppPageTemplate {
     reset_button: String,
     tts_model_select: String,
     llm_stream_output: String,
+    preset_prompt_select: String,
 }
 
 fn layout(context: TnContext) -> String {
@@ -250,6 +290,7 @@ fn layout(context: TnContext) -> String {
     let reset_button = guard.first_render_to_string("reset_button");
     let tts_model_select = guard.first_render_to_string("tts_model_select");
     let llm_stream_output = guard.first_render_to_string("llm_stream_output");
+    let preset_prompt_select = guard.first_render_to_string("preset_prompt_select");
 
     let html = AppPageTemplate {
         btn,
@@ -261,6 +302,7 @@ fn layout(context: TnContext) -> String {
         reset_button,
         tts_model_select,
         llm_stream_output,
+        preset_prompt_select,
     };
     html.render().unwrap()
 }
@@ -334,6 +376,23 @@ fn build_session_actions(_context: TnContext) -> TnEventActions {
         );
     }
 
+    {
+        // for preset_prompt_select
+        let evt = TnEvent {
+            e_target: "preset_prompt_select".into(),
+            e_type: "change".into(),
+            e_state: "ready".into(),
+        };
+
+        actions.insert(
+            evt,
+            (
+                ActionExecutionMethod::Await,
+                Arc::new(preset_prompt_select_change),
+            ),
+        );
+    }
+
     actions
 }
 
@@ -358,6 +417,39 @@ fn _do_nothing(
         send_sse_msg_to_client(&sse_tx, msg).await;
         let comp = context.get_component(&event.e_target).await;
         tracing::info!(target: "tron_app", "value: {:?}", comp.read().await.value());
+    };
+    Box::pin(f)
+}
+
+fn preset_prompt_select_change(
+    context: TnContext,
+    _event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    let f = async move {
+        let value = context.get_value_from_component("preset_prompt_select").await;
+        tracing::info!(target: "tron_app", "preset_prompt_select_change, value:{:?}", value);
+        let s = if let TnComponentValue::String(s) = value {
+            s
+        } else {
+            "".into()
+        };
+        let prompt = if let Some(m) = context.read().await.asset.read().await.get("prompts") {
+            if let TnAsset::HashMapString(ref m) = m {
+                m.get(&s).unwrap().clone()
+       
+            } else {
+                "".to_string()
+            }
+
+        } else {
+            "".into()
+        };
+        // tracing::info!(target: "tron_app", "preset_prompt_select_change, prompt:{}", prompt);
+        context.set_value_for_component("prompt", TnComponentValue::String(prompt)).await;
+        set_ready_with_context_for(context.clone(), "prompt").await;
+       
+        set_ready_with_context_for(context.clone(), "preset_prompt_select").await;
     };
     Box::pin(f)
 }
@@ -751,8 +843,13 @@ async fn transcript_post_processing_service(
                 if let TnAsset::String(transcript) = response.payload {
                     if !transcript.is_empty() {
                         let mut assets_guard = assets.write().await;
-                        let e = assets_guard.entry("transcript".into()).or_default();
-                        (*e).push(TnAsset::String(transcript.clone()));
+                        let e = assets_guard
+                            .entry("transcript".into())
+                            .or_insert(TnAsset::VecString(Vec::default()));
+                        if let TnAsset::VecString(ref mut v) = e {
+                            v.push(transcript.clone());
+                        }
+                        //(*e).push(TnAsset::String(transcript.clone()));
 
                         append_and_send_stream_textarea_with_context(
                             context.clone(),

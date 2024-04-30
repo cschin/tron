@@ -119,7 +119,7 @@ pub struct TnSseMsgChannel {
 
 pub type TnComponentMap<'a> = Arc<RwLock<HashMap<u32, TnComponent<'a>>>>;
 pub type TnStreamData = Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>;
-pub type TnContextAsset = Arc<RwLock<HashMap<String, Vec<TnAsset>>>>;
+pub type TnContextAsset = Arc<RwLock<HashMap<String, TnAsset>>>;
 pub type TnSeeChannels = Arc<RwLock<Option<TnSseMsgChannel>>>;
 pub type TnService = (
     Sender<TnServiceRequestMsg>,

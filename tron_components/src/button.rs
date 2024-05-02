@@ -7,7 +7,7 @@ pub struct TnButton<'a: 'static> {
 }
 
 impl<'a: 'static> TnButton<'a> {
-    pub fn new(id: TnComponentId, name: String, value: String) -> Self {
+    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("button".into(), id, name, TnComponentType::Button);
         base.set_value(TnComponentValue::String(value));
         base.set_attribute("hx-trigger".into(), "click, server_side_trigger".into());

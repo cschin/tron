@@ -49,12 +49,12 @@ async fn main() {
 
 fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
-    let mut component_id = 0_u32;
+    let mut component_index = 0_u32;
 
     {
         // add a recorder button
         let mut btn = TnButton::new(
-            component_id,
+            component_index,
             "rec_button".into(),
             "Start Conversation".into(),
         );
@@ -66,9 +66,9 @@ fn build_session_context() -> TnContext {
     }
     {
         // add a recorder
-        component_id += 1;
+        component_index += 1;
         let recorder = TnAudioRecorder::<'static>::new(
-            component_id,
+            component_index,
             "recorder".to_string(),
             "Paused".to_string(),
         );
@@ -76,18 +76,18 @@ fn build_session_context() -> TnContext {
     }
     {
         // add a player
-        component_id += 1;
+        component_index += 1;
         let mut player =
-            TnAudioPlayer::<'static>::new(component_id, "player".to_string(), "Paused".to_string());
+            TnAudioPlayer::<'static>::new(component_index, "player".to_string(), "Paused".to_string());
         player.set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string());
         context.add_component(player);
     }
 
     {
         // add a reset button
-        component_id += 1;
+        component_index += 1;
         let mut btn = TnButton::new(
-            component_id,
+            component_index,
             "reset_button".into(),
             "Reset The Conversation".into(),
         );
@@ -99,9 +99,9 @@ fn build_session_context() -> TnContext {
     }
     {
         // add a chatbox
-        component_id += 1;
+        component_index += 1;
         let mut transcript_output =
-            TnChatBox::<'static>::new(component_id, "transcript".to_string(), vec![]);
+            TnChatBox::<'static>::new(component_index, "transcript".to_string(), vec![]);
         transcript_output.set_attribute(
             "class".to_string(),
             "flex flex-col overflow-auto flex-1 p-2".to_string(),
@@ -111,9 +111,9 @@ fn build_session_context() -> TnContext {
     }
     {
         // add a textarea showing partial stream content
-        component_id += 1;
+        component_index += 1;
         let mut llm_stream_output =
-            TnTextArea::<'static>::new(component_id, "llm_stream_output".to_string(), "".into());
+            TnTextArea::<'static>::new(component_index, "llm_stream_output".to_string(), "".into());
         llm_stream_output.set_attribute(
             "class".to_string(),
             "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19".to_string(),
@@ -123,9 +123,9 @@ fn build_session_context() -> TnContext {
 
     {
         // add a status box
-        component_id += 1;
+        component_index += 1;
         let mut status_output =
-            TnStreamTextArea::<'static>::new(component_id, "status".to_string(), vec![]);
+            TnStreamTextArea::<'static>::new(component_index, "status".to_string(), vec![]);
         status_output.set_attribute(
             "class".to_string(),
             "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),
@@ -136,10 +136,10 @@ fn build_session_context() -> TnContext {
     }
 
     {
-        component_id += 1;
+        component_index += 1;
         let prompt = include_str!("../templates/drunk-bioinformatist.txt");
         let mut prompt_box =
-            TnTextArea::<'static>::new(component_id, "prompt".into(), prompt.into());
+            TnTextArea::<'static>::new(component_index, "prompt".into(), prompt.into());
         prompt_box.remove_attribute("disabled".into());
         prompt_box.set_attribute("hx-trigger".into(), "change, server_side_trigger".into()); // change will update the value one the textarea is out of focus
 
@@ -156,7 +156,7 @@ fn build_session_context() -> TnContext {
     }
 
     {
-        component_id += 1;
+        component_index += 1;
         let default_model = "aura-arcas-en".into();
         let model_options = vec![
             ("aura-asteria-en".into(), "Asteria (F)".into()),
@@ -172,7 +172,7 @@ fn build_session_context() -> TnContext {
             ("aura-zeus-en".into(), "Zeus (M)".into()),
         ];
         let mut tts_model_select = TnSelect::<'static>::new(
-            component_id,
+            component_index,
             "tts_model_select".into(),
             default_model,
             model_options,
@@ -186,7 +186,7 @@ fn build_session_context() -> TnContext {
     }
 
     {
-        component_id += 1;
+        component_index += 1;
         let default_prompt = "drunk-bioinformatist".into();
         let prompt_options = vec![
             ("drunk-bioinformatist".into(), "Drunk Bioinformatist".into()),
@@ -194,7 +194,7 @@ fn build_session_context() -> TnContext {
             ("poet".into(), "Poet".into()),
         ];
         let mut preset_prompt_select = TnSelect::<'static>::new(
-            component_id,
+            component_index,
             "preset_prompt_select".into(),
             default_prompt,
             prompt_options,

@@ -12,7 +12,7 @@ pub struct TnTextArea<'a: 'static> {
 }
 
 impl<'a: 'static> TnTextArea<'a> {
-    pub fn new(id: TnComponentId, name: String, value: String) -> Self {
+    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("textarea".into(), id, name, TnComponentType::TextArea);
         base.set_value(TnComponentValue::String(value));
         base.set_attribute("disabled".into(), "".into());
@@ -120,7 +120,7 @@ pub struct TnStreamTextArea<'a: 'static> {
 }
 
 impl<'a: 'static> TnStreamTextArea<'a> {
-    pub fn new(id: TnComponentId, name: String, value: Vec<String>) -> Self {
+    pub fn new(id: TnComponentIndex, name: String, value: Vec<String>) -> Self {
         let mut base =
             TnComponentBase::new("textarea".into(), id, name, TnComponentType::StreamTextArea);
         base.set_value(TnComponentValue::VecString(value));
@@ -239,7 +239,7 @@ pub struct TnTextInput<'a: 'static> {
 }
 
 impl<'a: 'static> TnTextInput<'a> {
-    pub fn new(id: TnComponentId, name: String, value: String) -> Self {
+    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("input".into(), id, name, TnComponentType::TextInput);
         base.set_value(TnComponentValue::String(value.to_string()));
 

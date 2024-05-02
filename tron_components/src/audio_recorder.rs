@@ -14,7 +14,7 @@ pub struct TnAudioRecorder<'a: 'static> {
 }
 
 impl<'a: 'static> TnAudioRecorder<'a> {
-    pub fn new(id: TnComponentId, name: String, value: String) -> Self {
+    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base =
             TnComponentBase::new("div".to_string(), id, name, TnComponentType::AudioRecorder);
         base.set_value(TnComponentValue::String(value));

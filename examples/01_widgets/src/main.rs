@@ -129,12 +129,12 @@ fn test_event_actions(
 
 fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
-    let mut component_id = 0_u32;
+    let mut component_index = 0_u32;
     loop {
         let mut btn = TnButton::<'static>::new(
-            component_id,
-            format!("btn-{:02}", component_id),
-            format!("{:02}", component_id),
+            component_index,
+            format!("btn-{:02}", component_index),
+            format!("{:02}", component_index),
         );
 
         btn.set_attribute(
@@ -143,15 +143,15 @@ fn build_session_context() -> TnContext {
         );
 
         context.add_component(btn);
-        component_id += 1;
-        if component_id >= 10 {
+        component_index += 1;
+        if component_index >= 10 {
             break;
         }
     }
 
-    component_id += 1;
+    component_index += 1;
     let mut stream_textarea = TnStreamTextArea::<'static>::new(
-        component_id,
+        component_index,
         "stream_textarea".into(),
         vec!["This is a stream-able textarea\n".to_string()],
     );
@@ -163,9 +163,9 @@ fn build_session_context() -> TnContext {
 
     context.add_component(stream_textarea);
 
-    component_id += 1;
+    component_index += 1;
     let mut textarea = TnTextArea::<'static>::new(
-        component_id,
+        component_index,
         "textarea".into(),
         "This is a textarea\n".to_string(),
     );
@@ -177,7 +177,7 @@ fn build_session_context() -> TnContext {
 
     context.add_component(textarea);
 
-    component_id += 1;
+    component_index += 1;
 
     let checklist_items = vec![
         "checkbox-1".to_string(),
@@ -191,20 +191,20 @@ fn build_session_context() -> TnContext {
     let container_attributes = vec![("class".to_string(), "flex-1".to_string())];
     checklist::add_checklist_to_context(
         &mut context,
-        &mut component_id,
+        &mut component_index,
         checklist_tron_id,
         checklist_items,
         container_attributes,
     );
     {
         let component_guard = context.components.blocking_read();
-        let checklist_guard = component_guard.get(&component_id).unwrap();
+        let checklist_guard = component_guard.get(&component_index).unwrap();
         checklist_guard
             .blocking_write()
             .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
     }
     {
-        component_id += 1;
+        component_index += 1;
         let select_options = vec![
             ("one".into(), "One".into()),
             ("two".into(), "Two".into()),
@@ -212,7 +212,7 @@ fn build_session_context() -> TnContext {
         ];
 
         let select = TnSelect::<'static>::new(
-            component_id,
+            component_index,
             "select_one".into(),
             "one".into(),
             select_options,
@@ -221,9 +221,9 @@ fn build_session_context() -> TnContext {
     }
 
     {
-        component_id += 1;
+        component_index += 1;
         let mut clean_button = TnButton::<'static>::new(
-            component_id,
+            component_index,
             "clean_stream_textarea".into(),
             "clean_stream_textarea".into(),
         );
@@ -235,9 +235,9 @@ fn build_session_context() -> TnContext {
     }
 
     {
-        component_id += 1;
+        component_index += 1;
         let mut clean_button = TnButton::<'static>::new(
-            component_id,
+            component_index,
             "clean_textarea".into(),
             "clean_textarea".into(),
         );
@@ -249,9 +249,9 @@ fn build_session_context() -> TnContext {
     }
 
     {
-        component_id += 1;
+        component_index += 1;
         let mut clean_button = TnButton::<'static>::new(
-            component_id,
+            component_index,
             "clean_textinput".into(),
             "clean_textinput".into(),
         );
@@ -263,9 +263,9 @@ fn build_session_context() -> TnContext {
     }
 
     {
-        component_id += 1;
+        component_index += 1;
         let mut textinput =
-            TnTextInput::<'static>::new(component_id, "textinput".into(), "".into());
+            TnTextInput::<'static>::new(component_index, "textinput".into(), "".into());
         textinput.set_attribute("class".into(), "input input-bordered w-full".into());
 
         context.add_component(textinput);

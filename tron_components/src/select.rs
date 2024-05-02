@@ -8,7 +8,7 @@ pub struct TnSelect<'a: 'static> {
 
 impl<'a: 'static> TnSelect<'a> {
     pub fn new(
-        id: TnComponentId,
+        id: TnComponentIndex,
         tron_id: String,
         value: String,
         options: Vec<(String, String)>,

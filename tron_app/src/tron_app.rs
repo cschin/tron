@@ -15,7 +15,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    ActionExecutionMethod, TnComponentId, TnComponentState, TnComponentValue, TnContext, TnEvent,
+    ActionExecutionMethod, TnComponentIndex, TnComponentState, TnComponentValue, TnContext, TnEvent,
     TnEventActions, TnSseMsgChannel,
 };
 //use std::sync::Mutex;
@@ -215,7 +215,7 @@ async fn tron_entry(
     State(app_data): State<Arc<AppData>>,
     session: Session,
     headers: HeaderMap,
-    Path(tron_id): Path<TnComponentId>,
+    Path(tron_id): Path<TnComponentIndex>,
     Json(payload): Json<Value>,
     //request: Request,
 ) -> impl IntoResponse {

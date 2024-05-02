@@ -16,7 +16,7 @@ pub struct TnAudioPlayer<'a: 'static> {
 }
 
 impl<'a: 'static> TnAudioPlayer<'a> {
-    pub fn new(id: TnComponentId, name: String, value: String) -> Self {
+    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new(
             "audio".to_string(),
             id,

@@ -8,7 +8,7 @@ pub struct TnCheckList<'a: 'static> {
 }
 
 impl<'a: 'static> TnCheckList<'a> {
-    pub fn new(id: TnComponentId, name: String, value: HashMap<String, bool>) -> Self {
+    pub fn new(id: TnComponentIndex, name: String, value: HashMap<String, bool>) -> Self {
         let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
         base.set_value(TnComponentValue::CheckItems(value));
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
@@ -57,7 +57,7 @@ pub struct TnCheckBox<'a: 'static> {
 }
 
 impl<'a: 'static> TnCheckBox<'a> {
-    pub fn new(id: TnComponentId, name: String, value: bool) -> Self {
+    pub fn new(id: TnComponentIndex, name: String, value: bool) -> Self {
         let mut base =
             TnComponentBase::new("input".into(), id, name.clone(), TnComponentType::CheckBox);
         base.set_value(TnComponentValue::CheckItem(value));

@@ -8,7 +8,7 @@ pub struct TnChatBox<'a: 'static> {
 }
 
 impl<'a: 'static> TnChatBox<'a> {
-    pub fn new(id: TnComponentId, name: String, value: Vec<(String, String)>) -> Self {
+    pub fn new(id: TnComponentIndex, name: String, value: Vec<(String, String)>) -> Self {
         let mut base =
             TnComponentBase::new("div".into(), id, name, TnComponentType::ChatBox);
         base.set_value(TnComponentValue::VecString2(value));

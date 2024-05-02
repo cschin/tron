@@ -29,7 +29,7 @@ use axum::body::Bytes;
 use bytes::BytesMut;
 use serde::Deserialize;
 
-pub type TnComponentId = u32;
+pub type TnComponentIndex = u32;
 pub type TnElmAttributes = HashMap<String, String>;
 pub type TnExtraResponseHeader = HashMap<String, (String, bool)>; // (String, bool) = (value, remove after use?)
 pub type TnElmTag = String;
@@ -87,8 +87,8 @@ type TnComponentAsset = Option<HashMap<String, TnAsset>>;
 pub struct TnComponentBase<'a: 'static> {
     pub tag: TnElmTag,
     pub type_: TnComponentType,
-    pub id: TnComponentId,
-    pub tron_id: String,
+    pub id: TnComponentIndex,
+    pub tron_id: TnComponentId,
     pub attributes: TnElmAttributes,
     pub value: TnComponentValue,
     pub extra_response_headers: TnExtraResponseHeader,
@@ -117,9 +117,16 @@ pub struct TnSseMsgChannel {
     pub rx: Option<Receiver<String>>, // this will be moved out and replaced by None
 }
 
-pub type TnComponentMap<'a> = Arc<RwLock<HashMap<u32, TnComponent<'a>>>>;
-pub type TnStreamData = Arc<RwLock<HashMap<String, (String, VecDeque<BytesMut>)>>>;
-pub type TnContextAsset = Arc<RwLock<HashMap<String, TnAsset>>>;
+type TnStreamID = String;
+type TnStreamProtocol = String;
+type TnStreamData = VecDeque<BytesMut>; 
+type TnAssetName = String;
+type TnComponentId = String;
+type TnServiceName = String;
+
+pub type TnComponentMap<'a> = Arc<RwLock<HashMap<TnComponentIndex, TnComponent<'a>>>>;
+pub type TnStreamMap = Arc<RwLock<HashMap<TnStreamID, (TnStreamProtocol, TnStreamData)>>>;
+pub type TnContextAsset = Arc<RwLock<HashMap<TnAssetName, TnAsset>>>;
 pub type TnSeeChannels = Arc<RwLock<Option<TnSseMsgChannel>>>;
 pub type TnService = (
     Sender<TnServiceRequestMsg>,
@@ -127,11 +134,11 @@ pub type TnService = (
 );
 pub struct TnContextBase<'a: 'static> {
     pub components: TnComponentMap<'a>, // component ID mapped to Component structs
-    pub stream_data: TnStreamData,
+    pub stream_data: TnStreamMap,
     pub asset: TnContextAsset,
     pub sse_channels: TnSeeChannels,
-    pub tron_id_to_id: HashMap<String, u32>,
-    pub services: HashMap<String, TnService>,
+    pub tnid_to_index: HashMap<TnComponentId, TnComponentIndex>,
+    pub services: HashMap<TnServiceName, TnService>,
 }
 
 impl<'a: 'static> TnContextBase<'a> {
@@ -139,7 +146,7 @@ impl<'a: 'static> TnContextBase<'a> {
         TnContextBase {
             components: Arc::new(RwLock::new(HashMap::default())),
             asset: Arc::new(RwLock::new(HashMap::default())),
-            tron_id_to_id: HashMap::default(),
+            tnid_to_index: HashMap::default(),
             stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
             sse_channels: Arc::new(RwLock::new(None)),
@@ -151,12 +158,12 @@ impl<'a: 'static> TnContextBase<'a> {
         let id = new_component.id();
         let mut component_guard = self.components.blocking_write();
         component_guard.insert(id, Arc::new(RwLock::new(Box::new(new_component))));
-        self.tron_id_to_id.insert(tron_id, id);
+        self.tnid_to_index.insert(tron_id, id);
     }
 
     pub fn get_component_id(&self, tron_id: &str) -> u32 {
         *self
-            .tron_id_to_id
+            .tnid_to_index
             .get(tron_id)
             .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id))
     }
@@ -266,8 +273,8 @@ where
 }
 
 pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
-    fn id(&self) -> TnComponentId;
-    fn tron_id(&self) -> &String;
+    fn id(&self) -> TnComponentIndex;
+    fn tron_id(&self) -> &TnComponentId;
     fn get_type(&self) -> TnComponentType;
 
     fn attributes(&self) -> &TnElmAttributes;
@@ -303,7 +310,7 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 }
 
 impl<'a: 'static> TnComponentBase<'a> {
-    pub fn new(tag: String, id: TnComponentId, tron_id: String, type_: TnComponentType) -> Self {
+    pub fn new(tag: String, id: TnComponentIndex, tron_id: TnComponentId, type_: TnComponentType) -> Self {
         let mut attributes = HashMap::<String, String>::default();
         attributes.insert("id".into(), tron_id.clone());
         attributes.insert("hx-post".to_string(), format!("/tron/{}", id));
@@ -361,7 +368,7 @@ where
         self.id
     }
 
-    fn tron_id(&self) -> &String {
+    fn tron_id(&self) -> &TnComponentId {
         &self.tron_id
     }
 

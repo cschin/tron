@@ -11,7 +11,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
     let name = &ast.ident;
     let gen = quote! {
         impl<'a> TnComponentBaseTrait<'a> for #name<'a> where 'a:'static {
-            fn id(&self) -> TnComponentId {
+            fn id(&self) -> TnComponentIndex {
                 self.base.id()
             }
 

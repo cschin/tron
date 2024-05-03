@@ -14,7 +14,7 @@ use futures::StreamExt;
 use serde_json::json;
 use tokio::sync::mpsc::Receiver;
 use tron_app::send_sse_msg_to_client;
-use tron_app::{SseTriggerMsg, TriggerData};
+use tron_app::{TnSseTriggerMsg, TnServerSideTriggerData};
 use tron_components::{
     audio_player::start_audio, chatbox, text, TnAsset, TnContext, TnServiceRequestMsg
 };
@@ -222,8 +222,8 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                 }
 
                 {
-                    let msg = SseTriggerMsg {
-                        server_side_trigger: TriggerData {
+                    let msg = TnSseTriggerMsg {
+                        server_side_trigger_data: TnServerSideTriggerData {
                             target: "transcript".into(),
                             new_state: "ready".into(),
                         },

@@ -310,10 +310,10 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 }
 
 impl<'a: 'static> TnComponentBase<'a> {
-    pub fn new(tag: String, id: TnComponentIndex, tron_id: TnComponentId, type_: TnComponentType) -> Self {
+    pub fn new(tag: String, index: TnComponentIndex, tron_id: TnComponentId, type_: TnComponentType) -> Self {
         let mut attributes = HashMap::<String, String>::default();
         attributes.insert("id".into(), tron_id.clone());
-        attributes.insert("hx-post".to_string(), format!("/tron/{}", id));
+        attributes.insert("hx-post".to_string(), format!("/tron/{}", index));
         attributes.insert("hx-target".to_string(), format!("#{}", tron_id));
         attributes.insert("hx-swap".to_string(), "outerHTML".into());
 
@@ -326,7 +326,7 @@ impl<'a: 'static> TnComponentBase<'a> {
         Self {
             tag,
             type_,
-            id,
+            id: index,
             tron_id,
             attributes,
             extra_response_headers: HashMap::default(),
@@ -493,12 +493,12 @@ where
 // For Event Dispatcher
 #[derive(Eq, PartialEq, Hash, Clone, Debug, Deserialize, Default)]
 pub struct TnEvent {
-    pub e_target: String,
+    pub e_trigger: String,
     pub e_type: String,  // maybe use Enum
     pub e_state: String, // should use the Component::State enum
 }
 use tokio::sync::{mpsc::Sender, RwLock};
-use tron_utils::{send_sse_msg_to_client, SseTriggerMsg, TriggerData};
+use tron_utils::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
 pub type ActionFn = fn(
     TnContext,
     event: TnEvent,
@@ -522,9 +522,9 @@ pub async fn set_ready_with_context_for(context: TnContext, tron_id: &str) {
             .set_state_for_component(tron_id, TnComponentState::Ready)
             .await;
 
-        let msg = SseTriggerMsg {
+        let msg = TnSseTriggerMsg {
             // update the button state
-            server_side_trigger: TriggerData {
+            server_side_trigger_data: TnServerSideTriggerData {
                 target: tron_id.into(),
                 new_state: "ready".into(),
             },

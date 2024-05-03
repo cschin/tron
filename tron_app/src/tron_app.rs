@@ -215,11 +215,14 @@ async fn tron_entry(
     State(app_data): State<Arc<AppData>>,
     session: Session,
     headers: HeaderMap,
-    Path(tron_id): Path<TnComponentIndex>,
+    Path(tron_index): Path<TnComponentIndex>,
     Json(payload): Json<Value>,
     //request: Request,
 ) -> impl IntoResponse {
     tracing::debug!(target: "tron_app", "headers: {:?}", headers);
+
+    let _hx_trigger = headers.get("hx-trigger");
+    let hx_target = headers.get("hx-target");
 
     let mut response_headers = HeaderMap::new();
     response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
@@ -247,7 +250,7 @@ async fn tron_entry(
                 let context_guard = app_data.context.read().await;
                 let context = context_guard.get(&session_id).unwrap().clone();
                 context
-                    .set_value_for_component(&evt.e_target, TnComponentValue::String(value))
+                    .set_value_for_component(&evt.e_trigger, TnComponentValue::String(value))
                     .await;
             }
         }
@@ -261,7 +264,7 @@ async fn tron_entry(
             {
                 let session_guard = app_data.context.read().await;
                 let context = session_guard.get(&session_id).unwrap().clone();
-                let component = context.get_component(&evt.e_target).await;
+                let component = context.get_component(&evt.e_trigger).await;
                 if *component.read().await.state() == TnComponentState::Ready {
                     component.write().await.set_state(TnComponentState::Pending);
                 };
@@ -285,16 +288,20 @@ async fn tron_entry(
     };
 
     let context_guard = app_data.context.read().await;
-    let components = &context_guard
+    let context = &context_guard
         .get(&session_id)
         .unwrap()
         .read()
-        .await
-        .components;
+        .await;
+    
+    let tron_index = if let Some(hx_target) = hx_target {
+        let hx_target = hx_target.to_str().unwrap_or_default();
+        context.get_component_id(hx_target)} else {
+            tron_index
+        };
 
-    let mut component_guard = components.write().await;
-    let target_guard = component_guard.get_mut(&tron_id).unwrap();
-
+    let mut component_guard = context.components.write().await;
+    let target_guard = component_guard.get_mut(&tron_index).unwrap();
     let body = Body::new({
         let target = target_guard.read().await;
         tokio::task::block_in_place(|| target.render())

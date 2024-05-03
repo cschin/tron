@@ -1,10 +1,10 @@
 use super::*;
 use serde::Serialize;
 use tron_macro::*;
-use tron_utils::TriggerData;
+use tron_utils::TnServerSideTriggerData;
 #[derive(Serialize)]
 pub struct SseAudioRecorderTriggerMsg {
-    pub server_side_trigger: TriggerData,
+    pub server_side_trigger_data: TnServerSideTriggerData,
     pub audio_recorder_control: String,
 }
 

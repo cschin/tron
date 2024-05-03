@@ -25,8 +25,8 @@
     // Listen for messages from the server
     window.eventSource.onmessage = function (event) {
       const event_data = JSON.parse(event.data);
-      const state = event_data["server_side_trigger"]["new_state"];
-      const target = event_data["server_side_trigger"]["target"];
+      const state = event_data["server_side_trigger_data"]["new_state"];
+      const target = event_data["server_side_trigger_data"]["target"];
       for (const key in window.process_special_events) {
         if (window.process_special_events.hasOwnProperty(key)) {
           window.process_special_events[key](target, state, event_data)
@@ -59,7 +59,7 @@
       return {
         "tn_event":
         {
-          "e_target": event.currentTarget.id,
+          "e_trigger": event.currentTarget.id,
           "e_type": event.type,
           "e_state": event.currentTarget.getAttribute('state')
         },
@@ -75,7 +75,7 @@
       return {
         "tn_event":
         {
-          "e_target": event.currentTarget.id,
+          "e_trigger": event.currentTarget.id,
           "e_type": event.type,
           "e_state": event.currentTarget.getAttribute('state')
         }
@@ -91,7 +91,7 @@
       return {
         "tn_event":
         {
-          "e_target": event.currentTarget.id,
+          "e_trigger": event.currentTarget.id,
           "e_type": event.type,
           "e_state": event.currentTarget.getAttribute('state')
         },

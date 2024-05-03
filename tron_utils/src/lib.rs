@@ -3,13 +3,13 @@ use tokio::sync::mpsc::Sender;
 use tracing::debug;
 
 #[derive(Serialize)]
-pub struct TriggerData {
+pub struct TnServerSideTriggerData {
     pub target: String,
     pub new_state: String,
 }
 #[derive(Serialize)]
-pub struct SseTriggerMsg {
-    pub server_side_trigger: TriggerData,
+pub struct TnSseTriggerMsg {
+    pub server_side_trigger_data: TnServerSideTriggerData,
 }
 
 pub async fn send_sse_msg_to_client(tx: &Sender<String>, msg: impl Serialize) {

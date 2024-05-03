@@ -1,6 +1,6 @@
 use super::*;
 use tron_macro::*;
-use tron_utils::{send_sse_msg_to_client, SseTriggerMsg, TriggerData};
+use tron_utils::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
 
 #[derive(ComponentBase)]
 pub struct TnChatBox<'a: 'static> {
@@ -157,8 +157,8 @@ pub async fn clean_chatbox_with_context(context: TnContext, tron_id: &str) {
             guard.set_state(TnComponentState::Ready);
             guard.set_header("hx-reswap".into(), ("innerHTML".into(), true));
 
-            let msg = SseTriggerMsg {
-                server_side_trigger: TriggerData {
+            let msg = TnSseTriggerMsg {
+                server_side_trigger_data: TnServerSideTriggerData {
                     target: tron_id.into(),
                     new_state: "ready".into(),
                 },

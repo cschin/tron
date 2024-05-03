@@ -1,6 +1,6 @@
 use super::*;
 use tron_macro::*;
-use tron_utils::{send_sse_msg_to_client, SseTriggerMsg, TriggerData};
+use tron_utils::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
 
 //
 // For TextArea
@@ -95,8 +95,8 @@ pub async fn update_and_send_textarea_with_context(
             guard.set_value(TnComponentValue::String(new_str.to_string()));
             guard.set_state(TnComponentState::Ready);
             let sse_tx = context.get_sse_tx_with_context().await;
-            let msg = SseTriggerMsg {
-                server_side_trigger: TriggerData {
+            let msg = TnSseTriggerMsg {
+                server_side_trigger_data: TnServerSideTriggerData {
                     target: tron_id.to_string(),
                     new_state: "ready".into(),
                 },
@@ -189,8 +189,8 @@ pub async fn append_and_send_stream_textarea_with_context(
         let comp = context.get_component(tron_id).await;
         append_stream_textarea(comp, new_str).await;
         let sse_tx = context.get_sse_tx_with_context().await;
-        let msg = SseTriggerMsg {
-            server_side_trigger: TriggerData {
+        let msg = TnSseTriggerMsg {
+            server_side_trigger_data: TnServerSideTriggerData {
                 target: tron_id.to_string(),
                 new_state: "ready".into(),
             },
@@ -218,8 +218,8 @@ pub async fn clean_stream_textarea_with_context(context: TnContext, tron_id: &st
             guard.set_state(TnComponentState::Ready);
             guard.set_header("hx-reswap".into(), ("innerHTML".into(), true));
 
-            let msg = SseTriggerMsg {
-                server_side_trigger: TriggerData {
+            let msg = TnSseTriggerMsg {
+                server_side_trigger_data: TnServerSideTriggerData {
                     target: tron_id.into(),
                     new_state: "ready".into(),
                 },
@@ -295,8 +295,8 @@ pub async fn clean_textinput_with_context(context: TnContext, tron_id: &str) {
             guard.set_value(TnComponentValue::String(String::default()));
             guard.set_state(TnComponentState::Ready);
             let sse_tx = context.get_sse_tx_with_context().await;
-            let msg = SseTriggerMsg {
-                server_side_trigger: TriggerData {
+            let msg = TnSseTriggerMsg {
+                server_side_trigger_data: TnServerSideTriggerData {
                     target: tron_id.to_string(),
                     new_state: "ready".into(),
                 },

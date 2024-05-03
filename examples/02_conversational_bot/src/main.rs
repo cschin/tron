@@ -24,7 +24,7 @@ use tokio::sync::{
 };
 #[allow(unused_imports)]
 use tracing::{debug, info};
-use tron_app::{send_sse_msg_to_client, SseTriggerMsg, TriggerData};
+use tron_app::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
 use tron_components::audio_recorder::SseAudioRecorderTriggerMsg;
 use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
@@ -312,7 +312,7 @@ fn build_session_actions(_context: TnContext) -> TnEventActions {
     {
         // for processing rec button click
         let evt = TnEvent {
-            e_target: "rec_button".into(),
+            e_trigger: "rec_button".into(),
             e_type: "click".into(),
             e_state: "ready".into(),
         };
@@ -323,7 +323,7 @@ fn build_session_actions(_context: TnContext) -> TnEventActions {
         );
 
         let evt = TnEvent {
-            e_target: "rec_button".into(),
+            e_trigger: "rec_button".into(),
             e_type: "server_side_trigger".into(),
             e_state: "ready".into(),
         };
@@ -335,7 +335,7 @@ fn build_session_actions(_context: TnContext) -> TnEventActions {
     {
         // for processing the incoming audio stream data
         let evt = TnEvent {
-            e_target: "recorder".into(),
+            e_trigger: "recorder".into(),
             e_type: "streaming".into(),
             e_state: "updating".into(),
         };
@@ -350,7 +350,7 @@ fn build_session_actions(_context: TnContext) -> TnEventActions {
     {
         // handling player ended event
         let evt = TnEvent {
-            e_target: "player".into(),
+            e_trigger: "player".into(),
             e_type: "ended".into(),
             e_state: "updating".into(),
         };
@@ -365,7 +365,7 @@ fn build_session_actions(_context: TnContext) -> TnEventActions {
     {
         // for processing reset button click
         let evt = TnEvent {
-            e_target: "reset_button".into(),
+            e_trigger: "reset_button".into(),
             e_type: "click".into(),
             e_state: "ready".into(),
         };
@@ -379,7 +379,7 @@ fn build_session_actions(_context: TnContext) -> TnEventActions {
     {
         // for preset_prompt_select
         let evt = TnEvent {
-            e_target: "preset_prompt_select".into(),
+            e_trigger: "preset_prompt_select".into(),
             e_type: "change".into(),
             e_state: "ready".into(),
         };
@@ -405,17 +405,17 @@ fn _do_nothing(
         //let comp = context.get_component(&event.e_target);
         tracing::info!(target: "tron_app", "{:?}", payload);
         context
-            .set_state_for_component(&event.e_target.clone(), TnComponentState::Pending)
+            .set_state_for_component(&event.e_trigger.clone(), TnComponentState::Pending)
             .await;
         let sse_tx = context.get_sse_tx_with_context().await;
-        let msg = SseTriggerMsg {
-            server_side_trigger: TriggerData {
-                target: event.e_target.clone(),
+        let msg = TnSseTriggerMsg {
+            server_side_trigger_data: TnServerSideTriggerData {
+                target: event.e_trigger.clone(),
                 new_state: "ready".into(),
             },
         };
         send_sse_msg_to_client(&sse_tx, msg).await;
-        let comp = context.get_component(&event.e_target).await;
+        let comp = context.get_component(&event.e_trigger).await;
         tracing::info!(target: "tron_app", "value: {:?}", comp.read().await.value());
     };
     Box::pin(f)
@@ -535,7 +535,7 @@ fn toggle_recording(
                             delay.tick().await; //The first tick completes immediately.
                             delay.tick().await; //wait a bit for all data stream transferred
                             let msg = SseAudioRecorderTriggerMsg {
-                                server_side_trigger: TriggerData {
+                                server_side_trigger_data: TnServerSideTriggerData {
                                     target: "recorder".into(),
                                     new_state: "updating".into(),
                                 },
@@ -582,7 +582,7 @@ fn toggle_recording(
                         }
 
                         let msg = SseAudioRecorderTriggerMsg {
-                            server_side_trigger: TriggerData {
+                            server_side_trigger_data: TnServerSideTriggerData {
                                 target: "recorder".into(),
                                 new_state: "ready".into(),
                             },
@@ -595,9 +595,9 @@ fn toggle_recording(
             }
         }
 
-        let msg = SseTriggerMsg {
-            server_side_trigger: TriggerData {
-                target: event.e_target,
+        let msg = TnSseTriggerMsg {
+            server_side_trigger_data: TnServerSideTriggerData {
+                target: event.e_trigger,
                 new_state: "ready".into(),
             },
         };
@@ -827,8 +827,8 @@ async fn transcript_post_processing_service(
                             .await;
                         }
                         {
-                            let msg = SseTriggerMsg {
-                                server_side_trigger: TriggerData {
+                            let msg = TnSseTriggerMsg {
+                                server_side_trigger_data: TnServerSideTriggerData {
                                     target: "transcript".into(),
                                     new_state: "ready".into(),
                                 },

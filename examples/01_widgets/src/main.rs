@@ -46,7 +46,7 @@ fn test_event_actions(
                 let context_guard = context.write().await;
                 let v;
                 {
-                    let id = context_guard.get_component_id(&event.e_target.clone());
+                    let id = context_guard.get_component_id(&event.e_trigger.clone());
                     let mut components_guard = context_guard.components.write().await;
                     {
                         let btn = components_guard.get_mut(&id).unwrap().read().await;
@@ -67,7 +67,7 @@ fn test_event_actions(
                     let id = context_guard.get_component_id("stream_textarea");
                     let mut components_guard = context_guard.components.write().await;
                     let stream_textarea = components_guard.get_mut(&id).unwrap().clone();
-                    let new_str = format!("{} -- {:02};\n", event.e_target, v + 1);
+                    let new_str = format!("{} -- {:02};\n", event.e_trigger, v + 1);
                     append_stream_textarea(stream_textarea, &new_str).await;
                 };
 
@@ -75,27 +75,27 @@ fn test_event_actions(
                     let id = context_guard.get_component_id("textarea");
                     let mut components_guard = context_guard.components.write().await;
                     let textarea = components_guard.get_mut(&id).unwrap().clone();
-                    let new_str = format!("{} -- {:02};", event.e_target, v + 1);
+                    let new_str = format!("{} -- {:02};", event.e_trigger, v + 1);
                     append_textarea_value(textarea, &new_str, Some("\n")).await;
                 };
             }
 
             let msg = format!(
-                r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"updating" }} }}"##,
-                event.e_target
+                r##"{{"server_side_trigger_data": {{ "target":"{}", "new_state":"updating" }} }}"##,
+                event.e_trigger
             );
             if sse_tx.send(msg).await.is_err() {
                 debug!("tx dropped");
             }
 
             let msg =
-            r##"{"server_side_trigger": { "target":"stream_textarea", "new_state":"ready" } }"##
+            r##"{"server_side_trigger_data": { "target":"stream_textarea", "new_state":"ready" } }"##
                 .to_string();
             if sse_tx.send(msg).await.is_err() {
                 debug!("tx dropped");
             }
 
-            let msg = r##"{"server_side_trigger": { "target":"textarea", "new_state":"ready" } }"##
+            let msg = r##"{"server_side_trigger_data": { "target":"textarea", "new_state":"ready" } }"##
                 .to_string();
             if sse_tx.send(msg).await.is_err() {
                 debug!("tx dropped");
@@ -103,7 +103,7 @@ fn test_event_actions(
 
             i += 1;
             interval.tick().await;
-            debug!("loop triggered: {} {}", event.e_target, i);
+            debug!("loop triggered: {} {}", event.e_trigger, i);
 
             if i > 9 {
                 break;
@@ -111,13 +111,13 @@ fn test_event_actions(
         }
         {
             let context_guard = context.write().await;
-            let id = context_guard.get_component_id(&event.e_target.clone());
+            let id = context_guard.get_component_id(&event.e_trigger.clone());
             let mut components_guard = context_guard.components.write().await;
             let mut btn = components_guard.get_mut(&id).unwrap().write().await;
             btn.set_state(TnComponentState::Ready);
             let data = format!(
-                r##"{{"server_side_trigger": {{ "target":"{}", "new_state":"{}" }} }}"##,
-                event.e_target, "ready"
+                r##"{{"server_side_trigger_data": {{ "target":"{}", "new_state":"{}" }} }}"##,
+                event.e_trigger, "ready"
             );
             if sse_tx.send(data).await.is_err() {
                 tracing::debug!(target: "tron_app", "tx dropped");
@@ -279,7 +279,7 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
     let mut actions = TnEventActions::default();
     for i in 0..10 {
         let evt = TnEvent {
-            e_target: format!("btn-{:02}", i),
+            e_trigger: format!("btn-{:02}", i),
             e_type: "click".to_string(),
             e_state: "ready".to_string(),
         };
@@ -300,7 +300,7 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
     }
     {
         let evt = TnEvent {
-            e_target: "clean_stream_textarea".into(),
+            e_trigger: "clean_stream_textarea".into(),
             e_type: "click".to_string(),
             e_state: "ready".to_string(),
         };
@@ -309,7 +309,7 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
 
     {
         let evt = TnEvent {
-            e_target: "clean_textarea".into(),
+            e_trigger: "clean_textarea".into(),
             e_type: "click".to_string(),
             e_state: "ready".to_string(),
         };
@@ -318,7 +318,7 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
 
     {
         let evt = TnEvent {
-            e_target: "clean_textinput".into(),
+            e_trigger: "clean_textinput".into(),
             e_type: "click".to_string(),
             e_state: "ready".to_string(),
         };
@@ -335,7 +335,7 @@ fn clean_stream_textarea(
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f =  || async move {
         text::clean_stream_textarea_with_context(context.clone(), "stream_textarea").await;
-        set_ready_with_context_for(context, &event.e_target).await;
+        set_ready_with_context_for(context, &event.e_trigger).await;
     };
     Box::pin(f())
 }
@@ -347,7 +347,7 @@ fn clean_textarea(
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f =  || async move {
         text::clean_textarea_with_context(context.clone(), "textarea").await;
-        set_ready_with_context_for(context, &event.e_target).await;
+        set_ready_with_context_for(context, &event.e_trigger).await;
     };
     Box::pin(f())
 }
@@ -359,7 +359,7 @@ fn clean_textinput(
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f =  || async move {
         text::clean_textinput_with_context(context.clone(), "textinput").await;
-        set_ready_with_context_for(context, &event.e_target).await;
+        set_ready_with_context_for(context, &event.e_trigger).await;
     };
     Box::pin(f())
 }

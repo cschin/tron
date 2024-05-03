@@ -6,7 +6,7 @@ use tron_utils::*;
 
 #[derive(Serialize)]
 pub struct SseAudioPlayerTriggerMsg {
-    pub server_side_trigger: TriggerData,
+    pub server_side_trigger_data: TnServerSideTriggerData,
     pub audio_player_control: String,
 }
 
@@ -70,8 +70,8 @@ pub async fn start_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
     }
 
     let comp = comp.read().await;
-    let msg = SseTriggerMsg {
-        server_side_trigger: TriggerData {
+    let msg = TnSseTriggerMsg {
+        server_side_trigger_data: TnServerSideTriggerData {
             target: comp.tron_id().clone(),
             new_state: "updating".into(),
         },
@@ -86,7 +86,7 @@ pub fn stop_audio_playing_action(
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
         {
-            let guard = context.get_component(&event.e_target.clone()).await;
+            let guard = context.get_component(&event.e_trigger.clone()).await;
             let mut player = guard.write().await;
             // we don't want to swap the element, or it will replay the audio. the "false" make the header persist until next play event
             player.set_header("HX-Reswap".into(), ("none".into(), false)); 
@@ -94,9 +94,9 @@ pub fn stop_audio_playing_action(
         }
         {
             let sse_tx = context.get_sse_tx_with_context().await;
-            let msg = SseTriggerMsg {
-                server_side_trigger: TriggerData {
-                    target: event.e_target.clone(),
+            let msg = TnSseTriggerMsg {
+                server_side_trigger_data: TnServerSideTriggerData {
+                    target: event.e_trigger.clone(),
                     new_state: "ready".into(),
                 },
             };

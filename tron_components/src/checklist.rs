@@ -129,7 +129,7 @@ impl<'a: 'static> TnCheckBox<'a> {
 
 pub fn add_checklist_to_context(
     context: &mut TnContextBase<'static>,
-    component_id: &mut u32,
+    component_index: &mut u32,
     checklist_tron_id: String,
     checklist_items: Vec<String>,
     container_attributes: Vec<(String, String)>,
@@ -137,24 +137,25 @@ pub fn add_checklist_to_context(
     let children_ids = checklist_items
         .into_iter()
         .map(|child_trod_id| {
-            *component_id += 1;
-            let checkbox_id = *component_id;
-            let mut checkbox = TnCheckBox::new(checkbox_id, child_trod_id, false);
+            *component_index += 1;
+            let checkbox_index = *component_index;
+            let mut checkbox = TnCheckBox::new(checkbox_index, child_trod_id.clone(), false);
             let asset = checkbox.get_mut_assets().unwrap();
             asset.insert(
                 "container_attributes".into(),
                 TnAsset::VecString2(container_attributes.clone()),
             );
             context.add_component(checkbox);
-            checkbox_id
+            context.tnid_to_index.insert(format!("{child_trod_id}-container"), checkbox_index);
+            checkbox_index
         })
         .collect::<Vec<_>>();
 
-    *component_id += 1;
-    let checklist = TnCheckList::new(*component_id, checklist_tron_id, HashMap::default());
+    *component_index += 1;
+    let checklist = TnCheckList::new(*component_index, checklist_tron_id, HashMap::default());
     context.add_component(checklist);
     let components = context.components.blocking_read();
-    let checklist = components.get(component_id).unwrap();
+    let checklist = components.get(component_index).unwrap();
     children_ids.iter().for_each(|child_id| {
         {
             let mut checklist = checklist.blocking_write();
@@ -203,7 +204,7 @@ pub fn get_checklist_actions(
     for child in children {
         let child = child.blocking_read();
         let evt = TnEvent {
-            e_target: child.tron_id().clone(),
+            e_trigger: child.tron_id().clone(),
             e_type: "change".into(),
             e_state: "ready".into(),
         };
@@ -221,7 +222,7 @@ pub fn toggle_checkbox(
         // println!("paylod value {payload}");
         if let Value::String(checked) = &payload["event_data"]["e_value"] {
             let context_guard = context.read().await;
-            let checkbox_id = context_guard.get_component_id(&event.e_target);
+            let checkbox_id = context_guard.get_component_id(&event.e_trigger);
             let components_guard = context_guard.components.write().await;
             let mut checkbox = components_guard.get(&checkbox_id).unwrap().write().await;
 
@@ -231,7 +232,7 @@ pub fn toggle_checkbox(
                 let parent_guard = checkbox.get_parent().clone();
                 let mut parent_guard = parent_guard.write().await;
                 if let TnComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
-                    value.insert(event.e_target.clone(), true);
+                    value.insert(event.e_trigger.clone(), true);
                 };
             } else {
                 // println!("set false");
@@ -239,7 +240,7 @@ pub fn toggle_checkbox(
                 let parent_guard = checkbox.get_parent().clone();
                 let mut parent_guard = parent_guard.write().await;
                 if let TnComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
-                    value.insert(event.e_target.clone(), false);
+                    value.insert(event.e_trigger.clone(), false);
                 };
             }
             checkbox.set_state(TnComponentState::Ready);

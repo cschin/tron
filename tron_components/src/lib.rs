@@ -127,7 +127,7 @@ type TnServiceName = String;
 pub type TnComponentMap<'a> = Arc<RwLock<HashMap<TnComponentIndex, TnComponent<'a>>>>;
 pub type TnStreamMap = Arc<RwLock<HashMap<TnStreamID, (TnStreamProtocol, TnStreamData)>>>;
 pub type TnContextAsset = Arc<RwLock<HashMap<TnAssetName, TnAsset>>>;
-pub type TnSeeChannels = Arc<RwLock<Option<TnSseMsgChannel>>>;
+pub type TnSeeChannel = Arc<RwLock<Option<TnSseMsgChannel>>>;
 pub type TnService = (
     Sender<TnServiceRequestMsg>,
     Mutex<Option<Receiver<TnServiceResponseMsg>>>,
@@ -136,7 +136,7 @@ pub struct TnContextBase<'a: 'static> {
     pub components: TnComponentMap<'a>, // component ID mapped to Component structs
     pub stream_data: TnStreamMap,
     pub asset: TnContextAsset,
-    pub sse_channels: TnSeeChannels,
+    pub sse_channel: TnSeeChannel,
     pub tnid_to_index: HashMap<TnComponentId, TnComponentIndex>,
     pub services: HashMap<TnServiceName, TnService>,
 }
@@ -149,7 +149,7 @@ impl<'a: 'static> TnContextBase<'a> {
             tnid_to_index: HashMap::default(),
             stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
-            sse_channels: Arc::new(RwLock::new(None)),
+            sse_channel: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -274,7 +274,7 @@ impl TnContext {
         let sse_tx = self
             .read()
             .await
-            .sse_channels
+            .sse_channel
             .read()
             .await
             .as_ref()

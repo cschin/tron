@@ -36,7 +36,7 @@ fn test_event_actions(
         let mut i = 0;
         let sse_tx = {
             let context_guard = context.read().await;
-            let channel_guard = context_guard.sse_channels.read().await;
+            let channel_guard = context_guard.sse_channel.read().await;
             channel_guard.as_ref().unwrap().tx.clone()
         };
 

@@ -157,7 +157,7 @@ async fn load_page(
         {
             let context_guard = context.read().await;
             let (tx, rx) = tokio::sync::mpsc::channel(16);
-            let mut sse_channels_guard = context_guard.sse_channels.write().await;
+            let mut sse_channels_guard = context_guard.sse_channel.write().await;
             *sse_channels_guard = Some(TnSseMsgChannel { tx, rx: Some(rx) });
         }
     };
@@ -389,7 +389,7 @@ async fn sse_event_handler(
     let stream = {
         let mut session_guard = app_data.context.write().await;
         let context_guard = session_guard.get_mut(&session_id).unwrap().write().await;
-        let mut channel_guard = context_guard.sse_channels.write().await;
+        let mut channel_guard = context_guard.sse_channel.write().await;
         if let Some(rx) = channel_guard.as_mut().unwrap().rx.take() {
             ReceiverStream::new(rx).map(|v| Ok(sse::Event::default().data(v.clone())))
         } else {

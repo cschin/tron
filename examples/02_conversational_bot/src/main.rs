@@ -283,6 +283,13 @@ struct AppPageTemplate {
 }
 
 fn layout(context: TnContext) -> String {
+
+    context.set_value_for_component_blocking("recorder", TnComponentValue::String("Paused".into()));
+    context.set_state_for_component_blocking("recorder", TnComponentState::Ready);
+
+    context.set_value_for_component_blocking("rec_button", TnComponentValue::String("Start Conversation".into()));
+    context.set_state_for_component_blocking("rec_button", TnComponentState::Ready);
+
     let guard = context.blocking_read();
     let btn = guard.render_to_string("rec_button");
     let recorder = guard.render_to_string("recorder");

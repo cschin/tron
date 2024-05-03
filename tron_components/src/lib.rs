@@ -119,7 +119,7 @@ pub struct TnSseMsgChannel {
 
 type TnStreamID = String;
 type TnStreamProtocol = String;
-type TnStreamData = VecDeque<BytesMut>; 
+type TnStreamData = VecDeque<BytesMut>;
 type TnAssetName = String;
 type TnComponentId = String;
 type TnServiceName = String;
@@ -247,6 +247,28 @@ impl TnContext {
         component.set_state(s);
     }
 
+    pub fn set_value_for_component_blocking(&self, tron_id: &str, v: TnComponentValue) {
+        let context_guard = self.blocking_read();
+        let mut components_guard = context_guard.components.blocking_write();
+        let component_id = context_guard.get_component_id(tron_id);
+        let mut component = components_guard
+            .get_mut(&component_id)
+            .unwrap()
+            .blocking_write();
+        component.set_value(v);
+    }
+
+    pub fn set_state_for_component_blocking(&self, tron_id: &str, s: TnComponentState) {
+        let context_guard = self.blocking_read();
+        let mut components_guard = context_guard.components.blocking_write();
+        let component_id = context_guard.get_component_id(tron_id);
+        let mut component = components_guard
+            .get_mut(&component_id)
+            .unwrap()
+            .blocking_write();
+        component.set_state(s);
+    }
+
     pub async fn get_sse_tx_with_context(&self) -> Sender<String> {
         // unlock two layers of Rwlock !!
         let sse_tx = self
@@ -310,7 +332,12 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 }
 
 impl<'a: 'static> TnComponentBase<'a> {
-    pub fn new(tag: String, index: TnComponentIndex, tron_id: TnComponentId, type_: TnComponentType) -> Self {
+    pub fn new(
+        tag: String,
+        index: TnComponentIndex,
+        tron_id: TnComponentId,
+        type_: TnComponentType,
+    ) -> Self {
         let mut attributes = HashMap::<String, String>::default();
         attributes.insert("id".into(), tron_id.clone());
         attributes.insert("hx-post".to_string(), format!("/tron/{}", index));
@@ -498,7 +525,7 @@ pub struct TnEvent {
     pub e_state: String, // should use the Component::State enum
 }
 use tokio::sync::{mpsc::Sender, RwLock};
-use tron_utils::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
+use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
 pub type ActionFn = fn(
     TnContext,
     event: TnEvent,
@@ -512,7 +539,6 @@ pub enum ActionExecutionMethod {
 }
 
 pub type TnEventActions = HashMap<TnEvent, (ActionExecutionMethod, Arc<ActionFn>)>;
-
 
 pub async fn set_ready_with_context_for(context: TnContext, tron_id: &str) {
     {

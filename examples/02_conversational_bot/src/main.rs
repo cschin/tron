@@ -24,7 +24,7 @@ use tokio::sync::{
 };
 #[allow(unused_imports)]
 use tracing::{debug, info};
-use tron_app::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
+use tron_app::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
 use tron_components::audio_recorder::SseAudioRecorderTriggerMsg;
 use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
@@ -77,8 +77,11 @@ fn build_session_context() -> TnContext {
     {
         // add a player
         component_index += 1;
-        let mut player =
-            TnAudioPlayer::<'static>::new(component_index, "player".to_string(), "Paused".to_string());
+        let mut player = TnAudioPlayer::<'static>::new(
+            component_index,
+            "player".to_string(),
+            "Paused".to_string(),
+        );
         player.set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string());
         context.add_component(player);
     }
@@ -427,7 +430,9 @@ fn preset_prompt_select_change(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
     let f = async move {
-        let value = context.get_value_from_component("preset_prompt_select").await;
+        let value = context
+            .get_value_from_component("preset_prompt_select")
+            .await;
         tracing::info!(target: "tron_app", "preset_prompt_select_change, value:{:?}", value);
         let s = if let TnComponentValue::String(s) = value {
             s
@@ -437,18 +442,18 @@ fn preset_prompt_select_change(
         let prompt = if let Some(m) = context.read().await.asset.read().await.get("prompts") {
             if let TnAsset::HashMapString(ref m) = m {
                 m.get(&s).unwrap().clone()
-       
             } else {
                 "".to_string()
             }
-
         } else {
             "".into()
         };
         // tracing::info!(target: "tron_app", "preset_prompt_select_change, prompt:{}", prompt);
-        context.set_value_for_component("prompt", TnComponentValue::String(prompt)).await;
+        context
+            .set_value_for_component("prompt", TnComponentValue::String(prompt))
+            .await;
         set_ready_with_context_for(context.clone(), "prompt").await;
-       
+
         set_ready_with_context_for(context.clone(), "preset_prompt_select").await;
     };
     Box::pin(f)
@@ -566,7 +571,7 @@ fn toggle_recording(
                         context
                             .set_value_for_component(
                                 "recorder",
-                                TnComponentValue::String("Recording".into()),
+                                TnComponentValue::String("Pending".into()),
                             )
                             .await;
 
@@ -631,6 +636,31 @@ fn audio_input_stream_processing(
             {
                 let recorder = context.get_component("recorder").await;
                 audio_recorder::append_audio_data(recorder.clone(), chunk.clone()).await;
+
+                let recorder_value = context.get_value_from_component("recorder").await;
+                if let TnComponentValue::String(s) = recorder_value {
+                    if s.as_str() == "Pending" {
+                        context
+                            .set_value_for_component(
+                                "recorder",
+                                TnComponentValue::String("Recording".into()),
+                            )
+                            .await;
+
+                        context
+                            .set_state_for_component("recorder", TnComponentState::Updating)
+                            .await;
+
+                        let msg = TnSseTriggerMsg {
+                            server_side_trigger_data: TnServerSideTriggerData {
+                                target: "recorder".into(),
+                                new_state: "ready".into(),
+                            },
+                        };
+                        let sse_tx = context.get_sse_tx_with_context().await;
+                        send_sse_msg_to_client(&sse_tx, msg).await;
+                    }
+                }
             }
 
             {

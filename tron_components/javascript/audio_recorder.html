@@ -25,6 +25,7 @@
                     );
                 };
                 mediaRecorder.onstop = () => {
+                    console.log("recorder stopped");
                     //setTimeout(() => htmx.trigger(element_id, "streaming", { streaming: false }), 1000);
                 };
                 mediaRecorder.start(250);

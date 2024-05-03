@@ -11,7 +11,7 @@ function get_checkbox_event(event) {
     return {
         "tn_event":
         {
-            "e_target": event.currentTarget.id,
+            "e_trigger": event.currentTarget.id,
             "e_type": event.type,
             "e_state": event.currentTarget.getAttribute('state')
         },

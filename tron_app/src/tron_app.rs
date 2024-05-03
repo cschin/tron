@@ -240,10 +240,11 @@ async fn tron_entry(
         }
     }
 
-    tracing::debug!(target: "tron_app", "payload: {:?}", payload);
+    tracing::debug!(target: "tron_app", "event payload: {:?}", payload);
 
     if let Some(event_data) = match_event(&payload).await {
         let evt = event_data.tn_event;
+        tracing::debug!(target: "tron_app", "event tn_event: {:?}", evt);
 
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {

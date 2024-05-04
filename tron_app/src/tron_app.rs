@@ -574,10 +574,10 @@ async fn cognito_callback(
     );
     let header_kid = header.kid.unwrap();
     let header_kid = header_kid.as_str();
+    let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
+    validation.validate_aud = false;
     value["keys"].as_array().unwrap().iter().for_each(|obj| {
         if obj["kid"].as_str().unwrap() == header_kid {
-            let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
-            validation.validate_aud = false;
             let token = jsonwebtoken::decode::<Claims>(
                 &jwt_value.id_token,
                 &jsonwebtoken::DecodingKey::from_rsa_components(

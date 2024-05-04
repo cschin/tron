@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    extract::{Host, Json, Path, Request, State},
+    extract::{Host, Json, Path, Query, Request, State},
     handler::HandlerWithoutStateExt,
     http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode, Uri},
     response::{
@@ -19,14 +19,19 @@ use tron_components::{
     TnSseMsgChannel,
 };
 //use std::sync::Mutex;
-use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap, convert::Infallible, env, net::SocketAddr, path::PathBuf, sync::Arc,
+};
 use time::Duration;
 use tower_http::cors::CorsLayer;
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
-use tower_sessions::{Expiry, MemoryStore, Session, SessionManagerLayer};
+use tower_sessions::{
+    cookie::{Cookie, CookieJar},
+    Expiry, MemoryStore, Session, SessionManagerLayer,
+};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
@@ -109,8 +114,13 @@ pub async fn run(app_share_data: AppData, log_level: Option<&str>) {
         .with_state(Arc::new(app_share_data));
     //.route("/button", get(tron::button));
 
-    let app = Router::new()
-        .merge(routes)
+    let auth_routes = Router::new()
+        .route("/login", get(login_handler))
+        .route("/cognito_callback/", get(cognito_callback));
+
+    let app_routes = Router::new().merge(routes).merge(auth_routes);
+
+    let app = app_routes
         .layer(session_layer)
         .layer(CorsLayer::very_permissive())
         .nest_service("/static", serve_dir.clone())
@@ -483,4 +493,103 @@ async fn tron_stream(
     let body = Body::from_stream(data_queue);
 
     (StatusCode::OK, header, body)
+}
+
+async fn login_handler() -> Redirect {
+    let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
+    let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
+
+    let cognito_response_type =
+        env::var("COGNITO_RESPONSE_TYPE").expect("COGNITO_RESPONSE_TYPE not set");
+    let redirect_uri = env::var("REDIRECT_URI").expect("REDIRECT_URI not set");
+
+    Redirect::to(&format!("https://{cognito_domain}/login?client_id={cognito_client_id}&response_type={cognito_response_type}&redirect_uri={redirect_uri}"))
+}
+
+#[derive(Deserialize, Debug)]
+struct JWTToken {
+    access_token: String,
+    expires_in: usize,
+    id_token: String,
+    refresh_token: String,
+    token_type: String,
+}
+#[derive(Debug, Deserialize)]
+struct Claims {
+    exp: usize, // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
+    iat: usize, // Optional. Issued at (as UTC timestamp)
+    iss: String, // Optional. Issuer
+    sub: String, // Optional. Subject (whom token refers to)
+    email: String,
+    #[serde(rename(deserialize = "cognito:username"))]
+    username: String,
+}
+
+async fn cognito_callback(
+    headers: HeaderMap,
+    Query(query): Query<HashMap<String, String>>,
+) -> Result<(), StatusCode> {
+    tracing::info!(target = "tron_app", "query: {:?}", query);
+    tracing::info!(target = "tron_app", "cognito_header: {:?}", headers);
+    let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
+    let redirect_uri = env::var("REDIRECT_URI").expect("REDIRECT_URI not set");
+    let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
+    let cognito_user_pool_id =
+        env::var("COGNITO_USER_POOL_ID").expect("COGNITO_USER_POOL_ID not set");
+    let cognito_aws_region = env::var("COGNITO_AWS_REGION").expect("COGNITO_AWS_REGION not set");
+    let client = reqwest::Client::new();
+    let data = [
+        ("grant_type", "authorization_code"),
+        ("client_id", cognito_client_id.as_str()),
+        ("code", query.get("code").unwrap().as_str()),
+        ("redirect_uri", redirect_uri.as_str()),
+    ];
+
+    let token_endpoint = format!("https://{cognito_domain}/oauth2/token");
+    let res = client
+        .post(&token_endpoint)
+        .header("Content-Type", "application/x-www-form-urlencoded")
+        .form(&data)
+        .send()
+        .await
+        .expect("cognito call fail");
+    let t = res.text().await.unwrap();
+    tracing::info!(target = "tron_app", "cognito res raw: {}", t);
+    let jwt_value: JWTToken = serde_json::from_str(&t).unwrap();
+    tracing::info!(target = "tron_app", "cognito res: {:?}", jwt_value);
+    let header = jsonwebtoken::decode_header(&jwt_value.id_token).unwrap();
+    tracing::info!(target = "tron_app", "id_token header: {:?}", header);
+
+    let jwks_url = format!("https://cognito-idp.{cognito_aws_region}.amazonaws.com/{cognito_user_pool_id}/.well-known/jwks.json");
+    let res = client
+        .get(jwks_url)
+        .send()
+        .await
+        .expect("cognito call fail");
+    let value: Value = serde_json::from_str(&res.text().await.unwrap()).unwrap();
+    tracing::info!(
+        target = "tron_app",
+        "cognito jwks res: {:?}",
+        value["keys"].as_array().unwrap()
+    );
+    let header_kid = header.kid.unwrap();
+    let header_kid = header_kid.as_str();
+    value["keys"].as_array().unwrap().iter().for_each(|obj| {
+        if obj["kid"].as_str().unwrap() == header_kid {
+            let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
+            validation.validate_aud = false;
+            let token = jsonwebtoken::decode::<Claims>(
+                &jwt_value.id_token,
+                &jsonwebtoken::DecodingKey::from_rsa_components(
+                    obj["n"].as_str().unwrap(),
+                    obj["e"].as_str().unwrap(),
+                )
+                .unwrap(),
+                &validation,
+            )
+            .unwrap();
+            tracing::info!(target = "tron_app", "cognito decode token: {:?}", token);
+        }
+    });
+    Ok(())
 }

@@ -37,7 +37,9 @@ struct Ports {
     https: u16,
 }
 
-pub type SessionContext = RwLock<HashMap<tower_sessions::session::Id, TnContext>>;
+pub type SessionId = tower_sessions::session::Id; 
+
+pub type SessionContext = RwLock<HashMap<SessionId, TnContext>>;
 
 pub type EventActions = RwLock<TnEventActions>;
 

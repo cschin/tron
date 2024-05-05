@@ -208,7 +208,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                 {
                     // trigger playing
                     let player = context.get_component("player").await;
-                    let sse_tx = context.get_sse_tx_with_context().await;
+                    let sse_tx = context.get_sse_tx().await;
                     start_audio(player.clone(), sse_tx).await;
                 }
                 {
@@ -228,7 +228,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                             new_state: "ready".into(),
                         },
                     };
-                    let sse_tx = context.get_sse_tx_with_context().await;
+                    let sse_tx = context.get_sse_tx().await;
                     send_sse_msg_to_client(&sse_tx, msg).await;
                 }
                 text::update_and_send_textarea_with_context(context.clone(), "llm_stream_output", "").await;

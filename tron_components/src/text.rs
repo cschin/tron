@@ -94,7 +94,7 @@ pub async fn update_and_send_textarea_with_context(
             let mut guard = comp.write().await;
             guard.set_value(TnComponentValue::String(new_str.to_string()));
             guard.set_state(TnComponentState::Ready);
-            let sse_tx = context.get_sse_tx_with_context().await;
+            let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
                 server_side_trigger_data: TnServerSideTriggerData {
                     target: tron_id.to_string(),
@@ -188,7 +188,7 @@ pub async fn append_and_send_stream_textarea_with_context(
     {
         let comp = context.get_component(tron_id).await;
         append_stream_textarea(comp, new_str).await;
-        let sse_tx = context.get_sse_tx_with_context().await;
+        let sse_tx = context.get_sse_tx().await;
         let msg = TnSseTriggerMsg {
             server_side_trigger_data: TnServerSideTriggerData {
                 target: tron_id.to_string(),
@@ -200,7 +200,7 @@ pub async fn append_and_send_stream_textarea_with_context(
 }
 
 pub async fn clean_stream_textarea_with_context(context: TnContext, tron_id: &str) {
-    let sse_tx = context.get_sse_tx_with_context().await;
+    let sse_tx = context.get_sse_tx().await;
     {
         // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML
         // once the server side trigger for an update, the content will be empty
@@ -294,7 +294,7 @@ pub async fn clean_textinput_with_context(context: TnContext, tron_id: &str) {
             let mut guard = comp.write().await;
             guard.set_value(TnComponentValue::String(String::default()));
             guard.set_state(TnComponentState::Ready);
-            let sse_tx = context.get_sse_tx_with_context().await;
+            let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
                 server_side_trigger_data: TnServerSideTriggerData {
                     target: tron_id.to_string(),

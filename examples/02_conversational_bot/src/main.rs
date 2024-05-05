@@ -7,7 +7,7 @@ use askama::Template;
 use dg_service::{deepgram_transcript_service, DeepgramError, StreamResponse};
 use futures_util::Future;
 
-use axum::{body:: Bytes, response::Html};
+use axum::{body::Bytes, response::Html};
 use data_encoding::BASE64;
 use serde::Deserialize;
 
@@ -321,51 +321,40 @@ fn layout(context: TnContext) -> String {
 }
 
 fn build_session_actions(context: TnContext) -> TnEventActions {
-    let mut actions = TnEventActions::default();
-    {
-        // for processing rec button click
-
-        let idx = context.blocking_read().get_component_index("rec_button");
-        actions.insert(
-            idx,
-            (ActionExecutionMethod::Await, Arc::new(toggle_recording)),
-        );
-    }
-    {
-        // for processing the incoming audio stream data
-        let idx = context.blocking_read().get_component_index("recorder");
-        actions.insert(
-            idx,
-            (ActionExecutionMethod::Await, Arc::new(audio_input_stream_processing)),
-        );
-    }
-    {
-        // handling player ended event
-        let idx = context.blocking_read().get_component_index("player");
-        actions.insert(
-            idx,
-            (ActionExecutionMethod::Await, Arc::new(audio_player::stop_audio_playing_action)),
-        );
-    }
-    {
-        // for processing reset button click
-        let idx = context.blocking_read().get_component_index("reset_button");
-        actions.insert(
-            idx,
-            (ActionExecutionMethod::Await, Arc::new(reset_conversation)),
-        );
-    }
-
-    {
-        // for preset_prompt_select
-        let idx = context.blocking_read().get_component_index("preset_prompt_select");
-        actions.insert(
-            idx,
-            (ActionExecutionMethod::Await, Arc::new(preset_prompt_select_change)),
-        );
-    }
+    let mut actions = Vec::<(String, ActionExecutionMethod, ActionFn)>::new();
+    actions.push((
+        "rec_button".into(),
+        ActionExecutionMethod::Await,
+        toggle_recording,
+    ));
+    actions.push((
+        "recorder".into(),
+        ActionExecutionMethod::Await,
+        audio_input_stream_processing,
+    ));
+    actions.push((
+        "player".into(),
+        ActionExecutionMethod::Await,
+        audio_player::stop_audio_playing_action,
+    ));
+    actions.push((
+        "reset_button".into(),
+        ActionExecutionMethod::Await,
+        reset_conversation,
+    ));
+    actions.push((
+        "preset_prompt_select".into(),
+        ActionExecutionMethod::Await,
+        preset_prompt_select_change,
+    ));
 
     actions
+        .into_iter()
+        .map(|(id, exe_method, action_fn)| {
+            let idx = context.blocking_read().get_component_index(&id);
+            (idx, (exe_method, Arc::new(action_fn)))
+        })
+        .collect::<TnEventActions>()
 }
 
 fn _do_nothing(
@@ -379,7 +368,7 @@ fn _do_nothing(
         context
             .set_state_for_component(&event.e_trigger.clone(), TnComponentState::Pending)
             .await;
-        let sse_tx = context.get_sse_tx_with_context().await;
+        let sse_tx = context.get_sse_tx().await;
         let msg = TnSseTriggerMsg {
             server_side_trigger_data: TnServerSideTriggerData {
                 target: event.e_trigger.clone(),
@@ -399,10 +388,9 @@ fn preset_prompt_select_change(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
-
         if event.e_type != "change" || event.e_state != "ready" {
-            return  None;
-        } 
+            return None;
+        }
         let value = context
             .get_value_from_component("preset_prompt_select")
             .await;
@@ -425,13 +413,11 @@ fn preset_prompt_select_change(
         context
             .set_value_for_component("prompt", TnComponentValue::String(prompt))
             .await;
-        set_ready_with_context_for(context.clone(), "prompt").await;
-
-        set_ready_with_context_for(context.clone(), "preset_prompt_select").await;
+        context.set_ready_for("prompt").await;
+        context.set_ready_for("preset_prompt_select").await;
 
         let html = context.render_component(&event.h_target.unwrap()).await;
         Some((HeaderMap::new(), Html::from(html)))
- 
     };
     Box::pin(f)
 }
@@ -444,8 +430,8 @@ fn reset_conversation(
     let f = async move {
         {
             if event.e_type != "click" || event.e_state != "ready" {
-                return  None;
-            } 
+                return None;
+            }
             // send message to the llm service to clean up the history
             let llm_tx = context
                 .read()
@@ -468,11 +454,10 @@ fn reset_conversation(
         }
 
         chatbox::clean_chatbox_with_context(context.clone(), "transcript").await;
-        set_ready_with_context_for(context.clone(), "reset_button").await;
+        context.set_ready_for("reset_button").await;
 
         let html = context.render_component(&event.h_target.unwrap()).await;
         Some((HeaderMap::new(), Html::from(html)))
-        
     };
     Box::pin(f)
 }
@@ -484,10 +469,10 @@ fn toggle_recording(
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
         if event.e_type != "click" && event.e_type != "server_side_trigger" {
-            return  None;
-        } 
+            return None;
+        }
         let previous_rec_button_value;
-        let sse_tx = context.get_sse_tx_with_context().await;
+        let sse_tx = context.get_sse_tx().await;
         {
             let rec_button = context.get_component("rec_button").await;
             let mut rec_button = rec_button.write().await;
@@ -613,8 +598,8 @@ fn audio_input_stream_processing(
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
         if event.e_type != "streaming" || event.e_state != "updating" {
-            return  None;
-        } 
+            return None;
+        }
         let chunk: Option<AudioChunk> = serde_json::from_value(payload).unwrap_or(None);
 
         if let Some(chunk) = chunk {
@@ -649,7 +634,7 @@ fn audio_input_stream_processing(
                                 new_state: "ready".into(),
                             },
                         };
-                        let sse_tx = context.get_sse_tx_with_context().await;
+                        let sse_tx = context.get_sse_tx().await;
                         send_sse_msg_to_client(&sse_tx, msg).await;
                     }
                 }
@@ -861,7 +846,7 @@ async fn transcript_post_processing_service(
                                     new_state: "ready".into(),
                                 },
                             };
-                            let sse_tx = context.get_sse_tx_with_context().await;
+                            let sse_tx = context.get_sse_tx().await;
                             send_sse_msg_to_client(&sse_tx, msg).await;
                         }
                     }

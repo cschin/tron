@@ -99,7 +99,7 @@ pub fn stop_audio_playing_action(
             player.set_state(TnComponentState::Ready);
         }
         {
-            let sse_tx = context.get_sse_tx_with_context().await;
+            let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
                 server_side_trigger_data: TnServerSideTriggerData {
                     target: event.e_trigger.clone(),

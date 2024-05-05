@@ -12,11 +12,11 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    checklist, set_ready_with_context_for,
+    checklist,
     text::{self, append_stream_textarea, append_textarea_value},
-    ActionExecutionMethod, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
-    TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse, TnSelect, TnStreamTextArea,
-    TnTextArea, TnTextInput,
+    ActionExecutionMethod, ActionFn, TnButton, TnComponentBaseTrait, TnComponentState,
+    TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse, TnSelect,
+    TnStreamTextArea, TnTextArea, TnTextInput,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, str::FromStr, sync::Arc};
@@ -252,7 +252,6 @@ fn build_session_context() -> TnContext {
         clean_button.set_attribute("hx-target".to_string(), "#stream_textarea".to_string());
         context.add_component(clean_button);
     }
-
     {
         component_index += 1;
         let mut clean_button = TnButton::<'static>::new(
@@ -266,7 +265,6 @@ fn build_session_context() -> TnContext {
         );
         context.add_component(clean_button);
     }
-
     {
         component_index += 1;
         let mut clean_button = TnButton::<'static>::new(
@@ -280,7 +278,6 @@ fn build_session_context() -> TnContext {
         );
         context.add_component(clean_button);
     }
-
     {
         component_index += 1;
         let mut textinput =
@@ -289,66 +286,53 @@ fn build_session_context() -> TnContext {
 
         context.add_component(textinput);
     }
+
     TnContext {
         base: Arc::new(RwLock::new(context)),
     }
 }
 
 fn build_session_actions(context: TnContext) -> TnEventActions {
-    let mut actions = TnEventActions::default();
+    let mut actions = Vec::<(String, ActionExecutionMethod, ActionFn)>::new();
     for i in 0..10 {
-        let idx = context
-            .blocking_read()
-            .get_component_index(&format!("btn-{:02}", i));
-        actions.insert(
-            idx,
-            (ActionExecutionMethod::Spawn, Arc::new(test_event_actions)),
-        );
+        actions.push((
+            format!("btn-{:02}", i),
+            ActionExecutionMethod::Spawn,
+            test_event_actions,
+        ));
     }
     {
-        let context_guard = context.blocking_read();
-        let checklist_id = context_guard.get_component_index("checklist");
-        let component_guard = context_guard.components.blocking_read();
-        let checklist = component_guard.get(&checklist_id).unwrap().clone();
+        let checklist = context.blocking_get_component("checklist");
         let checklist_actions = checklist::get_checklist_actions(checklist);
-        checklist_actions.into_iter().for_each(|(idx, action)| {
-            actions.insert(idx, (ActionExecutionMethod::Await, action));
+        checklist_actions.into_iter().for_each(|(tron_id, action)| {
+            actions.push((tron_id, ActionExecutionMethod::Await, action));
         });
     }
-    {
-        let idx = context
-            .blocking_read()
-            .get_component_index("clean_stream_textarea");
-        actions.insert(
-            idx,
-            (
-                ActionExecutionMethod::Await,
-                Arc::new(clean_stream_textarea),
-            ),
-        );
-    }
+    actions.push((
+        "clean_stream_textarea".into(),
+        ActionExecutionMethod::Await,
+        clean_stream_textarea,
+    ));
 
-    {
-        let idx = context
-            .blocking_read()
-            .get_component_index("clean_textarea");
-        actions.insert(
-            idx,
-            (ActionExecutionMethod::Await, Arc::new(clean_textarea)),
-        );
-    }
+    actions.push((
+        "clean_textarea".into(),
+        ActionExecutionMethod::Await,
+        clean_textarea,
+    ));
 
-    {
-        let idx = context
-            .blocking_read()
-            .get_component_index("clean_textinput");
-        actions.insert(
-            idx,
-            (ActionExecutionMethod::Await, Arc::new(clean_textinput)),
-        );
-    }
+    actions.push((
+        "clean_textinput".into(),
+        ActionExecutionMethod::Await,
+        clean_textinput,
+    ));
 
     actions
+        .into_iter()
+        .map(|(id, exe_method, action_fn)| {
+            let idx = context.blocking_read().get_component_index(&id);
+            (idx, (exe_method, Arc::new(action_fn)))
+        })
+        .collect::<TnEventActions>()
 }
 
 fn clean_stream_textarea(
@@ -361,7 +345,6 @@ fn clean_stream_textarea(
         tracing::info!(target: "tron_app", "event: {:?}", event);
         match event.e_type.as_str() {
             "click" => {
-                //set_ready_with_context_for(context.clone(), &event.e_trigger).await;
                 if let Some(target) = event.h_target {
                     context
                         .set_value_for_component(&target, TnComponentValue::VecString(vec![]))
@@ -398,7 +381,7 @@ fn clean_textarea(
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
         text::clean_textarea_with_context(context.clone(), "textarea").await;
-        set_ready_with_context_for(context.clone(), &event.e_trigger).await;
+        context.set_ready_for(&event.e_trigger).await;
         let html = context.render_component(&event.e_trigger).await;
         Some((HeaderMap::new(), Html::from(html)))
     };
@@ -412,7 +395,7 @@ fn clean_textinput(
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
         text::clean_textinput_with_context(context.clone(), "textinput").await;
-        set_ready_with_context_for(context.clone(), &event.e_trigger).await;
+        context.set_ready_for(&event.e_trigger).await;
         let html = context.render_component(&event.e_trigger).await;
         Some((HeaderMap::new(), Html::from(html)))
     };

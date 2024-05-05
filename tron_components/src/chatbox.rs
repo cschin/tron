@@ -140,7 +140,7 @@ pub async fn append_chatbox_value(
 }
 
 pub async fn clean_chatbox_with_context(context: TnContext, tron_id: &str) {
-    let sse_tx = context.get_sse_tx_with_context().await;
+    let sse_tx = context.get_sse_tx().await;
     {
         // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML
         // once the server side trigger for an update, the content will be empty

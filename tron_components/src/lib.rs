@@ -216,6 +216,13 @@ impl TnContext {
         components_guard.get(&comp_id).unwrap().clone()
     }
 
+    pub fn blocking_get_component(&self, tron_id: &str) -> TnComponent<'static> {
+        let context_guard = self.blocking_write();
+        let components_guard = context_guard.components.blocking_write();
+        let comp_id = context_guard.get_component_index(tron_id);
+        components_guard.get(&comp_id).unwrap().clone()
+    }
+
     pub async fn render_component(&self, tron_id: &str) -> String {
         let context_guard = self.read().await;
         let components_guard = context_guard.components.read().await;
@@ -281,7 +288,7 @@ impl TnContext {
         component.set_state(s);
     }
 
-    pub async fn get_sse_tx_with_context(&self) -> Sender<String> {
+    pub async fn get_sse_tx(&self) -> Sender<String> {
         // unlock two layers of Rwlock !!
         let sse_tx = self
             .read()
@@ -294,6 +301,25 @@ impl TnContext {
             .tx
             .clone();
         sse_tx
+    }
+
+    pub async fn set_ready_for(&self, tron_id: &str) {
+        {
+            let sse_tx = self.get_sse_tx().await;
+            // set the reset button back to the ready state
+            self
+                .set_state_for_component(tron_id, TnComponentState::Ready)
+                .await;
+    
+            let msg = TnSseTriggerMsg {
+                // update the button state
+                server_side_trigger_data: TnServerSideTriggerData {
+                    target: tron_id.into(),
+                    new_state: "ready".into(),
+                },
+            };
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
     }
 }
 
@@ -560,26 +586,6 @@ pub enum ActionExecutionMethod {
 }
 
 pub type TnEventActions = HashMap<TnComponentIndex, (ActionExecutionMethod, Arc<ActionFn>)>;
-
-pub async fn set_ready_with_context_for(context: TnContext, tron_id: &str) {
-    {
-        let sse_tx = context.get_sse_tx_with_context().await;
-        // set the reset button back to the ready state
-        context
-            .set_state_for_component(tron_id, TnComponentState::Ready)
-            .await;
-
-        let msg = TnSseTriggerMsg {
-            // update the button state
-            server_side_trigger_data: TnServerSideTriggerData {
-                target: tron_id.into(),
-                new_state: "ready".into(),
-            },
-        };
-        send_sse_msg_to_client(&sse_tx, msg).await;
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use crate::{TnButton, TnComponentBaseTrait};

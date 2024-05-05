@@ -1,4 +1,7 @@
+use std::str::FromStr;
+
 use super::*;
+use axum::http::{HeaderName, HeaderValue};
 use futures_util::Future;
 use serde::Serialize;
 use tron_macro::*;
@@ -83,8 +86,11 @@ pub fn stop_audio_playing_action(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
+        if event.e_type != "ended" || event.e_state != "updating" {
+            return  None;
+        }
         {
             let guard = context.get_component(&event.e_trigger.clone()).await;
             let mut player = guard.write().await;
@@ -102,6 +108,11 @@ pub fn stop_audio_playing_action(
             };
             send_sse_msg_to_client(&sse_tx, msg).await;
         }
+        let html = context.render_component(&event.h_target.unwrap()).await;
+        let mut header = HeaderMap::new(); 
+        header.insert(HeaderName::from_str("HX-Reswap").unwrap() ,HeaderValue::from_str("none").unwrap());
+        Some((header, Html::from(html)))
+ 
     };
     Box::pin(f)
 }

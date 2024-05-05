@@ -1,12 +1,13 @@
 mod dg_service;
 mod openai_service;
+use http::HeaderMap;
 use openai_service::simulate_dialog;
 
 use askama::Template;
 use dg_service::{deepgram_transcript_service, DeepgramError, StreamResponse};
 use futures_util::Future;
 
-use axum::body::Bytes;
+use axum::{body:: Bytes, response::Html};
 use data_encoding::BASE64;
 use serde::Deserialize;
 
@@ -283,11 +284,13 @@ struct AppPageTemplate {
 }
 
 fn layout(context: TnContext) -> String {
-
     context.set_value_for_component_blocking("recorder", TnComponentValue::String("Paused".into()));
     context.set_state_for_component_blocking("recorder", TnComponentState::Ready);
 
-    context.set_value_for_component_blocking("rec_button", TnComponentValue::String("Start Conversation".into()));
+    context.set_value_for_component_blocking(
+        "rec_button",
+        TnComponentValue::String("Start Conversation".into()),
+    );
     context.set_state_for_component_blocking("rec_button", TnComponentState::Ready);
 
     let guard = context.blocking_read();
@@ -317,89 +320,48 @@ fn layout(context: TnContext) -> String {
     html.render().unwrap()
 }
 
-fn build_session_actions(_context: TnContext) -> TnEventActions {
+fn build_session_actions(context: TnContext) -> TnEventActions {
     let mut actions = TnEventActions::default();
     {
         // for processing rec button click
-        let evt = TnEvent {
-            e_trigger: "rec_button".into(),
-            e_type: "click".into(),
-            e_state: "ready".into(),
-        };
 
+        let idx = context.blocking_read().get_component_index("rec_button");
         actions.insert(
-            evt,
-            (ActionExecutionMethod::Await, Arc::new(toggle_recording)),
-        );
-
-        let evt = TnEvent {
-            e_trigger: "rec_button".into(),
-            e_type: "server_side_trigger".into(),
-            e_state: "ready".into(),
-        };
-        actions.insert(
-            evt,
+            idx,
             (ActionExecutionMethod::Await, Arc::new(toggle_recording)),
         );
     }
     {
         // for processing the incoming audio stream data
-        let evt = TnEvent {
-            e_trigger: "recorder".into(),
-            e_type: "streaming".into(),
-            e_state: "updating".into(),
-        };
+        let idx = context.blocking_read().get_component_index("recorder");
         actions.insert(
-            evt,
-            (
-                ActionExecutionMethod::Await,
-                Arc::new(audio_input_stream_processing),
-            ),
+            idx,
+            (ActionExecutionMethod::Await, Arc::new(audio_input_stream_processing)),
         );
     }
     {
         // handling player ended event
-        let evt = TnEvent {
-            e_trigger: "player".into(),
-            e_type: "ended".into(),
-            e_state: "updating".into(),
-        };
+        let idx = context.blocking_read().get_component_index("player");
         actions.insert(
-            evt,
-            (
-                ActionExecutionMethod::Await,
-                Arc::new(audio_player::stop_audio_playing_action),
-            ),
+            idx,
+            (ActionExecutionMethod::Await, Arc::new(audio_player::stop_audio_playing_action)),
         );
     }
     {
         // for processing reset button click
-        let evt = TnEvent {
-            e_trigger: "reset_button".into(),
-            e_type: "click".into(),
-            e_state: "ready".into(),
-        };
-
+        let idx = context.blocking_read().get_component_index("reset_button");
         actions.insert(
-            evt,
+            idx,
             (ActionExecutionMethod::Await, Arc::new(reset_conversation)),
         );
     }
 
     {
         // for preset_prompt_select
-        let evt = TnEvent {
-            e_trigger: "preset_prompt_select".into(),
-            e_type: "change".into(),
-            e_state: "ready".into(),
-        };
-
+        let idx = context.blocking_read().get_component_index("preset_prompt_select");
         actions.insert(
-            evt,
-            (
-                ActionExecutionMethod::Await,
-                Arc::new(preset_prompt_select_change),
-            ),
+            idx,
+            (ActionExecutionMethod::Await, Arc::new(preset_prompt_select_change)),
         );
     }
 
@@ -433,10 +395,14 @@ fn _do_nothing(
 
 fn preset_prompt_select_change(
     context: TnContext,
-    _event: TnEvent,
+    event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
+
+        if event.e_type != "change" || event.e_state != "ready" {
+            return  None;
+        } 
         let value = context
             .get_value_from_component("preset_prompt_select")
             .await;
@@ -462,17 +428,24 @@ fn preset_prompt_select_change(
         set_ready_with_context_for(context.clone(), "prompt").await;
 
         set_ready_with_context_for(context.clone(), "preset_prompt_select").await;
+
+        let html = context.render_component(&event.h_target.unwrap()).await;
+        Some((HeaderMap::new(), Html::from(html)))
+ 
     };
     Box::pin(f)
 }
 
 fn reset_conversation(
     context: TnContext,
-    _event: TnEvent,
+    event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
         {
+            if event.e_type != "click" || event.e_state != "ready" {
+                return  None;
+            } 
             // send message to the llm service to clean up the history
             let llm_tx = context
                 .read()
@@ -496,6 +469,10 @@ fn reset_conversation(
 
         chatbox::clean_chatbox_with_context(context.clone(), "transcript").await;
         set_ready_with_context_for(context.clone(), "reset_button").await;
+
+        let html = context.render_component(&event.h_target.unwrap()).await;
+        Some((HeaderMap::new(), Html::from(html)))
+        
     };
     Box::pin(f)
 }
@@ -504,8 +481,11 @@ fn toggle_recording(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
+        if event.e_type != "click" && event.e_type != "server_side_trigger" {
+            return  None;
+        } 
         let previous_rec_button_value;
         let sse_tx = context.get_sse_tx_with_context().await;
         {
@@ -614,6 +594,8 @@ fn toggle_recording(
             },
         };
         send_sse_msg_to_client(&sse_tx, msg).await;
+        let html = context.render_component(&event.h_target.unwrap()).await;
+        Some((HeaderMap::new(), Html::from(html)))
     };
 
     Box::pin(f)
@@ -626,10 +608,13 @@ struct AudioChunk {
 
 fn audio_input_stream_processing(
     context: TnContext,
-    _event: TnEvent,
+    event: TnEvent,
     payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
+        if event.e_type != "streaming" || event.e_state != "updating" {
+            return  None;
+        } 
         let chunk: Option<AudioChunk> = serde_json::from_value(payload).unwrap_or(None);
 
         if let Some(chunk) = chunk {
@@ -702,6 +687,8 @@ fn audio_input_stream_processing(
                 }
             }
         };
+        let html = context.render_component(&event.h_target.unwrap()).await;
+        Some((HeaderMap::new(), Html::from(html)))
     };
 
     Box::pin(f)
@@ -816,7 +803,11 @@ async fn transcript_post_processing_service(
 ) {
     let assets = context.read().await.asset.clone();
     let components = context.read().await.components.clone();
-    let transcript_area_id = context.clone().read().await.get_component_id("transcript");
+    let transcript_area_id = context
+        .clone()
+        .read()
+        .await
+        .get_component_index("transcript");
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {
             "transcript_final" => {

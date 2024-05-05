@@ -1,4 +1,8 @@
 use askama::Template;
+use axum::{
+    http::{HeaderMap, HeaderName, HeaderValue},
+    response::Html,
+};
 use futures_util::Future;
 
 //use serde::{Deserialize, Serialize};
@@ -8,10 +12,14 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_components::{
-    checklist, set_ready_with_context_for, text::{self, append_stream_textarea, append_textarea_value}, ActionExecutionMethod, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput
+    checklist, set_ready_with_context_for,
+    text::{self, append_stream_textarea, append_textarea_value},
+    ActionExecutionMethod, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
+    TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse, TnSelect, TnStreamTextArea,
+    TnTextArea, TnTextInput,
 };
 //use std::sync::Mutex;
-use std::{collections::HashMap, pin::Pin, sync::Arc};
+use std::{collections::HashMap, pin::Pin, str::FromStr, sync::Arc};
 
 #[tokio::main]
 async fn main() {
@@ -30,8 +38,15 @@ fn test_event_actions(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
+        tracing::info!(target:"tron_app", "{:?}", event);
+        if event.e_type == "server_side_trigger" {
+            tracing::info!(target:"tron_app", "in server_side_trigger");
+            let html = context.render_component(&event.e_trigger).await;
+            return Some((HeaderMap::new(), Html::from(html)));
+        };
+
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
         let mut i = 0;
         let sse_tx = {
@@ -46,7 +61,7 @@ fn test_event_actions(
                 let context_guard = context.write().await;
                 let v;
                 {
-                    let id = context_guard.get_component_id(&event.e_trigger.clone());
+                    let id = context_guard.get_component_index(&event.e_trigger.clone());
                     let mut components_guard = context_guard.components.write().await;
                     {
                         let btn = components_guard.get_mut(&id).unwrap().read().await;
@@ -64,7 +79,7 @@ fn test_event_actions(
                 }
 
                 {
-                    let id = context_guard.get_component_id("stream_textarea");
+                    let id = context_guard.get_component_index("stream_textarea");
                     let mut components_guard = context_guard.components.write().await;
                     let stream_textarea = components_guard.get_mut(&id).unwrap().clone();
                     let new_str = format!("{} -- {:02};\n", event.e_trigger, v + 1);
@@ -72,7 +87,7 @@ fn test_event_actions(
                 };
 
                 {
-                    let id = context_guard.get_component_id("textarea");
+                    let id = context_guard.get_component_index("textarea");
                     let mut components_guard = context_guard.components.write().await;
                     let textarea = components_guard.get_mut(&id).unwrap().clone();
                     let new_str = format!("{} -- {:02};", event.e_trigger, v + 1);
@@ -95,8 +110,9 @@ fn test_event_actions(
                 debug!("tx dropped");
             }
 
-            let msg = r##"{"server_side_trigger_data": { "target":"textarea", "new_state":"ready" } }"##
-                .to_string();
+            let msg =
+                r##"{"server_side_trigger_data": { "target":"textarea", "new_state":"ready" } }"##
+                    .to_string();
             if sse_tx.send(msg).await.is_err() {
                 debug!("tx dropped");
             }
@@ -111,7 +127,7 @@ fn test_event_actions(
         }
         {
             let context_guard = context.write().await;
-            let id = context_guard.get_component_id(&event.e_trigger.clone());
+            let id = context_guard.get_component_index(&event.e_trigger.clone());
             let mut components_guard = context_guard.components.write().await;
             let mut btn = components_guard.get_mut(&id).unwrap().write().await;
             btn.set_state(TnComponentState::Ready);
@@ -123,12 +139,14 @@ fn test_event_actions(
                 tracing::debug!(target: "tron_app", "tx dropped");
             }
         }
+        None
     };
     Box::pin(f())
 }
 
 fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
+
     let mut component_index = 0_u32;
     loop {
         let mut btn = TnButton::<'static>::new(
@@ -143,6 +161,7 @@ fn build_session_context() -> TnContext {
         );
 
         context.add_component(btn);
+
         component_index += 1;
         if component_index >= 10 {
             break;
@@ -219,7 +238,6 @@ fn build_session_context() -> TnContext {
         );
         context.add_component(select);
     }
-
     {
         component_index += 1;
         let mut clean_button = TnButton::<'static>::new(
@@ -231,6 +249,7 @@ fn build_session_context() -> TnContext {
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
+        clean_button.set_attribute("hx-target".to_string(), "#stream_textarea".to_string());
         context.add_component(clean_button);
     }
 
@@ -278,51 +297,55 @@ fn build_session_context() -> TnContext {
 fn build_session_actions(context: TnContext) -> TnEventActions {
     let mut actions = TnEventActions::default();
     for i in 0..10 {
-        let evt = TnEvent {
-            e_trigger: format!("btn-{:02}", i),
-            e_type: "click".to_string(),
-            e_state: "ready".to_string(),
-        };
+        let idx = context
+            .blocking_read()
+            .get_component_index(&format!("btn-{:02}", i));
         actions.insert(
-            evt,
+            idx,
             (ActionExecutionMethod::Spawn, Arc::new(test_event_actions)),
         );
     }
     {
         let context_guard = context.blocking_read();
-        let checklist_id = context_guard.get_component_id("checklist");
+        let checklist_id = context_guard.get_component_index("checklist");
         let component_guard = context_guard.components.blocking_read();
         let checklist = component_guard.get(&checklist_id).unwrap().clone();
         let checklist_actions = checklist::get_checklist_actions(checklist);
-        checklist_actions.into_iter().for_each(|(evt, action)| {
-            actions.insert(evt, (ActionExecutionMethod::Await, action));
+        checklist_actions.into_iter().for_each(|(idx, action)| {
+            actions.insert(idx, (ActionExecutionMethod::Await, action));
         });
     }
     {
-        let evt = TnEvent {
-            e_trigger: "clean_stream_textarea".into(),
-            e_type: "click".to_string(),
-            e_state: "ready".to_string(),
-        };
-        actions.insert(evt, (ActionExecutionMethod::Spawn, Arc::new(clean_stream_textarea)));
+        let idx = context
+            .blocking_read()
+            .get_component_index("clean_stream_textarea");
+        actions.insert(
+            idx,
+            (
+                ActionExecutionMethod::Await,
+                Arc::new(clean_stream_textarea),
+            ),
+        );
     }
 
     {
-        let evt = TnEvent {
-            e_trigger: "clean_textarea".into(),
-            e_type: "click".to_string(),
-            e_state: "ready".to_string(),
-        };
-        actions.insert(evt, (ActionExecutionMethod::Spawn, Arc::new(clean_textarea)));
+        let idx = context
+            .blocking_read()
+            .get_component_index("clean_textarea");
+        actions.insert(
+            idx,
+            (ActionExecutionMethod::Await, Arc::new(clean_textarea)),
+        );
     }
 
     {
-        let evt = TnEvent {
-            e_trigger: "clean_textinput".into(),
-            e_type: "click".to_string(),
-            e_state: "ready".to_string(),
-        };
-        actions.insert(evt, (ActionExecutionMethod::Spawn, Arc::new(clean_textinput)));
+        let idx = context
+            .blocking_read()
+            .get_component_index("clean_textinput");
+        actions.insert(
+            idx,
+            (ActionExecutionMethod::Await, Arc::new(clean_textinput)),
+        );
     }
 
     actions
@@ -332,10 +355,38 @@ fn clean_stream_textarea(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-    let f =  || async move {
-        text::clean_stream_textarea_with_context(context.clone(), "stream_textarea").await;
-        set_ready_with_context_for(context, &event.e_trigger).await;
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+    let f = || async move {
+        //text::clean_stream_textarea_with_context(context.clone(), "stream_textarea").await;
+        tracing::info!(target: "tron_app", "event: {:?}", event);
+        match event.e_type.as_str() {
+            "click" => {
+                //set_ready_with_context_for(context.clone(), &event.e_trigger).await;
+                if let Some(target) = event.h_target {
+                    context
+                        .set_value_for_component(&target, TnComponentValue::VecString(vec![]))
+                        .await;
+                    let html = "".to_string();
+                    let mut header = HeaderMap::new();
+                    header.insert(
+                        HeaderName::from_str("hx-reswap").unwrap(),
+                        HeaderValue::from_str("innerHTML").unwrap(),
+                    );
+                    Some((header, Html::from(html)))
+                } else {
+                    None
+                }
+            }
+            "clean_stream_textarea" => {
+                if let Some(target) = event.h_target {
+                    let html = context.render_component(&target).await;
+                    Some((HeaderMap::new(), Html::from(html)))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
     };
     Box::pin(f())
 }
@@ -344,10 +395,12 @@ fn clean_textarea(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-    let f =  || async move {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+    let f = || async move {
         text::clean_textarea_with_context(context.clone(), "textarea").await;
-        set_ready_with_context_for(context, &event.e_trigger).await;
+        set_ready_with_context_for(context.clone(), &event.e_trigger).await;
+        let html = context.render_component(&event.e_trigger).await;
+        Some((HeaderMap::new(), Html::from(html)))
     };
     Box::pin(f())
 }
@@ -356,10 +409,12 @@ fn clean_textinput(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-    let f =  || async move {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+    let f = || async move {
         text::clean_textinput_with_context(context.clone(), "textinput").await;
-        set_ready_with_context_for(context, &event.e_trigger).await;
+        set_ready_with_context_for(context.clone(), &event.e_trigger).await;
+        let html = context.render_component(&event.e_trigger).await;
+        Some((HeaderMap::new(), Html::from(html)))
     };
     Box::pin(f())
 }
@@ -403,7 +458,7 @@ fn layout(context: TnContext) -> String {
         select,
         clean_stream_textarea,
         clean_textarea,
-        clean_textinput
+        clean_textinput,
     };
     html.render().unwrap()
 }

@@ -196,19 +196,20 @@ pub async fn checklist_update_value(comp: TnComponent<'static>) {
 
 pub fn get_checklist_actions(
     comp: TnComponent<'static>,
-) -> Vec<(TnEvent, Arc<ActionFn>)> {
+) -> Vec<(TnComponentIndex, Arc<ActionFn>)> {
     let comp_guard = comp.blocking_write();
     assert!(comp_guard.get_type() == TnComponentType::CheckList);
     let children = comp_guard.get_children().clone();
-    let mut events: Vec<(TnEvent, Arc<ActionFn>)> = Vec::default();
+    let mut events: Vec<(TnComponentIndex, Arc<ActionFn>)> = Vec::default();
     for child in children {
         let child = child.blocking_read();
-        let evt = TnEvent {
-            e_trigger: child.tron_id().clone(),
-            e_type: "change".into(),
-            e_state: "ready".into(),
-        };
-        events.push((evt, Arc::new(toggle_checkbox)))
+        // let evt = TnEvent {
+        //     e_trigger: child.tron_id().clone(),
+        //     e_type: "change".into(),
+        //     e_state: "ready".into(),
+        //     e_target: format!("#{}",child.tron_id().clone()),
+        // };
+        events.push((child.id(), Arc::new(toggle_checkbox)))
     }
     events
 }
@@ -217,12 +218,12 @@ pub fn toggle_checkbox(
     context: TnContext,
     event: TnEvent,
     payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
         // println!("paylod value {payload}");
         if let Value::String(checked) = &payload["event_data"]["e_value"] {
             let context_guard = context.read().await;
-            let checkbox_id = context_guard.get_component_id(&event.e_trigger);
+            let checkbox_id = context_guard.get_component_index(&event.e_trigger);
             let components_guard = context_guard.components.write().await;
             let mut checkbox = components_guard.get(&checkbox_id).unwrap().write().await;
 
@@ -244,7 +245,11 @@ pub fn toggle_checkbox(
                 };
             }
             checkbox.set_state(TnComponentState::Ready);
-        };
+            Some( (HeaderMap::new(), Html::from(checkbox.render())) )
+        } else {
+            None
+        }
+       
     };
 
     Box::pin(f)

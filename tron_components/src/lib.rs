@@ -25,7 +25,11 @@ pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
 
 use rand::{thread_rng, Rng};
 
-use axum::body::Bytes;
+use axum::{
+    body::Bytes,
+    http::HeaderMap,
+    response::Html,
+};
 use bytes::BytesMut;
 use serde::Deserialize;
 
@@ -161,7 +165,7 @@ impl<'a: 'static> TnContextBase<'a> {
         self.tnid_to_index.insert(tron_id, id);
     }
 
-    pub fn get_component_id(&self, tron_id: &str) -> u32 {
+    pub fn get_component_index(&self, tron_id: &str) -> u32 {
         *self
             .tnid_to_index
             .get(tron_id)
@@ -169,14 +173,14 @@ impl<'a: 'static> TnContextBase<'a> {
     }
 
     pub fn render_to_string(&self, tron_id: &str) -> String {
-        let id = self.get_component_id(tron_id);
+        let id = self.get_component_index(tron_id);
         let components_guard = self.components.blocking_read();
         let component = components_guard.get(&id).unwrap().blocking_read();
         component.render()
     }
 
     pub fn first_render_to_string(&self, tron_id: &str) -> String {
-        let id = self.get_component_id(tron_id);
+        let id = self.get_component_index(tron_id);
         let component_guard = self.components.blocking_read();
         let component = component_guard.get(&id).unwrap().blocking_read();
         component.first_render()
@@ -208,15 +212,23 @@ impl TnContext {
     pub async fn get_component(&self, tron_id: &str) -> TnComponent<'static> {
         let context_guard = self.write().await;
         let components_guard = context_guard.components.write().await;
-        let comp_id = context_guard.get_component_id(tron_id);
+        let comp_id = context_guard.get_component_index(tron_id);
         components_guard.get(&comp_id).unwrap().clone()
+    }
+
+    pub async fn render_component(&self, tron_id: &str) -> String {
+        let context_guard = self.read().await;
+        let components_guard = context_guard.components.read().await;
+        let comp_id = context_guard.get_component_index(tron_id);
+        let comp = components_guard.get(&comp_id).unwrap().read().await;
+        comp.render()
     }
 
     pub async fn get_value_from_component(&self, tron_id: &str) -> TnComponentValue {
         let value = {
             let context_guard = self.read().await;
             let components_guard = context_guard.components.read().await;
-            let component_id = context_guard.get_component_id(tron_id);
+            let component_id = context_guard.get_component_index(tron_id);
             let components_guard = components_guard.get(&component_id).unwrap().read().await;
             components_guard.value().clone()
         };
@@ -226,7 +238,7 @@ impl TnContext {
     pub async fn set_value_for_component(&self, tron_id: &str, v: TnComponentValue) {
         let context_guard = self.read().await;
         let mut components_guard = context_guard.components.write().await;
-        let component_id = context_guard.get_component_id(tron_id);
+        let component_id = context_guard.get_component_index(tron_id);
         let mut component = components_guard
             .get_mut(&component_id)
             .unwrap()
@@ -238,7 +250,7 @@ impl TnContext {
     pub async fn set_state_for_component(&self, tron_id: &str, s: TnComponentState) {
         let context_guard = self.read().await;
         let mut components_guard = context_guard.components.write().await;
-        let component_id = context_guard.get_component_id(tron_id);
+        let component_id = context_guard.get_component_index(tron_id);
         let mut component = components_guard
             .get_mut(&component_id)
             .unwrap()
@@ -250,7 +262,7 @@ impl TnContext {
     pub fn set_value_for_component_blocking(&self, tron_id: &str, v: TnComponentValue) {
         let context_guard = self.blocking_read();
         let mut components_guard = context_guard.components.blocking_write();
-        let component_id = context_guard.get_component_id(tron_id);
+        let component_id = context_guard.get_component_index(tron_id);
         let mut component = components_guard
             .get_mut(&component_id)
             .unwrap()
@@ -261,7 +273,7 @@ impl TnContext {
     pub fn set_state_for_component_blocking(&self, tron_id: &str, s: TnComponentState) {
         let context_guard = self.blocking_read();
         let mut components_guard = context_guard.components.blocking_write();
-        let component_id = context_guard.get_component_id(tron_id);
+        let component_id = context_guard.get_component_index(tron_id);
         let mut component = components_guard
             .get_mut(&component_id)
             .unwrap()
@@ -523,14 +535,23 @@ pub struct TnEvent {
     pub e_trigger: String,
     pub e_type: String,  // maybe use Enum
     pub e_state: String, // should use the Component::State enum
+    #[allow(dead_code)]
+    #[serde(default)]
+    pub e_target: String,
+    #[allow(dead_code)]
+    #[serde(default)]
+    pub h_target: Option<String>,
 }
 use tokio::sync::{mpsc::Sender, RwLock};
 use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
+pub type TnHtmlResponse = Option<(HeaderMap, Html<String>)>;
 pub type ActionFn = fn(
     TnContext,
     event: TnEvent,
     payload: Value,
-) -> Pin<Box<dyn futures_util::Future<Output = ()> + Send + Sync>>;
+) -> Pin<
+    Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send + Sync>,
+>;
 
 #[derive(Clone)]
 pub enum ActionExecutionMethod {
@@ -538,7 +559,7 @@ pub enum ActionExecutionMethod {
     Await,
 }
 
-pub type TnEventActions = HashMap<TnEvent, (ActionExecutionMethod, Arc<ActionFn>)>;
+pub type TnEventActions = HashMap<TnComponentIndex, (ActionExecutionMethod, Arc<ActionFn>)>;
 
 pub async fn set_ready_with_context_for(context: TnContext, tron_id: &str) {
     {

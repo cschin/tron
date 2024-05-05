@@ -2,7 +2,7 @@ use axum::{
     body::Body,
     extract::{Host, Json, Path, Request, State},
     handler::HandlerWithoutStateExt,
-    http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode, Uri},
+    http::{header, HeaderMap, StatusCode, Uri},
     response::{
         sse::{self, KeepAlive},
         Html, IntoResponse, Redirect, Sse,
@@ -15,11 +15,14 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    ActionExecutionMethod, TnComponentIndex, TnComponentState, TnComponentValue, TnContext, TnEvent,
-    TnEventActions, TnSseMsgChannel,
+    ActionExecutionMethod, TnComponentIndex, TnComponentValue, TnContext,
+    TnEvent, TnEventActions, TnSseMsgChannel,
 };
 //use std::sync::Mutex;
-use std::{collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf, sync::Arc};
+use std::{
+    collections::HashMap, convert::Infallible, net::SocketAddr, path::PathBuf,
+    sync::Arc,
+};
 use time::Duration;
 use tower_http::cors::CorsLayer;
 use tower_http::{
@@ -187,7 +190,7 @@ async fn load_page(
 }
 
 #[derive(Clone, Debug, Deserialize)]
-struct EventData {
+struct TnEventData {
     tn_event: TnEvent,
     #[allow(dead_code)]
     #[serde(default)]
@@ -199,11 +202,13 @@ struct EventData {
 
 #[derive(Clone, Debug, Deserialize)]
 struct TnEventExtend {
-    event_data: EventData,
+    event_data: TnEventData,
 }
 
-async fn match_event(payload: &Value) -> Option<EventData> {
+async fn match_event(payload: &Value) -> Option<TnEventData> {
     let r: Option<TnEventExtend> = serde_json::from_value(payload.clone()).unwrap_or(None);
+    tracing::info!(target: "tron_app", "Payload:{:?}", payload);
+    tracing::info!(target: "tron_app", "TnEventExtend:{:?}", r);
     if let Some(r) = r {
         Some(r.event_data)
     } else {
@@ -221,8 +226,12 @@ async fn tron_entry(
 ) -> impl IntoResponse {
     tracing::debug!(target: "tron_app", "headers: {:?}", headers);
 
-    let _hx_trigger = headers.get("hx-trigger");
-    let hx_target = headers.get("hx-target");
+    //let _hx_trigger = headers.get("hx-trigger");
+    let hx_target: Option<String> = headers
+        .get("hx-target")
+        .map(|hx_target| hx_target.to_str().unwrap().to_string());
+
+    tracing::info!(target: "tron_app", "hx_target:{:?}", hx_target);
 
     let mut response_headers = HeaderMap::new();
     response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
@@ -240,11 +249,12 @@ async fn tron_entry(
         }
     }
 
-    tracing::debug!(target: "tron_app", "event payload: {:?}", payload);
+    tracing::info!(target: "tron_app", "event payload: {:?}", payload);
 
-    if let Some(event_data) = match_event(&payload).await {
-        let evt = event_data.tn_event;
-        tracing::debug!(target: "tron_app", "event tn_event: {:?}", evt);
+    let response = if let Some(event_data) = match_event(&payload).await {
+        let mut evt = event_data.tn_event;
+        evt.h_target = hx_target.clone(); 
+        tracing::info!(target: "tron_app", "event tn_event: {:?}", evt);
 
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {
@@ -258,80 +268,114 @@ async fn tron_entry(
 
         let has_event_action = {
             let event_action_guard = app_data.event_actions.read().await;
-            event_action_guard.contains_key(&evt)
+            event_action_guard.contains_key(&tron_index)
         };
 
+        tracing::info!(target: "tron_app", "has_event_action {:?}", has_event_action);
+
         if has_event_action {
-            {
-                let session_guard = app_data.context.read().await;
-                let context = session_guard.get(&session_id).unwrap().clone();
-                let component = context.get_component(&evt.e_trigger).await;
-                if *component.read().await.state() == TnComponentState::Ready {
-                    component.write().await.set_state(TnComponentState::Pending);
-                };
-            }
+            // {
+            //     let session_guard = app_data.context.read().await;
+            //     let context = session_guard.get(&session_id).unwrap().clone();
+            //     let component = context.get_component(&evt.e_trigger).await;
+            //     if *component.read().await.state() == TnComponentState::Ready {
+            //         component.write().await.set_state(TnComponentState::Pending);
+            //     };
+            // }
 
             let context_guard = app_data.context.read().await;
             let context = context_guard.get(&session_id).unwrap().clone();
 
             let event_action_guard = app_data.event_actions.write().await;
             let (action_exec_method, action_generator) =
-                event_action_guard.get(&evt).unwrap().clone();
+                event_action_guard.get(&tron_index).unwrap().clone();
 
             let action = action_generator(context, evt, payload);
             match action_exec_method {
                 ActionExecutionMethod::Spawn => {
                     tokio::task::spawn(action);
+                    None
                 }
                 ActionExecutionMethod::Await => action.await,
             }
+        } else {
+            None
         }
+    } else {
+        None
     };
 
-    let context_guard = app_data.context.read().await;
-    let context = &context_guard
-        .get(&session_id)
-        .unwrap()
-        .read()
-        .await;
-    
-    let tron_index = if let Some(hx_target) = hx_target {
-        let hx_target = hx_target.to_str().unwrap_or_default();
-        context.get_component_id(hx_target)} else {
+    tracing::info!(target:"tron_app", "response: {:?}", response);
+
+    if let Some((mut response_headers, html)) = response {
+        response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        tracing::info!(target:"tron_app", "XXX:{:?}", response_headers);
+        (StatusCode::OK, response_headers, Body::from(html.0))
+    } else {
+        let mut response_headers = HeaderMap::new();
+        response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+        let context_guard = app_data.context.read().await;
+        let context = &context_guard.get(&session_id).unwrap().read().await;
+
+        let tron_index = if let Some(hx_target) = hx_target {
+            context.get_component_index(&hx_target)
+        } else {
             tron_index
         };
 
-    let mut component_guard = context.components.write().await;
-    let target_guard = component_guard.get_mut(&tron_index).unwrap();
-    let body = Body::new({
-        let target = target_guard.read().await;
-        tokio::task::block_in_place(|| target.render())
-    });
-
-    let mut header_to_be_removed = Vec::<String>::new();
-
-    target_guard
-        .write()
-        .await
-        .extra_headers()
-        .iter()
-        .for_each(|(k, v)| {
-            response_headers.insert(
-                HeaderName::from_bytes(k.as_bytes()).unwrap(),
-                HeaderValue::from_bytes(v.0.as_bytes()).unwrap(),
-            );
-            if v.1 {
-                header_to_be_removed.push(k.clone());
-            };
+        let mut component_guard = context.components.write().await;
+        let target_guard = component_guard.get_mut(&tron_index).unwrap();
+        let body = Body::new({
+            let target = target_guard.read().await;
+            tokio::task::block_in_place(|| target.render())
         });
-
-    // remove the header items that we only want to use it once
-    for k in header_to_be_removed {
-        target_guard.write().await.remove_header(k);
+        (StatusCode::OK, response_headers, body)
     }
 
-    // println!("response_headers: {:?}", response_headers);
-    (StatusCode::OK, response_headers, body)
+    // let context_guard = app_data.context.read().await;
+    // let context = &context_guard
+    //     .get(&session_id)
+    //     .unwrap()
+    //     .read()
+    //     .await;
+
+    // let tron_index = if let Some(hx_target) = hx_target {
+    //     let hx_target = hx_target.to_str().unwrap_or_default();
+    //     context.get_component_index(hx_target)} else {
+    //         tron_index
+    //     };
+
+    // let mut component_guard = context.components.write().await;
+    // let target_guard = component_guard.get_mut(&tron_index).unwrap();
+    // let body = Body::new({
+    //     let target = target_guard.read().await;
+    //     tokio::task::block_in_place(|| target.render())
+    // });
+
+    // let mut header_to_be_removed = Vec::<String>::new();
+
+    // target_guard
+    //     .write()
+    //     .await
+    //     .extra_headers()
+    //     .iter()
+    //     .for_each(|(k, v)| {
+    //         response_headers.insert(
+    //             HeaderName::from_bytes(k.as_bytes()).unwrap(),
+    //             HeaderValue::from_bytes(v.0.as_bytes()).unwrap(),
+    //         );
+    //         if v.1 {
+    //             header_to_be_removed.push(k.clone());
+    //         };
+    //     });
+
+    // // remove the header items that we only want to use it once
+    // for k in header_to_be_removed {
+    //     target_guard.write().await.remove_header(k);
+    // }
+
+    // // println!("response_headers: {:?}", response_headers);
+    // (StatusCode::OK, response_headers, body)
 }
 
 #[allow(dead_code)]

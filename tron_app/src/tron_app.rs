@@ -1,11 +1,12 @@
 use axum::{
     body::Body,
-    extract::{Host, Json, Path, Query, Request, State},
+    extract::{Host, Json, OriginalUri, Path, Query, Request, State},
     handler::HandlerWithoutStateExt,
     http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode, Uri},
+    middleware::{self, Next},
     response::{
         sse::{self, KeepAlive},
-        Html, IntoResponse, Redirect, Sse,
+        Html, IntoResponse, Redirect, Response, Sse,
     },
     routing::{get, post},
     BoxError, Router,
@@ -42,7 +43,7 @@ struct Ports {
     https: u16,
 }
 
-pub type SessionId = tower_sessions::session::Id; 
+pub type SessionId = tower_sessions::session::Id;
 
 pub type SessionContext = RwLock<HashMap<SessionId, TnContext>>;
 
@@ -116,16 +117,19 @@ pub async fn run(app_share_data: AppData, log_level: Option<&str>) {
 
     let auth_routes = Router::new()
         .route("/login", get(login_handler))
+        .route("/logout", get(logout_handler))
+        .route("/logged_out/", get(logged_out))
         .route("/cognito_callback/", get(cognito_callback));
 
     let app_routes = Router::new().merge(routes).merge(auth_routes);
 
     let app = app_routes
-        .layer(session_layer)
-        .layer(CorsLayer::very_permissive())
         .nest_service("/static", serve_dir.clone())
         .fallback_service(serve_dir)
-        .layer(TraceLayer::new_for_http());
+        .layer(TraceLayer::new_for_http())
+        .layer(CorsLayer::very_permissive())
+        .layer(middleware::from_fn(log_session))
+        .layer(session_layer);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
 
@@ -143,8 +147,10 @@ async fn index(session: Session, _: Request) -> Html<String> {
     Html::from(index_html.to_string())
 }
 
-async fn get_session(session: Session, _: Request) {
+async fn get_session(session: Session, _: Request) -> Redirect {
     session.insert("session_set", true).await.unwrap();
+    Redirect::to("/")
+    
 }
 
 async fn load_page(
@@ -276,9 +282,7 @@ async fn tron_entry(
             event_action_guard.contains_key(&tron_index)
         };
 
-
         if has_event_action {
-
             let context_guard = app_data.context.read().await;
             let context = context_guard.get(&session_id).unwrap().clone();
 
@@ -506,6 +510,20 @@ async fn login_handler() -> Redirect {
     Redirect::to(&format!("https://{cognito_domain}/login?client_id={cognito_client_id}&response_type={cognito_response_type}&redirect_uri={redirect_uri}"))
 }
 
+async fn logout_handler() -> Redirect {
+    let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
+    let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
+
+    let redirect_uri = "https://127.0.0.1:3001/logged_out/";
+
+    Redirect::to(&format!("https://{cognito_domain}/logout?client_id={cognito_client_id}&logout_uri={redirect_uri}"))
+}
+
+async fn logged_out(session: Session) -> impl IntoResponse {
+    let _ = session.remove_value("token").await;
+    Html::from(r#"logged out"#)
+}
+
 #[derive(Deserialize, Debug)]
 struct JWTToken {
     access_token: String,
@@ -526,9 +544,10 @@ struct Claims {
 }
 
 async fn cognito_callback(
+    session: Session,
     headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
-) -> Result<(), StatusCode> {
+) -> impl IntoResponse {
     tracing::info!(target = "tron_app", "query: {:?}", query);
     tracing::info!(target = "tron_app", "cognito_header: {:?}", headers);
     let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
@@ -591,5 +610,42 @@ async fn cognito_callback(
             tracing::info!(target = "tron_app", "cognito decode token: {:?}", token);
         }
     });
-    Ok(())
+
+    if session.id().is_none() {
+        session.insert("session_set", true).await.unwrap();
+    };
+    let _ = session.insert("token", jwt_value.id_token).await;
+    tracing::info!(target:"tron_app", "in congito_callback session_id: {:?}", session.id());
+    tracing::info!(target:"tron_app", "in congito_callback session: {:?}", session);
+    tracing::info!(target:"tron_app", "in congito_callback token: {:?}", session.get_value("token").await.unwrap());
+
+    // we can't use the axum redirect response as it won't set the session cookie
+    Html::from(r#"<script> window.location.replace("/"); </script>"#)
+}
+
+async fn log_session(
+    uri: OriginalUri,
+    session: Session,
+    request: Request,
+    next: Next,
+) -> impl IntoResponse {
+    // do something with `request`...
+    tracing::info!(target:"tron_app", "in log_session session_id: {:?}", session.id());
+    tracing::info!(target:"tron_app", "session: {:?}", session);
+    tracing::info!(target:"tron_app", "path: {:?}", uri.path());
+    tracing::info!(target:"tron_app", "token: {:?}", session.get_value("token").await.unwrap());
+    if uri.path() == "/login" || uri.path() == "/cognito_callback/" || uri.path() == "/logged_out/" {
+        let response = next.run(request).await;
+        response.into_response()
+    } else if let Some(token) = session.get_value("token").await.unwrap() {
+        tracing::info!(target:"tron_app", "has jwt token {:?}", token);
+        let response = next.run(request).await;
+        response.into_response()
+    } else {
+        tracing::info!(target:"tron_app", "has NO jwt token, session: {:?}", session);
+        Redirect::permanent("/login").into_response()
+    }
+
+    // do something with `response`...
+    // Redirect::to("/login")
 }

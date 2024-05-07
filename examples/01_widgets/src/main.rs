@@ -210,6 +210,13 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
             actions.push((tron_id, ActionExecutionMethod::Await, action));
         });
     }
+
+    actions.push((
+        "slider".into(),
+        ActionExecutionMethod::Await,
+        slider_value_update,
+    ));
+
     actions.push((
         "clean_stream_textarea".into(),
         ActionExecutionMethod::Await,
@@ -409,6 +416,31 @@ fn clean_textinput(
         text::clean_textinput_with_context(context.clone(), "textinput").await;
         context.set_ready_for(&event.e_trigger).await;
         let html = context.render_component(&event.e_trigger).await;
+        Some((HeaderMap::new(), Html::from(html)))
+    };
+    Box::pin(f())
+}
+
+fn slider_value_update(
+    context: TnContext,
+    event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+    let f = || async move {
+        let stream_textarea = context.get_component("stream_textarea").await;
+        let slider = context.get_component(&event.e_trigger).await;
+        if let TnComponentValue::String(s) = slider.read().await.value() {
+            let new_str = format!("{} -- Value {};\n", event.e_trigger, s);
+            append_stream_textarea(stream_textarea, &new_str).await;
+            let msg =
+        r##"{"server_side_trigger_data": { "target":"stream_textarea", "new_state":"ready" } }"##
+            .to_string();
+            let sse_tx = context.get_sse_tx().await;
+            if sse_tx.send(msg).await.is_err() {
+                debug!("tx dropped");
+            }
+        }
+        let html: String = context.render_component("slider").await;
         Some((HeaderMap::new(), Html::from(html)))
     };
     Box::pin(f())

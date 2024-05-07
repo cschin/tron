@@ -24,6 +24,7 @@ async fn main() {
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
+        session_expiry: RwLock::new(HashMap::default()), 
         event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_context)),
         build_actions: Arc::new(Box::new(build_actions)),

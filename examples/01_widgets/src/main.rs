@@ -23,6 +23,7 @@ use std::{collections::HashMap, pin::Pin, str::FromStr, sync::Arc};
 
 #[tokio::main]
 async fn main() {
+    let app_config = tron_app::AppConfigure::default();
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
@@ -31,7 +32,7 @@ async fn main() {
         build_actions: Arc::new(Box::new(build_session_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
-    tron_app::run(app_share_data, None).await
+    tron_app::run(app_share_data, app_config).await
 }
 
 fn test_event_actions(

@@ -31,6 +31,11 @@ use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
 #[tokio::main]
 async fn main() {
+    let app_configure = tron_app::AppConfigure {
+        log_level: Some("server=info,tower_http=info,tron_app=info"),
+        cognito_login: true,
+        ..Default::default()
+    };
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
@@ -41,11 +46,7 @@ async fn main() {
     };
 
     //tron_app::run(app_share_data, Some("server=debug,tower_http=debug,tron_app=info")).await
-    tron_app::run(
-        app_share_data,
-        Some("server=info,tower_http=info,tron_app=info"),
-    )
-    .await
+    tron_app::run(app_share_data, app_configure).await
 }
 
 fn build_session_context() -> TnContext {

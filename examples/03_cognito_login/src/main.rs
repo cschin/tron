@@ -20,6 +20,10 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 
 #[tokio::main]
 async fn main() {
+    let mut app_configure = tron_app::AppConfigure {
+        cognito_login: true,
+        ..Default::default()
+    };
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
@@ -28,7 +32,7 @@ async fn main() {
         build_actions: Arc::new(Box::new(build_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
-    tron_app::run(app_share_data, None).await
+    tron_app::run(app_share_data, app_configure).await
 }
 
 fn build_context() -> TnContext {

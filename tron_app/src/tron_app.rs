@@ -6,7 +6,7 @@ use axum::{
     middleware::{self, Next},
     response::{
         sse::{self, KeepAlive},
-        Html, IntoResponse, Redirect, Response, Sse,
+        Html, IntoResponse, Redirect, Sse,
     },
     routing::{get, post},
     BoxError, Router,
@@ -30,7 +30,6 @@ use tower_http::{
     trace::TraceLayer,
 };
 use tower_sessions::{
-    cookie::{Cookie, CookieJar},
     Expiry, MemoryStore, Session, SessionManagerLayer,
 };
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -38,7 +37,7 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
 
 #[derive(Clone, Copy)]
-struct Ports {
+pub struct Ports {
     http: u16,
     https: u16,
 }
@@ -60,8 +59,30 @@ pub struct AppData {
     pub build_actions: ActionFunctionTemplate,
     pub build_layout: LayoutFunction,
 }
+pub struct AppConfigure {
+    pub address: [u8;4],
+    pub ports: Ports,
+    pub cognito_login: bool,
+    pub log_level: Option<&'static str>,
+}
 
-pub async fn run(app_share_data: AppData, log_level: Option<&str>) {
+impl Default for AppConfigure {
+    fn default() -> Self {
+        let address = [127, 0, 0, 1];
+        let ports = Ports {http:8080, https:3001};
+        let cognito_login = false;
+        let log_level = Some("server=info,tower_http=info,tron_app=info");
+        Self {
+            address,
+            ports,
+            cognito_login,
+            log_level
+        }
+    }
+}
+
+pub async fn run(app_share_data: AppData, config: AppConfigure) {
+    let log_level = config.log_level;
     let log_level = if let Some(log_level) = log_level {
         log_level
     } else {
@@ -84,15 +105,12 @@ pub async fn run(app_share_data: AppData, log_level: Option<&str>) {
 
     let serve_dir = ServeDir::new("static").not_found_service(ServeFile::new("static/index.html"));
 
-    let ports = Ports {
-        http: 8080,
-        https: 3001,
-    };
+    let ports = config.ports;
     // optional: spawn a second server to redirect http requests to this server
     tokio::spawn(redirect_http_to_https(ports));
 
     // configure certificate and private key used by https
-    let config = RustlsConfig::from_pem_file(
+    let tls_config = RustlsConfig::from_pem_file(
         PathBuf::from(".")
             .join("self_signed_certs")
             .join("cert.pem"),
@@ -121,19 +139,29 @@ pub async fn run(app_share_data: AppData, log_level: Option<&str>) {
         .route("/logged_out/", get(logged_out))
         .route("/cognito_callback/", get(cognito_callback));
 
-    let app_routes = Router::new().merge(routes).merge(auth_routes);
+    let app_routes = if config.cognito_login { Router::new().merge(routes).merge(auth_routes) } else {
+        routes
+    };
 
-    let app = app_routes
+    let app = if config.cognito_login { app_routes
         .nest_service("/static", serve_dir.clone())
         .fallback_service(serve_dir)
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::very_permissive())
-        .layer(middleware::from_fn(log_session))
-        .layer(session_layer);
+        .layer(middleware::from_fn(check_token))
+        .layer(session_layer)
+    } else {
+        app_routes
+        .nest_service("/static", serve_dir.clone())
+        .fallback_service(serve_dir)
+        .layer(TraceLayer::new_for_http())
+        .layer(CorsLayer::very_permissive())
+        .layer(session_layer)
+    };
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3001));
+    let addr = SocketAddr::from((config.address, ports.https));
 
-    axum_server::bind_rustls(addr, config)
+    axum_server::bind_rustls(addr, tls_config)
         .serve(app.into_make_service())
         .await
         .unwrap();
@@ -502,7 +530,6 @@ async fn tron_stream(
 async fn login_handler() -> Redirect {
     let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
     let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
-
     let cognito_response_type =
         env::var("COGNITO_RESPONSE_TYPE").expect("COGNITO_RESPONSE_TYPE not set");
     let redirect_uri = env::var("REDIRECT_URI").expect("REDIRECT_URI not set");
@@ -513,17 +540,17 @@ async fn login_handler() -> Redirect {
 async fn logout_handler() -> Redirect {
     let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
     let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
-
-    let redirect_uri = "https://127.0.0.1:3001/logged_out/";
-
+    let redirect_uri = env::var("LOGOUT_REDIRECT_URI").expect("REDIRECT_URI not set");
     Redirect::to(&format!("https://{cognito_domain}/logout?client_id={cognito_client_id}&logout_uri={redirect_uri}"))
 }
 
 async fn logged_out(session: Session) -> impl IntoResponse {
     let _ = session.remove_value("token").await;
+    // we may pass this to a user defined page stored in the context in the future
     Html::from(r#"logged out"#)
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct JWTToken {
     access_token: String,
@@ -532,6 +559,8 @@ struct JWTToken {
     refresh_token: String,
     token_type: String,
 }
+
+#[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct Claims {
     exp: usize, // Required (validate_exp defaults to true in validation). Expiration time (as UTC timestamp)
@@ -572,12 +601,13 @@ async fn cognito_callback(
         .send()
         .await
         .expect("cognito call fail");
-    let t = res.text().await.unwrap();
-    tracing::info!(target = "tron_app", "cognito res raw: {}", t);
-    let jwt_value: JWTToken = serde_json::from_str(&t).unwrap();
-    tracing::info!(target = "tron_app", "cognito res: {:?}", jwt_value);
+
+    let raw_text = res.text().await.unwrap();
+    tracing::debug!(target = "tron_app", "cognito res raw: {}", raw_text);
+    let jwt_value: JWTToken = serde_json::from_str(&raw_text).unwrap();
+    tracing::debug!(target = "tron_app", "cognito res: {:?}", jwt_value);
     let header = jsonwebtoken::decode_header(&jwt_value.id_token).unwrap();
-    tracing::info!(target = "tron_app", "id_token header: {:?}", header);
+    tracing::debug!(target = "tron_app", "id_token header: {:?}", header);
 
     let jwks_url = format!("https://cognito-idp.{cognito_aws_region}.amazonaws.com/{cognito_user_pool_id}/.well-known/jwks.json");
     let res = client
@@ -586,7 +616,7 @@ async fn cognito_callback(
         .await
         .expect("cognito call fail");
     let value: Value = serde_json::from_str(&res.text().await.unwrap()).unwrap();
-    tracing::info!(
+    tracing::debug!(
         target = "tron_app",
         "cognito jwks res: {:?}",
         value["keys"].as_array().unwrap()
@@ -615,37 +645,34 @@ async fn cognito_callback(
         session.insert("session_set", true).await.unwrap();
     };
     let _ = session.insert("token", jwt_value.id_token).await;
-    tracing::info!(target:"tron_app", "in congito_callback session_id: {:?}", session.id());
-    tracing::info!(target:"tron_app", "in congito_callback session: {:?}", session);
-    tracing::info!(target:"tron_app", "in congito_callback token: {:?}", session.get_value("token").await.unwrap());
+    tracing::debug!(target:"tron_app", "in congito_callback session_id: {:?}", session.id());
+    tracing::debug!(target:"tron_app", "in congito_callback session: {:?}", session);
+    tracing::debug!(target:"tron_app", "in congito_callback token: {:?}", session.get_value("token").await.unwrap());
 
     // we can't use the axum redirect response as it won't set the session cookie
     Html::from(r#"<script> window.location.replace("/"); </script>"#)
 }
 
-async fn log_session(
+async fn check_token(
     uri: OriginalUri,
     session: Session,
     request: Request,
     next: Next,
 ) -> impl IntoResponse {
     // do something with `request`...
-    tracing::info!(target:"tron_app", "in log_session session_id: {:?}", session.id());
-    tracing::info!(target:"tron_app", "session: {:?}", session);
-    tracing::info!(target:"tron_app", "path: {:?}", uri.path());
-    tracing::info!(target:"tron_app", "token: {:?}", session.get_value("token").await.unwrap());
+    tracing::debug!(target:"tron_app", "in log_session session_id: {:?}", session.id());
+    tracing::debug!(target:"tron_app", "session: {:?}", session);
+    tracing::debug!(target:"tron_app", "path: {:?}", uri.path());
+    tracing::debug!(target:"tron_app", "token: {:?}", session.get_value("token").await.unwrap());
     if uri.path() == "/login" || uri.path() == "/cognito_callback/" || uri.path() == "/logged_out/" {
         let response = next.run(request).await;
         response.into_response()
     } else if let Some(token) = session.get_value("token").await.unwrap() {
-        tracing::info!(target:"tron_app", "has jwt token {:?}", token);
+        tracing::debug!(target:"tron_app", "has jwt token {:?}", token);
         let response = next.run(request).await;
         response.into_response()
     } else {
-        tracing::info!(target:"tron_app", "has NO jwt token, session: {:?}", session);
+        tracing::debug!(target:"tron_app", "has NO jwt token, session: {:?}", session);
         Redirect::permanent("/login").into_response()
     }
-
-    // do something with `response`...
-    // Redirect::to("/login")
 }

@@ -33,12 +33,13 @@ use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 async fn main() {
     let app_configure = tron_app::AppConfigure {
         log_level: Some("server=info,tower_http=info,tron_app=info"),
-        cognito_login: true,
+        cognito_login: false,
         ..Default::default()
     };
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
+        session_expiry: RwLock::new(HashMap::default()), 
         event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_session_context)),
         build_actions: Arc::new(Box::new(build_session_actions)),

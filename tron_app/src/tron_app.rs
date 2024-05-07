@@ -8,7 +8,7 @@ use axum::{
         sse::{self, KeepAlive},
         Html, IntoResponse, Redirect, Sse,
     },
-    routing::{get, post},
+    routing::get,
     BoxError, Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
@@ -29,9 +29,7 @@ use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
-use tower_sessions::{
-    Expiry, MemoryStore, Session, SessionManagerLayer,
-};
+use tower_sessions::{Expiry, MemoryStore, Session, SessionManagerLayer};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
@@ -54,13 +52,14 @@ type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
 
 pub struct AppData {
     pub context: SessionContext,
+    pub session_expiry: RwLock<HashMap<SessionId, Option<Expiry>>>,
     pub event_actions: EventActions,
     pub build_context: ContextBuilder,
     pub build_actions: ActionFunctionTemplate,
     pub build_layout: LayoutFunction,
 }
 pub struct AppConfigure {
-    pub address: [u8;4],
+    pub address: [u8; 4],
     pub ports: Ports,
     pub cognito_login: bool,
     pub log_level: Option<&'static str>,
@@ -69,14 +68,17 @@ pub struct AppConfigure {
 impl Default for AppConfigure {
     fn default() -> Self {
         let address = [127, 0, 0, 1];
-        let ports = Ports {http:8080, https:3001};
+        let ports = Ports {
+            http: 8080,
+            https: 3001,
+        };
         let cognito_login = false;
         let log_level = Some("server=info,tower_http=info,tron_app=info");
         Self {
             address,
             ports,
             cognito_login,
-            log_level
+            log_level,
         }
     }
 }
@@ -123,7 +125,6 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     let routes = Router::new()
         .route("/", get(index))
         .route("/server_events", get(sse_event_handler))
-        .route("/get_session", post(get_session))
         .route("/load_page", get(load_page))
         .route("/tron/:tron_id", get(tron_entry).post(tron_entry))
         .route(
@@ -139,24 +140,27 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         .route("/logged_out/", get(logged_out))
         .route("/cognito_callback/", get(cognito_callback));
 
-    let app_routes = if config.cognito_login { Router::new().merge(routes).merge(auth_routes) } else {
+    let app_routes = if config.cognito_login {
+        Router::new().merge(routes).merge(auth_routes)
+    } else {
         routes
     };
 
-    let app = if config.cognito_login { app_routes
-        .nest_service("/static", serve_dir.clone())
-        .fallback_service(serve_dir)
-        .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::very_permissive())
-        .layer(middleware::from_fn(check_token))
-        .layer(session_layer)
+    let app = if config.cognito_login {
+        app_routes
+            .nest_service("/static", serve_dir.clone())
+            .fallback_service(serve_dir)
+            .layer(TraceLayer::new_for_http())
+            .layer(CorsLayer::very_permissive())
+            .layer(middleware::from_fn(check_token))
+            .layer(session_layer)
     } else {
         app_routes
-        .nest_service("/static", serve_dir.clone())
-        .fallback_service(serve_dir)
-        .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::very_permissive())
-        .layer(session_layer)
+            .nest_service("/static", serve_dir.clone())
+            .fallback_service(serve_dir)
+            .layer(TraceLayer::new_for_http())
+            .layer(CorsLayer::very_permissive())
+            .layer(session_layer)
     };
 
     let addr = SocketAddr::from((config.address, ports.https));
@@ -167,18 +171,22 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         .unwrap();
 }
 
-async fn index(session: Session, _: Request) -> Html<String> {
+async fn index(
+    session: Session,
+    State(app_data): State<Arc<AppData>>,
+    _: Request,
+) -> impl IntoResponse {
     let index_html = include_str!("../static/index.html");
     if session.id().is_none() {
+        // the line below is necessary to make sure the session is set 
         session.insert("session_set", true).await.unwrap();
-    };
-    Html::from(index_html.to_string())
-}
-
-async fn get_session(session: Session, _: Request) -> Redirect {
-    session.insert("session_set", true).await.unwrap();
-    Redirect::to("/")
-    
+        tracing::debug!(target:"tron_app", "set session");
+        Redirect::to("/").into_response()
+    } else {
+        let mut session_expiry = app_data.session_expiry.write().await;
+        session_expiry.insert(session.id().unwrap(), session.expiry());
+        Html::from(index_html.to_string()).into_response()
+    }
 }
 
 async fn load_page(
@@ -541,7 +549,9 @@ async fn logout_handler() -> Redirect {
     let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
     let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
     let redirect_uri = env::var("LOGOUT_REDIRECT_URI").expect("REDIRECT_URI not set");
-    Redirect::to(&format!("https://{cognito_domain}/logout?client_id={cognito_client_id}&logout_uri={redirect_uri}"))
+    Redirect::to(&format!(
+        "https://{cognito_domain}/logout?client_id={cognito_client_id}&logout_uri={redirect_uri}"
+    ))
 }
 
 async fn logged_out(session: Session) -> impl IntoResponse {
@@ -664,7 +674,8 @@ async fn check_token(
     tracing::debug!(target:"tron_app", "session: {:?}", session);
     tracing::debug!(target:"tron_app", "path: {:?}", uri.path());
     tracing::debug!(target:"tron_app", "token: {:?}", session.get_value("token").await.unwrap());
-    if uri.path() == "/login" || uri.path() == "/cognito_callback/" || uri.path() == "/logged_out/" {
+    if uri.path() == "/login" || uri.path() == "/cognito_callback/" || uri.path() == "/logged_out/"
+    {
         let response = next.run(request).await;
         response.into_response()
     } else if let Some(token) = session.get_value("token").await.unwrap() {

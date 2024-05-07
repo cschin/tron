@@ -5,6 +5,7 @@ pub mod chatbox;
 pub mod checklist;
 pub mod select;
 pub mod text;
+pub mod range_slider;
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -22,6 +23,7 @@ pub use checklist::{TnCheckBox, TnCheckList};
 pub use select::TnSelect;
 use serde_json::Value;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
+pub use range_slider::TnRangeSlider;
 
 use rand::{thread_rng, Rng};
 

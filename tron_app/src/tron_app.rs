@@ -300,7 +300,7 @@ async fn tron_entry(
 
     let response = if let Some(event_data) = match_event(&payload).await {
         let mut evt = event_data.tn_event;
-        evt.h_target = hx_target.clone();
+        evt.h_target.clone_from(&hx_target);
         tracing::debug!(target: "tron_app", "event tn_event: {:?}", evt);
 
         if evt.e_type == "change" {

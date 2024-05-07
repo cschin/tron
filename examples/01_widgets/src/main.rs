@@ -15,25 +15,226 @@ use tron_components::{
     checklist,
     text::{self, append_stream_textarea, append_textarea_value},
     ActionExecutionMethod, ActionFn, TnButton, TnComponentBaseTrait, TnComponentState,
-    TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse, TnSelect,
-    TnStreamTextArea, TnTextArea, TnTextInput,
+    TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse,
+    TnRangeSlider, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, str::FromStr, sync::Arc};
 
 #[tokio::main]
 async fn main() {
-    let app_config = tron_app::AppConfigure::default();
+    let app_config = tron_app::AppConfigure {
+        cognito_login: false,
+        ..Default::default()
+    };
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
-        session_expiry: RwLock::new(HashMap::default()), 
+        session_expiry: RwLock::new(HashMap::default()),
         event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_session_context)),
         build_actions: Arc::new(Box::new(build_session_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
     tron_app::run(app_share_data, app_config).await
+}
+
+fn build_session_context() -> TnContext {
+    let mut context = TnContextBase::<'static>::default();
+
+    let mut component_index = 0_u32;
+    loop {
+        let mut btn = TnButton::<'static>::new(
+            component_index,
+            format!("btn-{:02}", component_index),
+            format!("{:02}", component_index),
+        );
+
+        btn.set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        );
+
+        context.add_component(btn);
+
+        component_index += 1;
+        if component_index >= 10 {
+            break;
+        }
+    }
+
+    component_index += 1;
+    let mut stream_textarea = TnStreamTextArea::<'static>::new(
+        component_index,
+        "stream_textarea".into(),
+        vec!["This is a stream-able textarea\n".to_string()],
+    );
+
+    stream_textarea.set_attribute(
+        "class".into(),
+        "textarea textarea-bordered flex-1 h-20".into(),
+    );
+
+    context.add_component(stream_textarea);
+
+    component_index += 1;
+    let mut textarea = TnTextArea::<'static>::new(
+        component_index,
+        "textarea".into(),
+        "This is a textarea\n".to_string(),
+    );
+
+    textarea.set_attribute(
+        "class".into(),
+        "textarea textarea-bordered flex-1 h-20".into(),
+    );
+
+    context.add_component(textarea);
+
+    component_index += 1;
+
+    let checklist_items = vec![
+        "checkbox-1".to_string(),
+        "checkbox-2".to_string(),
+        "checkbox-3".to_string(),
+        "checkbox-4".to_string(),
+        "checkbox-5".to_string(),
+        "checkbox-6".to_string(),
+    ];
+    let checklist_tron_id = "checklist".to_string();
+    let container_attributes = vec![("class".to_string(), "flex-1".to_string())];
+    checklist::add_checklist_to_context(
+        &mut context,
+        &mut component_index,
+        checklist_tron_id,
+        checklist_items,
+        container_attributes,
+    );
+    {
+        let component_guard = context.components.blocking_read();
+        let checklist_guard = component_guard.get(&component_index).unwrap();
+        checklist_guard
+            .blocking_write()
+            .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
+    }
+    {
+        component_index += 1;
+        let select_options = vec![
+            ("one".into(), "One".into()),
+            ("two".into(), "Two".into()),
+            ("three".into(), "Three".into()),
+        ];
+
+        let select = TnSelect::<'static>::new(
+            component_index,
+            "select_one".into(),
+            "one".into(),
+            select_options,
+        );
+        context.add_component(select);
+    }
+    {
+        component_index += 1;
+        let mut slider =
+            TnRangeSlider::<'static>::new(component_index, "slider".into(), 0.0, 0.0, 100.0);
+        slider.set_attribute("class".to_string(), "flex-1".to_string());
+        context.add_component(slider);
+    }
+    {
+        component_index += 1;
+        let mut clean_button = TnButton::<'static>::new(
+            component_index,
+            "clean_stream_textarea".into(),
+            "clean_stream_textarea".into(),
+        );
+        clean_button.set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        );
+        clean_button.set_attribute("hx-target".to_string(), "#stream_textarea".to_string());
+        context.add_component(clean_button);
+    }
+    {
+        component_index += 1;
+        let mut clean_button = TnButton::<'static>::new(
+            component_index,
+            "clean_textarea".into(),
+            "clean_textarea".into(),
+        );
+        clean_button.set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        );
+        context.add_component(clean_button);
+    }
+    {
+        component_index += 1;
+        let mut clean_button = TnButton::<'static>::new(
+            component_index,
+            "clean_textinput".into(),
+            "clean_textinput".into(),
+        );
+        clean_button.set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        );
+        context.add_component(clean_button);
+    }
+    {
+        component_index += 1;
+        let mut textinput =
+            TnTextInput::<'static>::new(component_index, "textinput".into(), "".into());
+        textinput.set_attribute("class".into(), "input input-bordered w-full".into());
+
+        context.add_component(textinput);
+    }
+
+    TnContext {
+        base: Arc::new(RwLock::new(context)),
+    }
+}
+
+fn build_session_actions(context: TnContext) -> TnEventActions {
+    let mut actions = Vec::<(String, ActionExecutionMethod, ActionFn)>::new();
+    for i in 0..10 {
+        actions.push((
+            format!("btn-{:02}", i),
+            ActionExecutionMethod::Spawn,
+            test_event_actions,
+        ));
+    }
+    {
+        let checklist = context.blocking_get_component("checklist");
+        let checklist_actions = checklist::get_checklist_actions(checklist);
+        checklist_actions.into_iter().for_each(|(tron_id, action)| {
+            actions.push((tron_id, ActionExecutionMethod::Await, action));
+        });
+    }
+    actions.push((
+        "clean_stream_textarea".into(),
+        ActionExecutionMethod::Await,
+        clean_stream_textarea,
+    ));
+
+    actions.push((
+        "clean_textarea".into(),
+        ActionExecutionMethod::Await,
+        clean_textarea,
+    ));
+
+    actions.push((
+        "clean_textinput".into(),
+        ActionExecutionMethod::Await,
+        clean_textinput,
+    ));
+
+    actions
+        .into_iter()
+        .map(|(id, exe_method, action_fn)| {
+            let idx = context.blocking_read().get_component_index(&id);
+            (idx, (exe_method, Arc::new(action_fn)))
+        })
+        .collect::<TnEventActions>()
 }
 
 fn test_event_actions(
@@ -146,197 +347,6 @@ fn test_event_actions(
     Box::pin(f())
 }
 
-fn build_session_context() -> TnContext {
-    let mut context = TnContextBase::<'static>::default();
-
-    let mut component_index = 0_u32;
-    loop {
-        let mut btn = TnButton::<'static>::new(
-            component_index,
-            format!("btn-{:02}", component_index),
-            format!("{:02}", component_index),
-        );
-
-        btn.set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        );
-
-        context.add_component(btn);
-
-        component_index += 1;
-        if component_index >= 10 {
-            break;
-        }
-    }
-
-    component_index += 1;
-    let mut stream_textarea = TnStreamTextArea::<'static>::new(
-        component_index,
-        "stream_textarea".into(),
-        vec!["This is a stream-able textarea\n".to_string()],
-    );
-
-    stream_textarea.set_attribute(
-        "class".into(),
-        "textarea textarea-bordered flex-1 h-20".into(),
-    );
-
-    context.add_component(stream_textarea);
-
-    component_index += 1;
-    let mut textarea = TnTextArea::<'static>::new(
-        component_index,
-        "textarea".into(),
-        "This is a textarea\n".to_string(),
-    );
-
-    textarea.set_attribute(
-        "class".into(),
-        "textarea textarea-bordered flex-1 h-20".into(),
-    );
-
-    context.add_component(textarea);
-
-    component_index += 1;
-
-    let checklist_items = vec![
-        "checkbox-1".to_string(),
-        "checkbox-2".to_string(),
-        "checkbox-3".to_string(),
-        "checkbox-4".to_string(),
-        "checkbox-5".to_string(),
-        "checkbox-6".to_string(),
-    ];
-    let checklist_tron_id = "checklist".to_string();
-    let container_attributes = vec![("class".to_string(), "flex-1".to_string())];
-    checklist::add_checklist_to_context(
-        &mut context,
-        &mut component_index,
-        checklist_tron_id,
-        checklist_items,
-        container_attributes,
-    );
-    {
-        let component_guard = context.components.blocking_read();
-        let checklist_guard = component_guard.get(&component_index).unwrap();
-        checklist_guard
-            .blocking_write()
-            .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
-    }
-    {
-        component_index += 1;
-        let select_options = vec![
-            ("one".into(), "One".into()),
-            ("two".into(), "Two".into()),
-            ("three".into(), "Three".into()),
-        ];
-
-        let select = TnSelect::<'static>::new(
-            component_index,
-            "select_one".into(),
-            "one".into(),
-            select_options,
-        );
-        context.add_component(select);
-    }
-    {
-        component_index += 1;
-        let mut clean_button = TnButton::<'static>::new(
-            component_index,
-            "clean_stream_textarea".into(),
-            "clean_stream_textarea".into(),
-        );
-        clean_button.set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        );
-        clean_button.set_attribute("hx-target".to_string(), "#stream_textarea".to_string());
-        context.add_component(clean_button);
-    }
-    {
-        component_index += 1;
-        let mut clean_button = TnButton::<'static>::new(
-            component_index,
-            "clean_textarea".into(),
-            "clean_textarea".into(),
-        );
-        clean_button.set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        );
-        context.add_component(clean_button);
-    }
-    {
-        component_index += 1;
-        let mut clean_button = TnButton::<'static>::new(
-            component_index,
-            "clean_textinput".into(),
-            "clean_textinput".into(),
-        );
-        clean_button.set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        );
-        context.add_component(clean_button);
-    }
-    {
-        component_index += 1;
-        let mut textinput =
-            TnTextInput::<'static>::new(component_index, "textinput".into(), "".into());
-        textinput.set_attribute("class".into(), "input input-bordered w-full".into());
-
-        context.add_component(textinput);
-    }
-
-    TnContext {
-        base: Arc::new(RwLock::new(context)),
-    }
-}
-
-fn build_session_actions(context: TnContext) -> TnEventActions {
-    let mut actions = Vec::<(String, ActionExecutionMethod, ActionFn)>::new();
-    for i in 0..10 {
-        actions.push((
-            format!("btn-{:02}", i),
-            ActionExecutionMethod::Spawn,
-            test_event_actions,
-        ));
-    }
-    {
-        let checklist = context.blocking_get_component("checklist");
-        let checklist_actions = checklist::get_checklist_actions(checklist);
-        checklist_actions.into_iter().for_each(|(tron_id, action)| {
-            actions.push((tron_id, ActionExecutionMethod::Await, action));
-        });
-    }
-    actions.push((
-        "clean_stream_textarea".into(),
-        ActionExecutionMethod::Await,
-        clean_stream_textarea,
-    ));
-
-    actions.push((
-        "clean_textarea".into(),
-        ActionExecutionMethod::Await,
-        clean_textarea,
-    ));
-
-    actions.push((
-        "clean_textinput".into(),
-        ActionExecutionMethod::Await,
-        clean_textinput,
-    ));
-
-    actions
-        .into_iter()
-        .map(|(id, exe_method, action_fn)| {
-            let idx = context.blocking_read().get_component_index(&id);
-            (idx, (exe_method, Arc::new(action_fn)))
-        })
-        .collect::<TnEventActions>()
-}
-
 fn clean_stream_textarea(
     context: TnContext,
     event: TnEvent,
@@ -416,6 +426,7 @@ struct AppPageTemplate {
     clean_stream_textarea: String,
     clean_textarea: String,
     clean_textinput: String,
+    slider: String,
 }
 
 fn layout(context: TnContext) -> String {
@@ -433,6 +444,7 @@ fn layout(context: TnContext) -> String {
     let clean_stream_textarea = context_guard.render_to_string("clean_stream_textarea");
     let clean_textarea = context_guard.render_to_string("clean_textarea");
     let clean_textinput = context_guard.render_to_string("clean_textinput");
+    let slider = context_guard.render_to_string("slider");
 
     let html = AppPageTemplate {
         buttons,
@@ -444,6 +456,7 @@ fn layout(context: TnContext) -> String {
         clean_stream_textarea,
         clean_textarea,
         clean_textinput,
+        slider,
     };
     html.render().unwrap()
 }

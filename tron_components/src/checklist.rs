@@ -240,7 +240,8 @@ pub fn toggle_checkbox(
                 };
             }
             checkbox.set_state(TnComponentState::Ready);
-            Some( (HeaderMap::new(), Html::from(checkbox.render())) )
+            let checkbox_html = tokio::task::block_in_place(|| checkbox.render());
+            Some( (HeaderMap::new(), Html::from(checkbox_html)) )
         } else {
             None
         }

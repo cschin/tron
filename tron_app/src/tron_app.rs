@@ -52,7 +52,7 @@ type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
 
 pub struct AppData {
     pub context: SessionContext,
-    pub session_expiry: RwLock<HashMap<SessionId, Option<Expiry>>>,
+    pub session_expiry: RwLock<HashMap<SessionId, time::OffsetDateTime>>,
     pub event_actions: EventActions,
     pub build_context: ContextBuilder,
     pub build_actions: ActionFunctionTemplate,
@@ -177,14 +177,14 @@ async fn index(
     _: Request,
 ) -> impl IntoResponse {
     let index_html = include_str!("../static/index.html");
-    if session.id().is_none() {
+    if session.is_empty().await {
         // the line below is necessary to make sure the session is set 
         session.insert("session_set", true).await.unwrap();
         tracing::debug!(target:"tron_app", "set session");
         Redirect::to("/").into_response()
     } else {
         let mut session_expiry = app_data.session_expiry.write().await;
-        session_expiry.insert(session.id().unwrap(), session.expiry());
+        session_expiry.insert(session.id().unwrap(), session.expiry_date());
         Html::from(index_html.to_string()).into_response()
     }
 }

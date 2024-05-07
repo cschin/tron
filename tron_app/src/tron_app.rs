@@ -634,7 +634,7 @@ async fn cognito_callback(
     let header_kid = header.kid.unwrap();
     let header_kid = header_kid.as_str();
     let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
-    validation.validate_aud = false;
+    validation.validate_aud = false; // there is no audience available in cognito's JWT
     value["keys"].as_array().unwrap().iter().for_each(|obj| {
         if obj["kid"].as_str().unwrap() == header_kid {
             let token = jsonwebtoken::decode::<Claims>(

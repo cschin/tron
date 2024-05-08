@@ -39,7 +39,8 @@ async fn main() {
 fn build_context() -> TnContext {
     let context = Arc::new(RwLock::new(TnContextBase::default()));
     let context_guard = context.blocking_write();
-    context_guard.asset.blocking_write().insert("logout_page".into(), tron_components::TnAsset::String(r#"logged out!!"#.into()));
+    let logout_html = include_str!("../templates/logout.html");
+    context_guard.asset.blocking_write().insert("logout_page".into(), tron_components::TnAsset::String(logout_html.into()));
 
     TnContext { base: context.clone() }
 }

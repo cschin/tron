@@ -27,7 +27,7 @@ async fn main() {
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
-        session_expiry: RwLock::new(HashMap::default()), 
+        session_expiry: RwLock::new(HashMap::default()),
         event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_context)),
         build_actions: Arc::new(Box::new(build_actions)),
@@ -38,22 +38,30 @@ async fn main() {
 
 fn build_context() -> TnContext {
     let context = Arc::new(RwLock::new(TnContextBase::default()));
-    TnContext { base: context }
+    let context_guard = context.blocking_write();
+    context_guard.asset.blocking_write().insert("logout_page".into(), tron_components::TnAsset::String(r#"logged out!!"#.into()));
+
+    TnContext { base: context.clone() }
 }
 
-fn layout(context: TnContext) -> String {
-    r#"This is an template, please fill in the components and how to layout them. <a href="/logout">logout</a>"#.into()
+#[derive(Template)] // this will generate the code...
+#[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
+struct AppPageTemplate {
 }
 
-fn build_actions(context: TnContext) -> TnEventActions {
-    let actions = TnEventActions::default();
-    actions
+fn layout(_context: TnContext) -> String {
+    let html = AppPageTemplate {};
+    html.render().unwrap()
 }
 
-fn test_event_action(
-    context: TnContext,
-    tx: Sender<Json<Value>>,
-    event: TnEvent,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-    todo!()
+fn build_actions(_context: TnContext) -> TnEventActions {
+    TnEventActions::default()
 }
+
+// fn test_event_action(
+//     context: TnContext,
+//     tx: Sender<Json<Value>>,
+//     event: TnEvent,
+// ) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+//     todo!()
+// }

@@ -16,8 +16,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    ActionExecutionMethod, TnComponentIndex, TnComponentValue, TnContext, TnEvent, TnEventActions,
-    TnSseMsgChannel,
+    ActionExecutionMethod, TnAsset, TnComponentIndex, TnComponentValue, TnContext, TnEvent,
+    TnEventActions, TnSseMsgChannel,
 };
 //use std::sync::Mutex;
 use std::{
@@ -122,6 +122,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     .unwrap();
 
     // build our application with a route
+    let app_share_data = Arc::new(app_share_data);
     let routes = Router::new()
         .route("/", get(index))
         .route("/server_events", get(sse_event_handler))
@@ -131,14 +132,15 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
             "/tron_streaming/:stream_id",
             get(tron_stream).post(tron_stream),
         )
-        .with_state(Arc::new(app_share_data));
+        .with_state(app_share_data.clone());
     //.route("/button", get(tron::button));
 
     let auth_routes = Router::new()
         .route("/login", get(login_handler))
         .route("/logout", get(logout_handler))
         .route("/logged_out", get(logged_out))
-        .route("/cognito_callback", get(cognito_callback));
+        .route("/cognito_callback", get(cognito_callback))
+        .with_state(app_share_data.clone());
 
     let app_routes = if config.cognito_login {
         Router::new().merge(routes).merge(auth_routes)
@@ -178,7 +180,7 @@ async fn index(
 ) -> impl IntoResponse {
     let index_html = include_str!("../static/index.html");
     if session.is_empty().await {
-        // the line below is necessary to make sure the session is set 
+        // the line below is necessary to make sure the session is set
         session.insert("session_set", true).await.unwrap();
         tracing::debug!(target:"tron_app", "set session");
         Redirect::to("/").into_response()
@@ -549,16 +551,34 @@ async fn logout_handler() -> Redirect {
     let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
     let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
     let logout_uri = env::var("LOGOUT_REDIRECT_URI").expect("LOGOUT_REDIRECT_URI not set");
-    
+
     Redirect::to(&format!(
         "https://{cognito_domain}/logout?client_id={cognito_client_id}&logout_uri={logout_uri}"
     ))
 }
 
-async fn logged_out(session: Session) -> impl IntoResponse {
+async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> impl IntoResponse {
+    let logout_html = {
+        let session_id = session.id().unwrap();
+        let context_guard = app_data.context.write().await;
+        let context = context_guard.get(&session_id).unwrap();
+        let base = context.base.read().await;
+        let logout_html = base.asset.read().await;
+        if let Some(TnAsset::String(logout_html)) = logout_html.get("logout_page") {
+            logout_html.clone()
+        } else {
+            r#"logged out"#.into()
+        }
+    };
+    // remove data from the session in app_data
+    {
+        let session_id = session.id().unwrap();
+        let mut context_guard = app_data.context.write().await;
+
+        context_guard.remove(&session_id);
+    }
     let _ = session.remove_value("token").await;
-    // we may pass this to a user defined page stored in the context in the future
-    Html::from(r#"logged out"#)
+    Html::from(logout_html)
 }
 
 #[allow(dead_code)]
@@ -675,8 +695,7 @@ async fn check_token(
     tracing::debug!(target:"tron_app", "session: {:?}", session);
     tracing::debug!(target:"tron_app", "path: {:?}", uri.path());
     tracing::debug!(target:"tron_app", "token: {:?}", session.get_value("token").await.unwrap());
-    if uri.path() == "/login" || uri.path() == "/cognito_callback" || uri.path() == "/logged_out/"
-    {
+    if uri.path() == "/login" || uri.path() == "/cognito_callback" || uri.path() == "/logged_out/" {
         let response = next.run(request).await;
         response.into_response()
     } else if let Some(token) = session.get_value("token").await.unwrap() {

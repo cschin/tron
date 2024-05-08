@@ -1,0 +1,16 @@
+<div class="container mx-auto px-4">
+    You are logged in. Click the button to log out:
+    <button class="btn" onclick="logout_confirm.showModal()">logout</button>
+    <dialog id="logout_confirm" class="modal">
+    <div class="modal-box">
+        <h3 class="font-bold text-lg">Logout?</h3>
+        <div class="modal-action">
+        <button class="btn" onclick='window.open("/logout")'>logout</button>
+        <form method="dialog">
+            <!-- if there is a button in form, it will close the modal -->
+            <button class="btn">Close</button>
+        </form>
+        </div>
+    </div>
+    </dialog>
+</div>

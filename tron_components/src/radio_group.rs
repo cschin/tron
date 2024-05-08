@@ -8,11 +8,22 @@ pub struct TnRadioGroup<'a: 'static> {
 }
 
 impl<'a: 'static> TnRadioGroup<'a> {
-    pub fn new(id: TnComponentIndex, name: String, value: HashMap<String, bool>) -> Self {
+    pub fn new(
+        id: TnComponentIndex,
+        name: String,
+        value: String,
+        radio_group_items: Vec<(String, String)>,
+    ) -> Self {
         let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::RadioGroup);
-        base.set_value(TnComponentValue::RadioItems(value));
+        base.set_value(TnComponentValue::String(value));
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         base.set_attribute("type".into(), "radio_group".into());
+        let mut asset = HashMap::default();
+        asset.insert(
+            "radio_group_items".into(),
+            TnAsset::VecString2(radio_group_items),
+        );
+        base.asset = Some(asset);
         base.script = Some(include_str!("../javascript/radio_group.html").to_string());
         Self { base }
     }
@@ -116,8 +127,17 @@ impl<'a: 'static> TnRadioItem<'a> {
         } else {
             "".to_string()
         };
+        let label = if assets.contains_key("label") {
+            if let TnAsset::String(label) = assets.get("label").unwrap() {
+                label.clone()
+            } else {
+                tron_id.clone()
+            }
+        } else {
+            tron_id.clone()
+        };
         format!(
-            r##"<div id="{tron_id}-container" {container_attributes}><{} {} type="radio" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{tron_id}</label></div>"##,
+            r##"<div id="{tron_id}-container" {container_attributes}><{} {} type="radio" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{label}</label></div>"##,
             self.base.tag,
             self.generate_attr_string(),
         )
@@ -131,37 +151,41 @@ pub fn add_radio_group_to_context(
     context: &mut TnContextBase<'static>,
     component_index: &mut u32,
     radio_group_tron_id: String,
-    radio_group_items: Vec<String>,
+    radio_group_items: Vec<(String, String)>,
     container_attributes: Vec<(String, String)>,
-    defult_item: String,
+    default_item: String,
 ) {
-    let mut parent_value = HashMap::<String, bool>::default();
     let children_ids = radio_group_items
-        .into_iter()
-        .map(|child_trod_id| {
+        .iter()
+        .map(|(child_trod_id, label)| {
             *component_index += 1;
             let radio_item_index = *component_index;
-            let is_default_item = child_trod_id == defult_item;
+            let is_default_item = *child_trod_id == default_item;
             let mut radio_item =
                 TnRadioItem::new(radio_item_index, child_trod_id.clone(), is_default_item);
-            parent_value.insert(child_trod_id.clone(), is_default_item);
 
             let asset = radio_item.get_mut_assets().unwrap();
             asset.insert(
                 "container_attributes".into(),
                 TnAsset::VecString2(container_attributes.clone()),
             );
+            asset.insert("label".into(), TnAsset::String(label.clone()));
             context.add_component(radio_item);
             context
                 .tnid_to_index
-                .insert(format!("{child_trod_id}-container"), radio_item_index);
+                .insert(format!("{}-container", child_trod_id), radio_item_index);
 
             radio_item_index
         })
         .collect::<Vec<_>>();
 
     *component_index += 1;
-    let radio_group = TnRadioGroup::new(*component_index, radio_group_tron_id, parent_value);
+    let radio_group = TnRadioGroup::new(
+        *component_index,
+        radio_group_tron_id,
+        default_item,
+        radio_group_items,
+    );
     context.add_component(radio_group);
     let components = context.components.blocking_read();
     let radio_group = components.get(component_index).unwrap();
@@ -186,23 +210,6 @@ pub fn add_radio_group_to_context(
     });
 }
 
-pub async fn radio_group_update_value(comp: TnComponent<'static>) {
-    let mut comp_guard = comp.write().await;
-    assert!(comp_guard.get_type() == TnComponentType::RadioGroup);
-    let children = comp_guard.get_children().clone();
-    if let TnComponentValue::RadioItems(ref mut value) = comp_guard.get_mut_value() {
-        value.clear();
-    };
-    for child in children {
-        let child = child.read().await;
-        if let TnComponentValue::RadioItems(ref mut value) = comp_guard.get_mut_value() {
-            if let TnComponentValue::RadioItem(b) = child.value() {
-                value.insert(child.tron_id().clone(), *b);
-            }
-        }
-    }
-}
-
 pub fn get_radio_group_actions(comp: TnComponent<'static>) -> Vec<(TnComponentId, ActionFn)> {
     let comp_guard = comp.blocking_write();
     assert!(comp_guard.get_type() == TnComponentType::RadioGroup);
@@ -225,32 +232,28 @@ pub fn set_radio_item(
             let radio_item_guard = context.get_component(&event.e_trigger).await;
             let radio_item = radio_item_guard.write().await;
             let parent_guard = radio_item.get_parent().clone();
-            let mut parent_guard = parent_guard.write().await;
-            let keys =
-                if let TnComponentValue::RadioItems(ref mut value) = parent_guard.get_mut_value() {
-                    let keys = value.keys().cloned().collect::<Vec<String>>();
-                    for k in keys.clone() {
-                        if k == event.e_trigger {
-                            value.insert(k, true);
-                        } else {
-                            value.insert(k, false);
-                        }
-                    }
-                    keys
-                } else {
-                    vec![]
-                };
-            keys
+            let mut parent = parent_guard.write().await;
+            parent.set_value(TnComponentValue::String(event.e_trigger.clone()));
+            if let TnAsset::VecString2(items) = parent
+                .get_assets()
+                .unwrap()
+                .get("radio_group_items")
+                .unwrap()
+            {
+                items.clone()
+            } else {
+                vec![]
+            }
         };
 
         for k in keys {
-            if k == event.e_trigger {
+            if *k.0 == event.e_trigger {
                 context
-                    .set_value_for_component(&k, TnComponentValue::RadioItem(true))
+                    .set_value_for_component(&k.0, TnComponentValue::RadioItem(true))
                     .await;
             } else {
                 context
-                    .set_value_for_component(&k, TnComponentValue::RadioItem(false))
+                    .set_value_for_component(&k.0, TnComponentValue::RadioItem(false))
                     .await;
             }
         }

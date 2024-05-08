@@ -95,12 +95,12 @@ fn build_session_context() -> TnContext {
     component_index += 1;
 
     let checklist_items = vec![
-        "checkbox-1".to_string(),
-        "checkbox-2".to_string(),
-        "checkbox-3".to_string(),
-        "checkbox-4".to_string(),
-        "checkbox-5".to_string(),
-        "checkbox-6".to_string(),
+        ("checkbox-1".to_string(), "CHECKBOX 1".to_string()),
+        ("checkbox-2".to_string(), "CHECKBOX 2".to_string()),
+        ("checkbox-3".to_string(), "CHECKBOX 3".to_string()),
+        ("checkbox-4".to_string(), "CHECKBOX 4".to_string()),
+        ("checkbox-5".to_string(), "CHECKBOX 5".to_string()),
+        ("checkbox-6".to_string(), "CHECKBOX 6".to_string()),
     ];
     let checklist_tron_id = "checklist".to_string();
     let container_attributes = vec![("class".to_string(), "flex-1".to_string())];
@@ -121,12 +121,10 @@ fn build_session_context() -> TnContext {
     
     component_index += 1;
     let radio_group_items = vec![
-        "radio-1".to_string(),
-        "radio-2".to_string(),
-        "radio-3".to_string(),
-        "radio-4".to_string(),
-        "radio-5".to_string(),
-        "radio-6".to_string(),
+        ( "radio-1".to_string(), "Radio 1".to_string() ),
+        ( "radio-2".to_string(), "Radio 2".to_string() ),
+        ( "radio-3".to_string(), "Radio 3".to_string() ),
+        ( "radio-4".to_string(), "Radio 4".to_string() ),
     ];
     let radio_group_tron_id = "radio_group".to_string();
     let container_attributes = vec![("class".to_string(), "flex-1".to_string())];

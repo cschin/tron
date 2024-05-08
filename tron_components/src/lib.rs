@@ -52,7 +52,6 @@ pub enum TnComponentValue {
     VecString2(Vec<(String, String)>),
     CheckItems(HashMap<String, bool>),
     CheckItem(bool),
-    RadioItems(HashMap<String, bool>),
     RadioItem(bool),
 }
 #[derive(Debug, Clone)]

@@ -116,8 +116,17 @@ impl<'a: 'static> TnCheckBox<'a> {
         } else {
             "".to_string()
         };
+        let label = if assets.contains_key("label") {
+            if let TnAsset::String(label) = assets.get("label").unwrap() {
+                label.clone()
+            } else {
+                tron_id.clone()
+            }
+        } else {
+            tron_id.clone()
+        };
         format!(
-            r##"<div id="{tron_id}-container" {container_attributes}><{} {} type="checkbox" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{tron_id}</label></div>"##,
+            r##"<div id="{tron_id}-container" {container_attributes}><{} {} type="checkbox" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{label}</label></div>"##,
             self.base.tag,
             self.generate_attr_string(),
         )
@@ -131,12 +140,12 @@ pub fn add_checklist_to_context(
     context: &mut TnContextBase<'static>,
     component_index: &mut u32,
     checklist_tron_id: String,
-    checklist_items: Vec<String>,
+    checklist_items: Vec<(String, String)>,
     container_attributes: Vec<(String, String)>,
 ) {
     let children_ids = checklist_items
         .into_iter()
-        .map(|child_trod_id| {
+        .map(|(child_trod_id, label)| {
             *component_index += 1;
             let checkbox_index = *component_index;
             let mut checkbox = TnCheckBox::new(checkbox_index, child_trod_id.clone(), false);
@@ -144,6 +153,10 @@ pub fn add_checklist_to_context(
             asset.insert(
                 "container_attributes".into(),
                 TnAsset::VecString2(container_attributes.clone()),
+            );
+            asset.insert(
+                "label".into(),
+                TnAsset::String(label),
             );
             context.add_component(checkbox);
             context.tnid_to_index.insert(format!("{child_trod_id}-container"), checkbox_index);

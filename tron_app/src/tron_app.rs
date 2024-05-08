@@ -137,8 +137,8 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     let auth_routes = Router::new()
         .route("/login", get(login_handler))
         .route("/logout", get(logout_handler))
-        .route("/logged_out/", get(logged_out))
-        .route("/cognito_callback/", get(cognito_callback));
+        .route("/logged_out", get(logged_out))
+        .route("/cognito_callback", get(cognito_callback));
 
     let app_routes = if config.cognito_login {
         Router::new().merge(routes).merge(auth_routes)
@@ -548,9 +548,10 @@ async fn login_handler() -> Redirect {
 async fn logout_handler() -> Redirect {
     let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
     let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
-    let redirect_uri = env::var("LOGOUT_REDIRECT_URI").expect("REDIRECT_URI not set");
+    let logout_uri = env::var("LOGOUT_REDIRECT_URI").expect("LOGOUT_REDIRECT_URI not set");
+    
     Redirect::to(&format!(
-        "https://{cognito_domain}/logout?client_id={cognito_client_id}&logout_uri={redirect_uri}"
+        "https://{cognito_domain}/logout?client_id={cognito_client_id}&logout_uri={logout_uri}"
     ))
 }
 
@@ -674,7 +675,7 @@ async fn check_token(
     tracing::debug!(target:"tron_app", "session: {:?}", session);
     tracing::debug!(target:"tron_app", "path: {:?}", uri.path());
     tracing::debug!(target:"tron_app", "token: {:?}", session.get_value("token").await.unwrap());
-    if uri.path() == "/login" || uri.path() == "/cognito_callback/" || uri.path() == "/logged_out/"
+    if uri.path() == "/login" || uri.path() == "/cognito_callback" || uri.path() == "/logged_out/"
     {
         let response = next.run(request).await;
         response.into_response()

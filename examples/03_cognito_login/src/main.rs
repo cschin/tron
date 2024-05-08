@@ -42,7 +42,7 @@ fn build_context() -> TnContext {
 }
 
 fn layout(context: TnContext) -> String {
-    "This is an template, please fill in the components and how to layout them.".into()
+    r#"This is an template, please fill in the components and how to layout them. <a href="/logout">logout</a>"#.into()
 }
 
 fn build_actions(context: TnContext) -> TnEventActions {

@@ -3,22 +3,22 @@ use futures_util::Future;
 use tron_macro::*;
 
 #[derive(ComponentBase)]
-pub struct TnCheckList<'a: 'static> {
+pub struct TnRadioGroup<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnCheckList<'a> {
+impl<'a: 'static> TnRadioGroup<'a> {
     pub fn new(id: TnComponentIndex, name: String, value: HashMap<String, bool>) -> Self {
-        let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
-        base.set_value(TnComponentValue::CheckItems(value));
+        let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::RadioGroup);
+        base.set_value(TnComponentValue::RadioItems(value));
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        base.set_attribute("type".into(), "checklist".into());
-        base.script = Some(include_str!("../javascript/checklist.html").to_string());
+        base.set_attribute("type".into(), "radio_group".into());
+        base.script = Some(include_str!("../javascript/radio_group.html").to_string());
         Self { base }
     }
 }
 
-impl<'a: 'static> Default for TnCheckList<'a> {
+impl<'a: 'static> Default for TnRadioGroup<'a> {
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -29,7 +29,7 @@ impl<'a: 'static> Default for TnCheckList<'a> {
     }
 }
 
-impl<'a: 'static> TnCheckList<'a> {
+impl<'a: 'static> TnRadioGroup<'a> {
     pub fn internal_render(&self) -> String {
         let children_render_results = self
             .get_children()
@@ -52,20 +52,20 @@ impl<'a: 'static> TnCheckList<'a> {
 }
 
 #[derive(ComponentBase)]
-pub struct TnCheckBox<'a: 'static> {
+pub struct TnRadioItem<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnCheckBox<'a> {
+impl<'a: 'static> TnRadioItem<'a> {
     pub fn new(id: TnComponentIndex, name: String, value: bool) -> Self {
         let mut base =
-            TnComponentBase::new("input".into(), id, name.clone(), TnComponentType::CheckBox);
-        base.set_value(TnComponentValue::CheckItem(value));
+            TnComponentBase::new("input".into(), id, name.clone(), TnComponentType::RadioItem);
+        base.set_value(TnComponentValue::RadioItem(value));
         base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
         base.set_attribute("hx-target".into(), format!("#{}-container", name));
         base.set_attribute(
             "hx-vals".into(),
-            r##"js:{event_data: get_checkbox_event(event)}"##.into(),
+            r##"js:{event_data: get_radio_group_event(event)}"##.into(),
         );
         base.set_attribute("hx-swap".into(), "none".into());
         //component_base.set_attribute("type".into(), "checkbox".into());
@@ -74,7 +74,7 @@ impl<'a: 'static> TnCheckBox<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnCheckBox<'a> {
+impl<'a: 'static> Default for TnRadioItem<'a> {
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -85,9 +85,9 @@ impl<'a: 'static> Default for TnCheckBox<'a> {
     }
 }
 
-impl<'a: 'static> TnCheckBox<'a> {
+impl<'a: 'static> TnRadioItem<'a> {
     pub fn internal_render(&self) -> String {
-        let checked = if let &TnComponentValue::CheckItem(v) = self.value() {
+        let checked = if let &TnComponentValue::RadioItem(v) = self.value() {
             if v {
                 "checked"
             } else {
@@ -117,7 +117,7 @@ impl<'a: 'static> TnCheckBox<'a> {
             "".to_string()
         };
         format!(
-            r##"<div id="{tron_id}-container" {container_attributes}><{} {} type="checkbox" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{tron_id}</label></div>"##,
+            r##"<div id="{tron_id}-container" {container_attributes}><{} {} type="radio" value="{tron_id}" name="{parent_tron_id}" {checked} /><label for="{tron_id}">&nbsp;{tron_id}</label></div>"##,
             self.base.tag,
             self.generate_attr_string(),
         )
@@ -127,39 +127,48 @@ impl<'a: 'static> TnCheckBox<'a> {
     }
 }
 
-pub fn add_checklist_to_context(
+pub fn add_radio_group_to_context(
     context: &mut TnContextBase<'static>,
     component_index: &mut u32,
-    checklist_tron_id: String,
-    checklist_items: Vec<String>,
+    radio_group_tron_id: String,
+    radio_group_items: Vec<String>,
     container_attributes: Vec<(String, String)>,
+    defult_item: String,
 ) {
-    let children_ids = checklist_items
+    let mut parent_value = HashMap::<String, bool>::default();
+    let children_ids = radio_group_items
         .into_iter()
         .map(|child_trod_id| {
             *component_index += 1;
-            let checkbox_index = *component_index;
-            let mut checkbox = TnCheckBox::new(checkbox_index, child_trod_id.clone(), false);
-            let asset = checkbox.get_mut_assets().unwrap();
+            let radio_item_index = *component_index;
+            let is_default_item = child_trod_id == defult_item;
+            let mut radio_item =
+                TnRadioItem::new(radio_item_index, child_trod_id.clone(), is_default_item);
+            parent_value.insert(child_trod_id.clone(), is_default_item);
+
+            let asset = radio_item.get_mut_assets().unwrap();
             asset.insert(
                 "container_attributes".into(),
                 TnAsset::VecString2(container_attributes.clone()),
             );
-            context.add_component(checkbox);
-            context.tnid_to_index.insert(format!("{child_trod_id}-container"), checkbox_index);
-            checkbox_index
+            context.add_component(radio_item);
+            context
+                .tnid_to_index
+                .insert(format!("{child_trod_id}-container"), radio_item_index);
+
+            radio_item_index
         })
         .collect::<Vec<_>>();
 
     *component_index += 1;
-    let checklist = TnCheckList::new(*component_index, checklist_tron_id, HashMap::default());
-    context.add_component(checklist);
+    let radio_group = TnRadioGroup::new(*component_index, radio_group_tron_id, parent_value);
+    context.add_component(radio_group);
     let components = context.components.blocking_read();
-    let checklist = components.get(component_index).unwrap();
+    let radio_group = components.get(component_index).unwrap();
     children_ids.iter().for_each(|child_id| {
         {
-            let mut checklist = checklist.blocking_write();
-            checklist.add_child(
+            let mut radio_group = radio_group.blocking_write();
+            radio_group.add_child(
                 // we need to get Arc from the context
                 context
                     .components
@@ -172,80 +181,87 @@ pub fn add_checklist_to_context(
         {
             let components = context.components.blocking_read();
             let mut child = components.get(child_id).unwrap().blocking_write();
-            child.add_parent(checklist.clone());
+            child.add_parent(radio_group.clone());
         }
     });
 }
 
-pub async fn checklist_update_value(comp: TnComponent<'static>) {
+pub async fn radio_group_update_value(comp: TnComponent<'static>) {
     let mut comp_guard = comp.write().await;
-    assert!(comp_guard.get_type() == TnComponentType::CheckList);
+    assert!(comp_guard.get_type() == TnComponentType::RadioGroup);
     let children = comp_guard.get_children().clone();
-    if let TnComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
+    if let TnComponentValue::RadioItems(ref mut value) = comp_guard.get_mut_value() {
         value.clear();
     };
     for child in children {
         let child = child.read().await;
-        if let TnComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
-            if let TnComponentValue::CheckItem(b) = child.value() {
+        if let TnComponentValue::RadioItems(ref mut value) = comp_guard.get_mut_value() {
+            if let TnComponentValue::RadioItem(b) = child.value() {
                 value.insert(child.tron_id().clone(), *b);
             }
         }
     }
 }
 
-pub fn get_checklist_actions(
-    comp: TnComponent<'static>,
-) -> Vec<(TnComponentId, ActionFn)> {
+pub fn get_radio_group_actions(comp: TnComponent<'static>) -> Vec<(TnComponentId, ActionFn)> {
     let comp_guard = comp.blocking_write();
-    assert!(comp_guard.get_type() == TnComponentType::CheckList);
+    assert!(comp_guard.get_type() == TnComponentType::RadioGroup);
     let children = comp_guard.get_children().clone();
     let mut events: Vec<(TnComponentId, ActionFn)> = Vec::default();
     for child in children {
         let child = child.blocking_read();
-     
-        events.push((child.tron_id().clone(), toggle_checkbox))
+        events.push((child.tron_id().clone(), set_radio_item))
     }
     events
 }
 
-pub fn toggle_checkbox(
+pub fn set_radio_item(
     context: TnContext,
     event: TnEvent,
-    payload: Value,
+    _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
-        // println!("paylod value {payload}");
-        if let Value::String(checked) = &payload["event_data"]["e_value"] {
-            let context_guard = context.read().await;
-            let checkbox_id = context_guard.get_component_index(&event.e_trigger);
-            let components_guard = context_guard.components.write().await;
-            let mut checkbox = components_guard.get(&checkbox_id).unwrap().write().await;
+        let keys = {
+            let radio_item_guard = context.get_component(&event.e_trigger).await;
+            let radio_item = radio_item_guard.write().await;
+            let parent_guard = radio_item.get_parent().clone();
+            let mut parent_guard = parent_guard.write().await;
+            let keys =
+                if let TnComponentValue::RadioItems(ref mut value) = parent_guard.get_mut_value() {
+                    let keys = value.keys().cloned().collect::<Vec<String>>();
+                    for k in keys.clone() {
+                        if k == event.e_trigger {
+                            value.insert(k, true);
+                        } else {
+                            value.insert(k, false);
+                        }
+                    }
+                    keys
+                } else {
+                    vec![]
+                };
+            keys
+        };
 
-            if checked.as_str() == "true" {
-                // println!("set true");
-                checkbox.set_value(TnComponentValue::CheckItem(true));
-                let parent_guard = checkbox.get_parent().clone();
-                let mut parent_guard = parent_guard.write().await;
-                if let TnComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
-                    value.insert(event.e_trigger.clone(), true);
-                };
+        for k in keys {
+            if k == event.e_trigger {
+                context
+                    .set_value_for_component(&k, TnComponentValue::RadioItem(true))
+                    .await;
             } else {
-                // println!("set false");
-                checkbox.set_value(TnComponentValue::CheckItem(false));
-                let parent_guard = checkbox.get_parent().clone();
-                let mut parent_guard = parent_guard.write().await;
-                if let TnComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
-                    value.insert(event.e_trigger.clone(), false);
-                };
+                context
+                    .set_value_for_component(&k, TnComponentValue::RadioItem(false))
+                    .await;
             }
-            checkbox.set_state(TnComponentState::Ready);
-            let checkbox_html = tokio::task::block_in_place(|| checkbox.render());
-            Some( (HeaderMap::new(), Html::from(checkbox_html)) )
-        } else {
-            None
         }
-       
+
+        {
+            let radio_item_guard = context.get_component(&event.e_trigger).await;
+            let mut radio_item = radio_item_guard.write().await;
+            radio_item.set_state(TnComponentState::Ready);
+            let radio_item_html = tokio::task::block_in_place(|| radio_item.render());
+            Some((HeaderMap::new(), Html::from(radio_item_html)))
+        }
     };
 
     Box::pin(f)

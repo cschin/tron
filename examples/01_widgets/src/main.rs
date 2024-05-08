@@ -13,6 +13,7 @@ use serde_json::Value;
 use tracing::debug;
 use tron_components::{
     checklist,
+    radio_group,
     text::{self, append_stream_textarea, append_textarea_value},
     ActionExecutionMethod, ActionFn, TnButton, TnComponentBaseTrait, TnComponentState,
     TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse,
@@ -117,6 +118,33 @@ fn build_session_context() -> TnContext {
             .blocking_write()
             .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
     }
+    
+    component_index += 1;
+    let radio_group_items = vec![
+        "radio-1".to_string(),
+        "radio-2".to_string(),
+        "radio-3".to_string(),
+        "radio-4".to_string(),
+        "radio-5".to_string(),
+        "radio-6".to_string(),
+    ];
+    let radio_group_tron_id = "radio_group".to_string();
+    let container_attributes = vec![("class".to_string(), "flex-1".to_string())];
+    radio_group::add_radio_group_to_context(
+        &mut context,
+        &mut component_index,
+        radio_group_tron_id,
+        radio_group_items,
+        container_attributes,
+        "radio-1".into()
+    );
+    {
+        let component_guard = context.components.blocking_read();
+        let radio_group_guard = component_guard.get(&component_index).unwrap();
+        radio_group_guard
+            .blocking_write()
+            .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
+    }
     {
         component_index += 1;
         let select_options = vec![
@@ -207,6 +235,14 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
         let checklist = context.blocking_get_component("checklist");
         let checklist_actions = checklist::get_checklist_actions(checklist);
         checklist_actions.into_iter().for_each(|(tron_id, action)| {
+            actions.push((tron_id, ActionExecutionMethod::Await, action));
+        });
+    }
+
+    {
+        let radio_group: Arc<RwLock<Box<dyn TnComponentBaseTrait<'_>>>> = context.blocking_get_component("radio_group");
+        let radio_group_actions = radio_group::get_radio_group_actions(radio_group);
+        radio_group_actions.into_iter().for_each(|(tron_id, action)| {
             actions.push((tron_id, ActionExecutionMethod::Await, action));
         });
     }
@@ -454,6 +490,7 @@ struct AppPageTemplate {
     stream_textarea: String,
     textinput: String,
     checklist: String,
+    radio_group: String,
     select: String,
     clean_stream_textarea: String,
     clean_textarea: String,
@@ -472,6 +509,7 @@ fn layout(context: TnContext) -> String {
     let stream_textarea = context_guard.first_render_to_string("stream_textarea");
     let textinput = context_guard.render_to_string("textinput");
     let checklist = context_guard.render_to_string("checklist");
+    let radio_group = context_guard.render_to_string("radio_group");
     let select = context_guard.render_to_string("select_one");
     let clean_stream_textarea = context_guard.render_to_string("clean_stream_textarea");
     let clean_textarea = context_guard.render_to_string("clean_textarea");
@@ -484,6 +522,7 @@ fn layout(context: TnContext) -> String {
         stream_textarea,
         textinput,
         checklist,
+        radio_group,
         select,
         clean_stream_textarea,
         clean_textarea,

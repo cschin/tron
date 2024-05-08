@@ -8,7 +8,7 @@ pub struct TnRangeSlider<'a: 'static> {
 
 impl<'a: 'static> TnRangeSlider<'a> {
     pub fn new(id: TnComponentIndex, name: String, value: f32, min: f32, max: f32) -> Self {
-        let mut base = TnComponentBase::new("input".into(), id, name, TnComponentType::Button);
+        let mut base = TnComponentBase::new("input".into(), id, name, TnComponentType::Slider);
         base.set_value(TnComponentValue::String(format!("{}",value)));
         base.set_attribute("type".into(), "range".into());
         base.set_attribute("min".into(), format!("{}", min));
@@ -18,6 +18,8 @@ impl<'a: 'static> TnRangeSlider<'a> {
             r##"js:{event_data:get_input_event(event)}"##.into(),
         );
         base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
+        base.set_attribute("hx-swap".into(), "none".into());
+
 
         Self { base }
     }

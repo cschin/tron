@@ -6,6 +6,19 @@ pub mod checklist;
 pub mod select;
 pub mod text;
 pub mod range_slider;
+pub mod radio_group;
+
+
+pub use audio_player::TnAudioPlayer;
+pub use audio_recorder::TnAudioRecorder;
+pub use button::TnButton;
+pub use chatbox::TnChatBox;
+pub use checklist::{TnCheckBox, TnCheckList};
+pub use radio_group::{TnRadioItem, TnRadioGroup};
+pub use select::TnSelect;
+use serde_json::Value;
+pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
+pub use range_slider::TnRangeSlider;
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -14,16 +27,6 @@ use std::{
 };
 use tokio::sync::{mpsc::Receiver, RwLockReadGuard, RwLockWriteGuard};
 use tokio::sync::{oneshot, Mutex};
-
-pub use audio_player::TnAudioPlayer;
-pub use audio_recorder::TnAudioRecorder;
-pub use button::TnButton;
-pub use chatbox::TnChatBox;
-pub use checklist::{TnCheckBox, TnCheckList};
-pub use select::TnSelect;
-use serde_json::Value;
-pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
-pub use range_slider::TnRangeSlider;
 
 use rand::{thread_rng, Rng};
 
@@ -49,6 +52,8 @@ pub enum TnComponentValue {
     VecString2(Vec<(String, String)>),
     CheckItems(HashMap<String, bool>),
     CheckItem(bool),
+    RadioItems(HashMap<String, bool>),
+    RadioItem(bool),
 }
 #[derive(Debug, Clone)]
 pub enum TnAsset {
@@ -76,6 +81,9 @@ pub enum TnComponentType {
     TextInput,
     ChatBox,
     Select,
+    Slider,
+    RadioGroup,
+    RadioItem,
     UserDefined(String),
 }
 
@@ -363,6 +371,7 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn render(&self) -> String;
 
     fn get_children(&self) -> &Vec<TnComponent<'a>>;
+    fn get_mut_children(&mut self) -> &mut Vec<TnComponent<'a>>;
     fn add_child(&mut self, child: TnComponent<'a>);
 
     fn add_parent(&mut self, parent: TnComponent<'a>);
@@ -531,6 +540,10 @@ where
 
     fn get_children(&self) -> &Vec<TnComponent<'a>> {
         &self.children
+    }
+    
+    fn get_mut_children(&mut self) -> &mut Vec<TnComponent<'a>> {
+        &mut self.children
     }
 
     fn add_child(&mut self, child: TnComponent<'a>) {

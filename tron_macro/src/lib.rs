@@ -103,6 +103,10 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.base.get_children()
             }
 
+            fn get_mut_children(&mut self) -> &mut Vec<TnComponent<'a>>  {
+                self.base.get_mut_children()
+            }
+
             fn add_child(&mut self, child: TnComponent<'a>) {
                 self.base.add_child(child);
             }

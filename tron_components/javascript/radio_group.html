@@ -1,0 +1,15 @@
+<script>
+// for radio input element, the value is stored in the attribute
+function get_radio_group_event(event) {
+
+    return {
+        "tn_event":
+        {
+            "e_trigger": event.currentTarget.id,
+            "e_type": event.type,
+            "e_state": event.currentTarget.getAttribute('state')
+        },
+        "e_value": document.getElementById(event.currentTarget.id).value
+    };
+};
+</script>

@@ -3,22 +3,21 @@ pub mod audio_recorder;
 pub mod button;
 pub mod chatbox;
 pub mod checklist;
+pub mod radio_group;
+pub mod range_slider;
 pub mod select;
 pub mod text;
-pub mod range_slider;
-pub mod radio_group;
-
 
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
 pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
-pub use radio_group::{TnRadioItem, TnRadioGroup};
+pub use radio_group::{TnRadioGroup, TnRadioItem};
+pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
 use serde_json::Value;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
-pub use range_slider::TnRangeSlider;
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -30,20 +29,31 @@ use tokio::sync::{oneshot, Mutex};
 
 use rand::{thread_rng, Rng};
 
-use axum::{
-    body::Bytes,
-    http::HeaderMap,
-    response::Html,
-};
+use axum::{body::Bytes, http::HeaderMap, response::Html};
 use bytes::BytesMut;
 use serde::Deserialize;
 
+/// Each component is index by a u32 number
 pub type TnComponentIndex = u32;
+/// This for the HTML element attributes
 pub type TnElmAttributes = HashMap<String, String>;
+/// For adding extra header for the HTTP responses
 pub type TnExtraResponseHeader = HashMap<String, (String, bool)>; // (String, bool) = (value, remove after use?)
+/// Simple alias
 pub type TnElmTag = String;
+/// The type representing a component
 pub type TnComponent<'a> = Arc<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>;
 
+/// For each component, we can store an value with type of enum `TnComponentValue`.
+/// The variants are:
+/// - `None`: Represents no value
+/// - `String(String)`: Represents a single string value
+/// - `VecString(Vec<String>)`: Represents a vector of string values
+/// - `VecString2(Vec<(String, String)>`: Represents a vector of tuples where each tuple contains two
+/// strings
+/// - `CheckItems(HashMap<String, bool>)`: Represents a hashmap where keys are strings and values are
+/// booleans
+/// - `CheckItem(bool)`: Represents a single boolean
 #[derive(Debug, Clone)]
 pub enum TnComponentValue {
     None,
@@ -54,6 +64,9 @@ pub enum TnComponentValue {
     CheckItem(bool),
     RadioItem(bool),
 }
+
+/// This `TnAsset` enum has several variants
+/// representing different types of data that can be stored:
 #[derive(Debug, Clone)]
 pub enum TnAsset {
     None,
@@ -67,6 +80,11 @@ pub enum TnAsset {
     Bool(bool),
 }
 
+/// The `TnComponentType enum has predefined variants such as `Base`, `AudioPlayer`,
+/// `AudioRecorder`, `Button`, `CheckList`, `CheckBox`, `TextArea`, `StreamTextArea`, `TextInput`,
+/// `ChatBox`, `Select`, `Slider`, `RadioGroup`, and `RadioItem`. Additionally, it has a variant
+/// `UserDefined` that takes a `String` parameter to represent user-defined component types. The enum
+/// also derives implementations for `PartialEq`, `Eq`, `Debug`, and
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum TnComponentType {
     Base,
@@ -86,6 +104,11 @@ pub enum TnComponentType {
     UserDefined(String),
 }
 
+/// `TnComponentState` represents different
+/// states for a component in a Tron application. The enum has variants `Ready`, `Pending`, `Updating`,
+/// `Finished`, and `Disabled`, each representing a different state of the component. These states
+/// indicate whether the component is ready to receive new events, waiting for a server response,
+/// updating based on server data, finished processing updates, or disabled and not interactive.
 #[derive(PartialEq, Eq, Debug, Clone)]
 pub enum TnComponentState {
     Ready,    // ready to receive new event on the UI end
@@ -95,8 +118,51 @@ pub enum TnComponentState {
     Disabled, // disabled, not interactive and not sending htmx get/post
 }
 
+/// `TnComponentAsset`, used for storing addition data in each component, is an `Option` containing a
+/// `HashMap` where the keys are of type `String` and the values are of type `TnAsset`.
 type TnComponentAsset = Option<HashMap<String, TnAsset>>;
 
+/// The `TnComponentBase` struct represents a base component with various properties and
+/// relationships.
+///
+/// Properties:
+///
+/// * `tag`: The `tag` property in the `TnComponentBase` struct represents the element tag of the
+/// component. It specifies the type of HTML element that this component represents.
+/// * `type_`: The `type_` property in the `TnComponentBase` struct represents the type of the
+/// component. It is of type `TnComponentType`.
+/// * `id`: The `id` property in the `TnComponentBase` struct represents the unique identifier of the
+/// component within the application. It is of type `TnComponentIndex`.
+/// * `tron_id`: The `tron_id` property in the `TnComponentBase` struct represents the unique identifier
+/// for the component within the system. It is of type `TnComponentId`.
+/// * `attributes`: The `attributes` property in the `TnComponentBase` struct represents the attributes
+/// associated with the component. These attributes are typically key-value pairs that provide
+/// additional information or configuration for the component. For example, attributes could include
+/// things like `class`, `style`, `data-*` attributes, or
+/// * `value`: The `value` property in the `TnComponentBase` struct represents the value associated with
+/// the component. It is of type `TnComponentValue`. This value could be any data or information that
+/// the component needs to store or operate on.
+/// * `extra_response_headers`: The `extra_response_headers` property in the `TnComponentBase` struct
+/// likely represents additional headers that can be included in the response when this component is
+/// rendered. These headers could be used for various purposes such as specifying caching directives,
+/// content type, encoding, or any other custom headers required for the
+/// * `asset`: The `asset` property in the `TnComponentBase` struct represents the asset associated with
+/// the component. This could include information such as images, videos, or other resources that are
+/// part of the component's content or functionality.
+/// * `state`: The `state` property in the `TnComponentBase` struct represents the state of the
+/// component. It holds information about the current state of the component, such as whether it is
+/// active, disabled, hidden, or any other relevant state information that the component needs to manage
+/// its behavior and appearance.
+/// * `children`: The `children` property in the `TnComponentBase` struct is a vector of `TnComponent`
+/// elements. It represents the child components of the current component. Each `TnComponent` element in
+/// the vector holds information about a child component, allowing for a hierarchical structure of
+/// components within
+/// * `parent`: The `parent` property in the `TnComponentBase` struct is a weak reference to the parent
+/// component of the current component. It is of type `Weak<RwLock<Box<dyn TnComponentBaseTrait<'a>>`,
+/// which allows for a flexible reference to the parent component without creating a
+/// * `script`: The `script` property in the `TnComponentBase` struct is an optional field that can hold
+/// a `String` value. It allows you to store a script associated with the component if needed. If there
+/// is no script associated with the component, the value of this field would be `None
 pub struct TnComponentBase<'a: 'static> {
     pub tag: TnElmTag,
     pub type_: TnComponentType,
@@ -112,12 +178,33 @@ pub struct TnComponentBase<'a: 'static> {
     pub script: Option<String>,
 }
 
+/// The `TnServiceRequestMsg` struct represents a service request message with a request string, payload
+/// of type `TnAsset`, and a response sender.
+///
+/// Properties:
+///
+/// * `request`: The `request` field in the `TnServiceRequestMsg` struct represents the type of request
+/// being made. It is a `String` type field.
+/// * `payload`: The `payload` property in the `TnServiceRequestMsg` struct represents an object of type
+/// `TnAsset`. It contains the data or information associated with the service request message.
+/// * `response`: The `response` field in the `TnServiceRequestMsg` struct is of type
+/// `oneshot::Sender<String>`. This field is used to send a response back to the requester once the
+/// service request has been processed. The `Sender` type is typically used in Rust for sending a single
 #[derive(Debug)]
 pub struct TnServiceRequestMsg {
     pub request: String,
     pub payload: TnAsset,
     pub response: oneshot::Sender<String>,
 }
+/// The `TnServiceResponseMsg` struct represents a response message with a string response and a payload
+/// of type `TnAsset`.
+///
+/// Properties:
+///
+/// * `response`: The `response` property in the `TnServiceResponseMsg` struct is of type `String`. It
+/// is used to store the response message from the service.
+/// * `payload`: The `payload` property in the `TnServiceResponseMsg` struct is of type `TnAsset`. It
+/// contains the data or information associated with the response message.
 
 #[derive(Debug)]
 pub struct TnServiceResponseMsg {
@@ -125,26 +212,95 @@ pub struct TnServiceResponseMsg {
     pub payload: TnAsset,
 }
 
+/// The `TnSseMsgChannel` struct contains a sender and an optional receiver for string messages.
+///
+/// Properties:
+///
+/// * `tx`: The `tx` property is a `Sender<String>` which is used for sending messages of type `String`
+/// over a channel. This allows one part of the code to send messages to another part asynchronously.
+/// * `rx`: The `rx` property is an optional field that holds a `Receiver<String>`. It is initially set
+/// to `Some(receiver)` but will be moved out and replaced by `None` at some point.
 pub struct TnSseMsgChannel {
     pub tx: Sender<String>,
     pub rx: Option<Receiver<String>>, // this will be moved out and replaced by None
 }
 
+/// A type alias `TnStreamID` for the type `String`. This allows you
+/// to refer to `String` as `TnStreamID` in your code for better readability and abstraction.
 type TnStreamID = String;
+/// `TnStreamProtocol`  is an alias for the existing type `String`.
 type TnStreamProtocol = String;
+/// A type alias `TnStreamData` for a `VecDeque` of `BytesMut` in Rust. This
+/// allows you to refer to this specific type using the alias `TnStreamData` throughout your code,
+/// making it more readable and easier to maintain.
 type TnStreamData = VecDeque<BytesMut>;
+/// `TnAssetName` is an alias for the existing type `String`.
 type TnAssetName = String;
+/// `TnComponentId` is an alias for the existing type `String`.
 type TnComponentId = String;
+/// `TnServiceName` is an alias for the existing type `String`.
 type TnServiceName = String;
 
+/// `TnComponentMap` is a type alias
+/// representing an `Arc` (atomic reference counted smart pointer) wrapping a `RwLock` (read-write lock)
+/// containing a `HashMap`. The `HashMap` is mapping `TnComponentIndex` keys to `TnComponent` values,
+/// where `TnComponent` is a generic type parameterized by lifetime `'a`.
 pub type TnComponentMap<'a> = Arc<RwLock<HashMap<TnComponentIndex, TnComponent<'a>>>>;
+
+/// `TnStreamMap` is an alias for
+/// `Arc<RwLock<HashMap<TnStreamID, (TnStreamProtocol, TnStreamData)>>>`. This type represents a shared,
+/// thread-safe reference-counted smart pointer (`Arc`) to a read-write lock (`RwLock`) guarding a hash
+/// map where the keys are of type `TnStreamID` and the values are tuples of type `(TnStreamProtocol,
+/// TnStreamData)`. This construct is commonly used in Rust for concurrent access to shared data
+/// structures
 pub type TnStreamMap = Arc<RwLock<HashMap<TnStreamID, (TnStreamProtocol, TnStreamData)>>>;
+
+/// `TnContextAsset` is a reference-counted,
+/// thread-safe pointer to a `HashMap` containing key-value pairs of `TnAssetName` and `TnAsset`. This
+/// type alias is defined using the `Arc` (atomic reference counting) and `RwLock` (read-write lock)
+/// types to ensure safe concurrent access to the underlying data structure.
 pub type TnContextAsset = Arc<RwLock<HashMap<TnAssetName, TnAsset>>>;
+
+/// `TnSeeChannel` is an alias for
+/// `Arc<RwLock<Option<TnSseMsgChannel>>>`. This type alias represents an atomic reference-counted smart
+/// pointer `Arc` that provides shared ownership of a value, and a reader-writer lock `RwLock` that
+/// allows multiple readers or one writer at a time, containing an optional value of type
+/// `TnSseMsgChannel`.
 pub type TnSeeChannel = Arc<RwLock<Option<TnSseMsgChannel>>>;
+
+/// `TnService` is a tuple containing two elements:
+/// 1. `Sender<TnServiceRequestMsg>`: This is a sender channel for sending messages of type
+/// `TnServiceRequestMsg`.
+/// 2. `Mutex<Option<Receiver<TnServiceResponseMsg>>>`: This is a mutex-wrapped optional receiver
+/// channel for receiving messages of type `TnServiceResponseMsg`.
 pub type TnService = (
     Sender<TnServiceRequestMsg>,
     Mutex<Option<Receiver<TnServiceResponseMsg>>>,
 );
+/// The `TnContextBase` contains various fields such as component maps, stream data,
+/// assets, channels, mappings, and services.
+/// 
+/// Properties:
+/// 
+/// * `components`: The `components` field in the `TnContextBase` struct is a `TnComponentMap` that maps
+/// component IDs to `Component` structs. This allows for easy access and management of components
+/// within the context.
+/// * `stream_data`: The `stream_data` property in the `TnContextBase` struct is a `TnStreamMap`, which
+/// likely represents a mapping of some sort related to streaming data. It could be used to store and
+/// manage streams of data within the context.
+/// * `asset`: The `asset` property in the `TnContextBase` struct represents the asset associated with
+/// the context. It likely contains information or data related to the assets being managed or utilized
+/// within the context of the application or system.
+/// * `sse_channel`: The `sse_channel` property in the `TnContextBase` struct represents a channel for
+/// Server-Sent Events (SSE). This channel is likely used for sending real-time updates or notifications
+/// from the server to the client over HTTP. It allows for asynchronous communication between the server
+/// and the client without
+/// * `tnid_to_index`: The `tnid_to_index` property is a HashMap that maps `TnComponentId` keys to
+/// `TnComponentIndex` values. This mapping is used to associate a unique identifier for a component
+/// (`TnComponentId`) with its corresponding index in the context (`TnComponentIndex`).
+/// * `services`: The `services` property in the `TnContextBase` struct is a HashMap that maps
+/// `TnServiceName` keys to `TnService` values. This allows for efficient lookup and storage of services
+/// within the context.
 pub struct TnContextBase<'a: 'static> {
     pub components: TnComponentMap<'a>, // component ID mapped to Component structs
     pub stream_data: TnStreamMap,
@@ -155,6 +311,12 @@ pub struct TnContextBase<'a: 'static> {
 }
 
 impl<'a: 'static> TnContextBase<'a> {
+/// The `new` function initializes a `TnContextBase` struct with default values for its fields.
+/// 
+/// Returns:
+/// 
+/// A new instance of the `TnContextBase` struct is being returned with all its fields initialized with
+/// default values.
     pub fn new() -> Self {
         TnContextBase {
             components: Arc::new(RwLock::new(HashMap::default())),
@@ -166,6 +328,14 @@ impl<'a: 'static> TnContextBase<'a> {
         }
     }
 
+/// The `add_component` function in Rust adds a new component to a data structure while maintaining
+/// thread safety.
+/// 
+/// Arguments:
+/// 
+/// * `new_component`: `new_component` is a parameter of type `impl TnComponentBaseTrait<'a> + 'static`,
+/// which means it is a type that implements the `TnComponentBaseTrait` trait with a lifetime parameter
+/// `'a` and also has a static lifetime.
     pub fn add_component(&mut self, new_component: impl TnComponentBaseTrait<'a> + 'static) {
         let tron_id = new_component.tron_id().clone();
         let id = new_component.id();
@@ -174,6 +344,18 @@ impl<'a: 'static> TnContextBase<'a> {
         self.tnid_to_index.insert(tron_id, id);
     }
 
+/// This Rust function retrieves the index of a component based on its tron_id.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a reference to a string that represents the identifier of a
+/// component.
+/// 
+/// Returns:
+/// 
+/// The function `get_component_index` returns a `u32` value, which is the index associated with the
+/// provided `tron_id` in the `tnid_to_index` map. If the `tron_id` is not found in the map, it will
+/// panic with a message indicating that the component with the given `tron_id` was not found.
     pub fn get_component_index(&self, tron_id: &str) -> u32 {
         *self
             .tnid_to_index
@@ -181,6 +363,18 @@ impl<'a: 'static> TnContextBase<'a> {
             .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id))
     }
 
+/// The function `render_to_string` renders a component to a string based on a given ID.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a reference to a string that is used to identify a component
+/// within the data structure.
+/// 
+/// Returns:
+/// 
+/// The `render_to_string` method returns a `String` value, which is the result of calling the `render`
+/// method on a component retrieved from the `components` data structure based on the provided
+/// `tron_id`.
     pub fn render_to_string(&self, tron_id: &str) -> String {
         let id = self.get_component_index(tron_id);
         let components_guard = self.components.blocking_read();
@@ -188,6 +382,18 @@ impl<'a: 'static> TnContextBase<'a> {
         component.render()
     }
 
+/// This Rust function `first_render_to_string` retrieves a component by ID and calls its `first_render`
+/// method to return a string.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a reference to a string that is used to identify a component
+/// within the system.
+/// 
+/// Returns:
+/// 
+/// The `first_render()` method is being called on the `component` and the result of that method call is
+/// being returned as a `String`.
     pub fn first_render_to_string(&self, tron_id: &str) -> String {
         let id = self.get_component_index(tron_id);
         let component_guard = self.components.blocking_read();
@@ -196,28 +402,70 @@ impl<'a: 'static> TnContextBase<'a> {
     }
 }
 
+/// The `TnContext` struct is an `Arc` wrapped `RwLock` of
+/// `TnContextBase` with a static lifetime.
+/// 
+/// Properties:
+/// 
+/// * `base`: The `base` property in the `TnContext` struct is a field of type
+/// `Arc<RwLock<TnContextBase<'static>>>`. This field holds a reference-counted smart pointer `Arc`
+/// wrapping a reader-writer lock `RwLock` that contains a `Tn
 #[derive(Clone)]
 pub struct TnContext {
     pub base: Arc<RwLock<TnContextBase<'static>>>,
 }
 
 impl TnContext {
+/// The `read` function in Rust asynchronously acquires a read lock on a RwLock and returns a guard to
+/// the locked data.
+/// 
+/// Returns:
+/// 
+/// A `RwLockReadGuard` containing a reference to a `TnContextBase` instance with a static lifetime is
+/// being returned.
     pub async fn read(&self) -> RwLockReadGuard<TnContextBase<'static>> {
         self.base.read().await
     }
 
+/// The `write` function in Rust asynchronously acquires a write lock on a `TnContextBase` object.
+/// 
+/// Returns:
+/// 
+/// A `RwLockWriteGuard` containing a reference to a `TnContextBase` instance with a static lifetime is
+/// being returned.
     pub async fn write(&self) -> RwLockWriteGuard<TnContextBase<'static>> {
         self.base.write().await
     }
 
+/// The `blocking_read` function returns a read guard for a `TnContextBase` object in Rust.
+/// 
+/// Returns:
+/// 
+/// A `RwLockReadGuard` containing a reference to a `TnContextBase` instance with a static lifetime is
+/// being returned.
     pub fn blocking_read(&self) -> RwLockReadGuard<TnContextBase<'static>> {
         self.base.blocking_read()
     }
 
+/// The `blocking_write` function returns a `RwLockWriteGuard` for a `TnContextBase` object.
+/// 
+/// Returns:
+/// 
+/// A RwLockWriteGuard containing a TnContextBase<'static> instance is being returned.
     pub fn blocking_write(&self) -> RwLockWriteGuard<TnContextBase<'static>> {
         self.base.blocking_write()
     }
 
+/// This Rust function asynchronously retrieves a component based on a given ID.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a reference to a string that represents the identifier of a
+/// component.
+/// 
+/// Returns:
+/// 
+/// The `get_component` function is returning a `TnComponent` object with a lifetime of `'static`.
     pub async fn get_component(&self, tron_id: &str) -> TnComponent<'static> {
         let context_guard = self.write().await;
         let components_guard = context_guard.components.write().await;
@@ -225,6 +473,16 @@ impl TnContext {
         components_guard.get(&comp_id).unwrap().clone()
     }
 
+/// This Rust function retrieves a component associated with a given ID in a blocking manner.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a reference to a string that represents the identifier of a
+/// component in the context.
+/// 
+/// Returns:
+/// 
+/// The `blocking_get_component` function is returning a `TnComponent<'static>` object.
     pub fn blocking_get_component(&self, tron_id: &str) -> TnComponent<'static> {
         let context_guard = self.blocking_write();
         let components_guard = context_guard.components.blocking_write();
@@ -232,6 +490,18 @@ impl TnContext {
         components_guard.get(&comp_id).unwrap().clone()
     }
 
+/// The `render_component` function in Rust asynchronously renders a component based on a given ID
+/// within a context.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a reference to a string that is used to identify a component
+/// within the context.
+/// 
+/// Returns:
+/// 
+/// The `render_component` function returns a `String` value, which is the result of calling the
+/// `render` method on the component referenced by the `comp` variable.
     pub async fn render_component(&self, tron_id: &str) -> String {
         let context_guard = self.read().await;
         let components_guard = context_guard.components.read().await;
@@ -240,6 +510,18 @@ impl TnContext {
         comp.render()
     }
 
+/// The function `get_value_from_component` in Rust retrieves a value from a component identified by a
+/// given ID in an asynchronous manner.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a reference to a string that represents the ID of a
+/// component in the context.
+/// 
+/// Returns:
+/// 
+/// The `get_value_from_component` function returns a `TnComponentValue` which is the value of a
+/// component identified by the provided `tron_id`.
     pub async fn get_value_from_component(&self, tron_id: &str) -> TnComponentValue {
         let value = {
             let context_guard = self.read().await;
@@ -251,6 +533,14 @@ impl TnContext {
         value
     }
 
+/// This Rust function asynchronously sets a value for a component identified by a given ID.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a string that represents the identifier of a component in
+/// the system.
+/// * `v`: The parameter `v` in the `set_value_for_component` function represents the value that you
+/// want to set for a specific component identified by the `tron_id`. It is of type `TnComponentValue`.
     pub async fn set_value_for_component(&self, tron_id: &str, v: TnComponentValue) {
         let context_guard = self.read().await;
         let mut components_guard = context_guard.components.write().await;
@@ -263,6 +553,14 @@ impl TnContext {
         component.set_value(v);
     }
 
+/// This Rust function sets the state for a component in a concurrent environment.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a string that represents the identifier of a component in
+/// the system.
+/// * `s`: The parameter `s` in the `set_state_for_component` function is of type `TnComponentState`. It
+/// is the state that you want to set for a specific component identified by the `tron_id`.
     pub async fn set_state_for_component(&self, tron_id: &str, s: TnComponentState) {
         let context_guard = self.read().await;
         let mut components_guard = context_guard.components.write().await;
@@ -275,6 +573,13 @@ impl TnContext {
         component.set_state(s);
     }
 
+/// This Rust function sets a value for a component in a blocking manner.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a string that represents the ID of a component in the
+/// context.
+/// * `v`: TnComponentValue
     pub fn set_value_for_component_blocking(&self, tron_id: &str, v: TnComponentValue) {
         let context_guard = self.blocking_read();
         let mut components_guard = context_guard.components.blocking_write();
@@ -286,6 +591,13 @@ impl TnContext {
         component.set_value(v);
     }
 
+/// This Rust function sets the state for a component in a blocking manner.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter is a string that represents the identifier of a component in
+/// the system.
+/// * `s`: TnComponentState
     pub fn set_state_for_component_blocking(&self, tron_id: &str, s: TnComponentState) {
         let context_guard = self.blocking_read();
         let mut components_guard = context_guard.components.blocking_write();
@@ -297,6 +609,12 @@ impl TnContext {
         component.set_state(s);
     }
 
+/// The function `get_sse_tx` returns a clone of the Sender from a nested RwLock structure after
+/// unlocking two layers of RwLock.
+/// 
+/// Returns:
+/// 
+/// A `Sender<String>` is being returned from the `get_sse_tx` function.
     pub async fn get_sse_tx(&self) -> Sender<String> {
         // unlock two layers of Rwlock !!
         let sse_tx = self
@@ -312,14 +630,21 @@ impl TnContext {
         sse_tx
     }
 
+/// The `set_ready_for` function in Rust sets a component to the ready state and triggers a server-side
+/// event to update the button state for a specified ID.
+/// 
+/// Arguments:
+/// 
+/// * `tron_id`: The `tron_id` parameter in the `set_ready_for` function is a string that represents the
+/// identifier of a TRON (presumably a component or entity). This identifier is used to set the state of
+/// the specified TRON component to "ready" and trigger a server-side event to update the
     pub async fn set_ready_for(&self, tron_id: &str) {
         {
             let sse_tx = self.get_sse_tx().await;
             // set the reset button back to the ready state
-            self
-                .set_state_for_component(tron_id, TnComponentState::Ready)
+            self.set_state_for_component(tron_id, TnComponentState::Ready)
                 .await;
-    
+
             let msg = TnSseTriggerMsg {
                 // update the button state
                 server_side_trigger_data: TnServerSideTriggerData {
@@ -336,10 +661,21 @@ impl<'a: 'static> Default for TnContextBase<'a>
 where
     'a: 'static,
 {
+    /// The function `default` in Rust returns a new instance of the current type.
+    /// 
+    /// Returns:
+    /// 
+    /// The `default` function is returning an instance of the current struct or enum by calling the
+    /// `new` associated function.
     fn default() -> Self {
         Self::new()
     }
 }
+/// `TnComponentBaseTrait` defines the traits with associated methods for managing
+/// components in a UI framework. The trait includes functions for handling component attributes,
+/// headers, values, state, assets, rendering, children, parent-child relationships, and scripts. The
+/// trait is generic over a lifetime parameter `'a` and requires implementations to be `Send` and
+/// `Sync`.
 
 pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn id(&self) -> TnComponentIndex;
@@ -380,6 +716,27 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 }
 
 impl<'a: 'static> TnComponentBase<'a> {
+    /// The function `new` in Rust creates a new instance of a struct with specified attributes and
+    /// default values.
+    /// 
+    /// Arguments:
+    /// 
+    /// * `tag`: The `tag` parameter in the `new` function represents the HTML tag name of the component
+    /// being created. It could be values like "div", "span", "button", etc., indicating the type of
+    /// HTML element that will be created for this component.
+    /// * `index`: The `index` parameter in the `new` function is of type `TnComponentIndex`. It is used
+    /// to specify the index of the component.
+    /// * `tron_id`: The `tron_id` parameter in the `new` function represents the unique identifier for
+    /// a component in a web application. It is used to identify and target specific components for
+    /// interaction or manipulation within the application.
+    /// * `type_`: The `type_` parameter in the `new` function represents the type of the component
+    /// being created. It is of type `TnComponentType`. This parameter is used to specify the type of
+    /// the component being initialized within the function.
+    /// 
+    /// Returns:
+    /// 
+    /// A new instance of a struct with the specified tag, index, tron_id, and type, along with default
+    /// attributes and other fields initialized.
     pub fn new(
         tag: String,
         index: TnComponentIndex,
@@ -540,7 +897,7 @@ where
     fn get_children(&self) -> &Vec<TnComponent<'a>> {
         &self.children
     }
-    
+
     fn get_mut_children(&mut self) -> &mut Vec<TnComponent<'a>> {
         &mut self.children
     }
@@ -589,9 +946,8 @@ pub type ActionFn = fn(
     TnContext,
     event: TnEvent,
     payload: Value,
-) -> Pin<
-    Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send + Sync>,
->;
+)
+    -> Pin<Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send + Sync>>;
 
 #[derive(Clone)]
 pub enum ActionExecutionMethod {

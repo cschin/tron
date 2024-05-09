@@ -7,27 +7,46 @@ use serde::Serialize;
 use tron_macro::*;
 use tron_utils::*;
 
+/// Represents a message used to trigger audio player actions in Server-Sent Events (SSE).
+///
+/// This struct contains data necessary to trigger actions related to audio playback
+/// in Server-Sent Events. It includes server-side trigger data (`TnServerSideTriggerData`)
+/// and an audio player control command.
 #[derive(Serialize)]
 pub struct SseAudioPlayerTriggerMsg {
     pub server_side_trigger_data: TnServerSideTriggerData,
     pub audio_player_control: String,
 }
 
+/// Represents an audio player component in the application.
+///
+/// This component provides functionality for playing audio content within the application.
 #[derive(ComponentBase)]
 pub struct TnAudioPlayer<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
 impl<'a: 'static> TnAudioPlayer<'a> {
-    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
+    /// Creates a new instance of `TnAudioPlayer` with the specified index, ID, and audio source URL.
+    ///
+    /// # Arguments
+    ///
+    /// * `idx` - The unique index of the audio player component.
+    /// * `tnid` - The ID of the audio player component.
+    /// * `value` - The URL of the audio source.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `TnAudioPlayer`.
+    pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
         let mut base = TnComponentBase::new(
             "audio".to_string(),
-            id,
-            name.clone(),
+            idx,
+            tnid.clone(),
             TnComponentType::AudioPlayer,
         );
         base.set_value(TnComponentValue::String(value));
-        base.set_attribute("src".into(), format!("/tron_streaming/{}", name));
+        base.set_attribute("src".into(), format!("/tron_streaming/{}", tnid));
         // component_base.set_attribute("type".into(), "audio/webm".into());
         base.set_attribute("type".into(), "audio/mp3".into());
         base.set_attribute("hx-trigger".into(), "server_side_trigger, ended".into());
@@ -36,6 +55,13 @@ impl<'a: 'static> TnAudioPlayer<'a> {
 }
 
 impl<'a: 'static> Default for TnAudioPlayer<'a> {
+    /// Returns the default instance of `TnAudioPlayer`.
+    ///
+    /// The default instance has the component type set to "audio" and an empty value.
+    ///
+    /// # Returns
+    ///
+    /// The default instance of `TnAudioPlayer`.
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -50,6 +76,16 @@ impl<'a: 'static> TnAudioPlayer<'a>
 where
     'a: 'static,
 {
+    /// Generates the HTML string representation of the audio player component with its attributes.
+    ///
+    /// This method returns an HTML string representing the audio player component
+    /// with its attributes. The generated string includes the opening audio tag
+    /// along with any attributes set for the component.
+    ///
+    /// # Returns
+    ///
+    /// A string containing the HTML representation of the audio player component.
+
     pub fn internal_render(&self) -> String {
         format!(
             r##"<{} {} controls autoplay>"##,
@@ -58,11 +94,35 @@ where
         )
     }
 
+    /// Generates the initial HTML string representation of the audio player component.
+    ///
+    /// This method behaves the same as `internal_render`, generating the HTML string
+    /// representation of the audio player component with its attributes. It is provided
+    /// as a convenience method with the same behavior as `internal_render`.
+    ///
+    /// # Returns
+    ///
+    /// A string containing the initial HTML representation of the audio player component.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
 }
 
+/// Asynchronously starts playing audio associated with a given component and sends an SSE message.
+///
+/// This function asynchronously starts playing audio associated with the provided component.
+/// It removes the "HX-Reswap" header to enable audio playback and sets the component's state
+/// to "updating". Then, it sends an SSE message to notify clients about the state change.
+///
+/// # Arguments
+///
+/// * `comp` - A reference to the component to start playing audio.
+/// * `sse_tx` - A sender channel for sending SSE messages.
+///
+/// # Panics
+///
+/// This function will panic if the component's type is not `TnComponentType::AudioPlayer`.
+///
 pub async fn start_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
     {
         let mut comp = comp.write().await;
@@ -82,6 +142,24 @@ pub async fn start_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
     send_sse_msg_to_client(&sse_tx, msg).await;
 }
 
+/// Defines an action to stop audio playback when the "ended" event is triggered.
+///
+/// This function defines an action to stop audio playback when the "ended" event is triggered.
+/// It checks if the event type is "ended" and the event state is "updating".
+/// If the conditions are met, it removes the "HX-Reswap" header to prevent the audio from replaying
+/// and sets the component's state to "ready". Then, it sends an SSE message to notify clients
+/// about the state change and returns HTML content and headers.
+///
+/// # Arguments
+///
+/// * `context` - The context containing the component and SSE sender.
+/// * `event` - The event triggering the action.
+/// * `_payload` - Additional payload data (unused in this function).
+///
+/// # Returns
+///
+/// A future that resolves to a tuple containing optional headers and HTML content.
+///
 pub fn stop_audio_playing_action(
     context: TnContext,
     event: TnEvent,

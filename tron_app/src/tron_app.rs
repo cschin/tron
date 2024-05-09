@@ -132,7 +132,7 @@ impl Default for AppConfigure {
 /// let app_data = AppData { /* AppData fields */ };
 /// let config = AppConfigure { /* AppConfigure fields */ };
 /// run(app_data, config).await;
-/// `
+/// ```
 pub async fn run(app_share_data: AppData, config: AppConfigure) {
     let log_level = config.log_level;
     let log_level = if let Some(log_level) = log_level {

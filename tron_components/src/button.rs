@@ -1,14 +1,16 @@
 use super::*;
 use tron_macro::*;
 
+/// Represents a button component in a Tron application.
 #[derive(ComponentBase)]
 pub struct TnButton<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
+ /// Creates a new button component with the specified idx, tnid, and value.
 impl<'a: 'static> TnButton<'a> {
-    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
-        let mut base = TnComponentBase::new("button".into(), id, name, TnComponentType::Button);
+    pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
+        let mut base = TnComponentBase::new("button".into(), idx, tnid, TnComponentType::Button);
         base.set_value(TnComponentValue::String(value));
         base.set_attribute("hx-trigger".into(), "click, server_side_trigger".into());
 
@@ -31,6 +33,7 @@ impl<'a: 'static> TnButton<'a>
 where
     'a: 'static,
 {
+    /// Generates the internal HTML representation of the button component.
     pub fn internal_render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
@@ -44,6 +47,7 @@ where
         )
     }
 
+    /// Generates the initial HTML representation of the button component.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }

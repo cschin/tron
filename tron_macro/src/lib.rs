@@ -1,6 +1,25 @@
 use proc_macro::TokenStream;
 use quote::quote;
 
+/// Procedural macro to derive the `TnComponentBaseTrait` for a custom component.
+///
+/// This procedural macro generates an implementation of the `TnComponentBaseTrait` trait for a custom
+/// component struct, allowing it to inherit base functionalities such as accessing component ID,
+/// type, attributes, headers, value, state, assets, children, parent, and script.
+///
+/// # Arguments
+///
+/// * `input`: Token stream representing the input Rust code.
+///
+/// # Example
+///
+/// ```
+/// // Usage example:
+/// #[derive(ComponentBase)]
+/// struct MyComponent {
+///     // Implementations...
+/// }
+/// ```
 #[proc_macro_derive(ComponentBase)]
 pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
     // Construct a representation of Rust code as a syntax tree

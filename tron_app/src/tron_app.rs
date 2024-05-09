@@ -34,22 +34,38 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
 
+/// Represents HTTP and HTTPS ports.
+///
+/// This struct encapsulates the HTTP and HTTPS ports used in a network configuration.
 #[derive(Clone, Copy)]
 pub struct Ports {
     http: u16,
     https: u16,
 }
 
+/// Represents a session ID used in Tower Sessions.
 pub type SessionId = tower_sessions::session::Id;
 
+/// Represents a session context containing mappings of session IDs to Tron contexts.
 pub type SessionContext = RwLock<HashMap<SessionId, TnContext>>;
 
+/// Represents event actions protected by a reader-writer lock.
 pub type EventActions = RwLock<TnEventActions>;
 
+/// Alias for a context builder function.
 type ContextBuilder = Arc<Box<dyn Fn() -> TnContext + Send + Sync>>;
+
+/// Alias for an action function template, which generates event actions from a context.
 type ActionFunctionTemplate = Arc<Box<dyn Fn(TnContext) -> TnEventActions + Send + Sync>>;
+
+/// Alias for a layout function, which generates HTML layout from a context.
 type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
 
+/// Represents application data used in a Tron application.
+///
+/// This struct encapsulates various data components used in a Tron application,
+/// including session context, session expiry mappings, event actions, context builder function,
+/// action function template, and layout function.
 pub struct AppData {
     pub context: SessionContext,
     pub session_expiry: RwLock<HashMap<SessionId, time::OffsetDateTime>>,
@@ -58,6 +74,10 @@ pub struct AppData {
     pub build_actions: ActionFunctionTemplate,
     pub build_layout: LayoutFunction,
 }
+/// Represents configuration options for a Tron application.
+///
+/// This struct encapsulates various configuration options for a Tron application,
+/// including the network address, ports, Cognito login flag, and log level.
 pub struct AppConfigure {
     pub address: [u8; 4],
     pub ports: Ports,
@@ -65,7 +85,19 @@ pub struct AppConfigure {
     pub log_level: Option<&'static str>,
 }
 
+/// Implements the default trait for creating a default instance of `AppConfigure`.
+///
+/// This implementation creates a default instance of `AppConfigure` with default values
+/// for network address, ports, Cognito login flag, and log level.
 impl Default for AppConfigure {
+    /// Creates a default instance of `AppConfigure`.
+    ///
+    /// The default values are as follows:
+    ///
+    /// * `address`: `[127, 0, 0, 1]`
+    /// * `ports`: `Ports { http: 8080, https: 3001 }`
+    /// * `cognito_login`: `false`
+    /// * `log_level`: `Some("server=info,tower_http=info,tron_app=info")`
     fn default() -> Self {
         let address = [127, 0, 0, 1];
         let ports = Ports {
@@ -83,6 +115,24 @@ impl Default for AppConfigure {
     }
 }
 
+/// Runs the Tron application with the provided application data and configuration.
+///
+/// This function starts the Tron application with the given `AppData` and `AppConfigure` parameters.
+/// It configures logging, session management, routes, and serves the application over HTTPS.
+///
+/// # Arguments
+///
+/// * `app_share_data` - Application data shared across the application.
+/// * `config` - Application configuration options.
+///
+/// # Examples
+///
+/// ```
+/// // Usage example:
+/// let app_data = AppData { /* AppData fields */ };
+/// let config = AppConfigure { /* AppConfigure fields */ };
+/// run(app_data, config).await;
+/// `
 pub async fn run(app_share_data: AppData, config: AppConfigure) {
     let log_level = config.log_level;
     let log_level = if let Some(log_level) = log_level {
@@ -173,6 +223,21 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         .unwrap();
 }
 
+/// Handles requests to the index route.
+///
+/// This asynchronous function handles requests to the index route ("/").
+/// It retrieves the HTML content of the index page, checks if the session is empty,
+/// sets the session if it's empty, updates the session expiry, and returns the HTML response.
+///
+/// # Arguments
+///
+/// * `session` - Session information associated with the request.
+/// * `app_data` - Application data shared across the application.
+///
+/// # Returns
+///
+/// An implementation of `IntoResponse` representing the response to the request.
+///
 async fn index(
     session: Session,
     State(app_data): State<Arc<AppData>>,
@@ -191,6 +256,26 @@ async fn index(
     }
 }
 
+
+/// Loads the page content for the Tron application.
+///
+/// This asynchronous function loads the page content for the Tron application.
+/// It retrieves or creates a session context, initializes SSE channels, generates event actions,
+/// builds the page layout, and assembles the HTML content with scripts.
+///
+/// # Arguments
+///
+/// * `app_data` - Application data shared across the application.
+/// * `session` - Session information associated with the request.
+///
+/// # Returns
+///
+/// A result containing the HTML content if successful, or a status code indicating an error.
+///
+/// # Errors
+///
+/// Returns `StatusCode::FORBIDDEN` if the session ID is not available.
+///
 async fn load_page(
     State(app_data): State<Arc<AppData>>,
     session: Session,
@@ -242,6 +327,11 @@ async fn load_page(
     Ok(Html::from(html))
 }
 
+/// Represents event data associated with a Tron event.
+///
+/// This struct encapsulates event data associated with a Tron event,
+/// including the event itself (`tn_event`), an optional event value (`e_value`),
+/// and an optional event data (`e_data`).
 #[derive(Clone, Debug, Deserialize)]
 struct TnEventData {
     tn_event: TnEvent,
@@ -253,11 +343,27 @@ struct TnEventData {
     e_data: Option<String>,
 }
 
+/// Represents extended event data associated with a Tron event.
+///
+/// This struct encapsulates extended event data associated with a Tron event,
+/// including the event data itself (`event_data`).
 #[derive(Clone, Debug, Deserialize)]
 struct TnEventExtend {
     event_data: TnEventData,
 }
 
+///
+/// This asynchronous function matches event data from a payload. It attempts to deserialize
+/// the payload into a `TnEventExtend` struct and extracts the `TnEventData` if successful.
+///
+/// # Arguments
+///
+/// * `payload` - The payload containing event data in JSON format.
+///
+/// # Returns
+///
+/// An option containing the event data if deserialization is successful, or `None` otherwise.
+///
 async fn match_event(payload: &Value) -> Option<TnEventData> {
     let r: Option<TnEventExtend> = serde_json::from_value(payload.clone()).unwrap_or(None);
     if let Some(r) = r {
@@ -267,6 +373,21 @@ async fn match_event(payload: &Value) -> Option<TnEventData> {
     }
 }
 
+
+/// Handles requests to the Tron entry endpoint.
+///
+/// This asynchronous function handles requests to the Tron entry endpoint, which is responsible
+/// for processing Tron events. It extracts event data from the payload, sets up event handling,
+/// executes event actions, and returns the appropriate response.
+///
+/// # Arguments
+///
+/// * `app_data` - Application data shared across the application.
+/// * `session` - Session information associated with the request.
+/// * `headers` - Headers included in the request.
+/// * `tron_index` - The index of the Tron component associated with the request.
+/// * `payload` - JSON payload containing event data.
+///
 async fn tron_entry(
     State(app_data): State<Arc<AppData>>,
     session: Session,
@@ -427,6 +548,26 @@ async fn redirect_http_to_https(ports: Ports) {
         .unwrap();
 }
 
+/// Handles server-sent events (SSE) for the Tron application.
+///
+/// This asynchronous function handles server-sent events (SSE) for the Tron application.
+/// It retrieves the session ID, checks for session existence, and establishes a stream
+/// for sending SSE events to the client.
+///
+/// # Arguments
+///
+/// * `app_data` - Application data shared across the application.
+/// * `session` - Session information associated with the request.
+///
+/// # Returns
+///
+/// A result containing the SSE stream if successful, or a status code indicating an error.
+///
+/// # Errors
+///
+/// Returns `StatusCode::FORBIDDEN` if the session ID is not available or the session does not exist.
+/// Returns `StatusCode::SERVICE_UNAVAILABLE` if the SSE channel is unavailable.
+///
 async fn sse_event_handler(
     State(app_data): State<Arc<AppData>>,
     session: Session,
@@ -458,6 +599,22 @@ async fn sse_event_handler(
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
 
+/// Handles streaming for Tron application.
+///
+/// This asynchronous function handles streaming for the Tron application. It retrieves session ID, checks
+/// for session existence, and processes stream data associated with the given stream ID. It constructs
+/// and returns a response containing the stream data.
+///
+/// # Arguments
+///
+/// * `app_data` - Application data shared across the application.
+/// * `session` - Session information associated with the request.
+/// * `stream_id` - The ID of the stream for which data is being streamed.
+///
+/// # Returns
+///
+/// A tuple containing the HTTP status code, response headers, and response body.
+///
 async fn tron_stream(
     State(app_data): State<Arc<AppData>>,
     session: Session,
@@ -537,6 +694,20 @@ async fn tron_stream(
     (StatusCode::OK, header, body)
 }
 
+/// Handles login redirection for authentication.
+///
+/// This asynchronous function constructs and returns a redirect to the login page of the configured
+/// Cognito authentication service. It retrieves necessary configuration parameters from the environment
+/// variables and constructs the login URL accordingly.
+///
+/// # Returns
+///
+/// A redirect to the login page of the configured Cognito authentication service.
+///
+/// # Panics
+///
+/// Panics if the required environment variables (`CLIENT_ID`, `COGNITO_DOMAIN`, `COGNITO_RESPONSE_TYPE`,
+/// `REDIRECT_URI`) are not set.
 async fn login_handler() -> Redirect {
     let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
     let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
@@ -547,6 +718,21 @@ async fn login_handler() -> Redirect {
     Redirect::to(&format!("https://{cognito_domain}/login?client_id={cognito_client_id}&response_type={cognito_response_type}&redirect_uri={redirect_uri}"))
 }
 
+
+/// Handles logout redirection for authentication.
+///
+/// This asynchronous function constructs and returns a redirect to the logout page of the configured
+/// Cognito authentication service. It retrieves necessary configuration parameters from the environment
+/// variables and constructs the logout URL accordingly.
+///
+/// # Returns
+///
+/// A redirect to the logout page of the configured Cognito authentication service.
+///
+/// # Panics
+///
+/// Panics if the required environment variables (`CLIENT_ID`, `COGNITO_DOMAIN`, `LOGOUT_REDIRECT_URI`)
+/// are not set.
 async fn logout_handler() -> Redirect {
     let cognito_client_id = env::var("CLIENT_ID").expect("CLIENT_ID env not set");
     let cognito_domain = env::var("COGNITO_DOMAIN").expect("COGNITO_DOMAIN not set");
@@ -557,6 +743,21 @@ async fn logout_handler() -> Redirect {
     ))
 }
 
+/// Handles the logged-out state of the application.
+///
+/// This asynchronous function retrieves the HTML content for the logged-out page from the
+/// application data. It removes the session data associated with the user from the application
+/// data and removes the "token" value from the session. It returns HTML content for the logged-out
+/// page.
+///
+/// # Arguments
+///
+/// * `app_data` - Application data shared across the application.
+/// * `session` - Session information associated with the request.
+///
+/// # Returns
+///
+/// HTML content for the logged-out page.
 async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> impl IntoResponse {
     let logout_html = {
         let session_id = session.id().unwrap();
@@ -581,6 +782,22 @@ async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> i
     Html::from(logout_html)
 }
 
+/// Represents a deserialized JSON Web Token (JWT) containing authentication information.
+///
+/// This struct is used to deserialize a JWT token obtained from the authentication service.
+/// It contains fields representing different parts of the JWT token, such as access token,
+/// ID token, refresh token, token type, and expiration duration.
+///
+/// This struct is marked with `#[allow(dead_code)]` attribute to suppress warnings about
+/// unused fields during development or if some fields are not used in the application logic.
+///
+/// # Fields
+///
+/// * `access_token` - The access token obtained from the authentication service.
+/// * `expires_in` - The duration in seconds for which the token is valid before expiration.
+/// * `id_token` - The ID token obtained from the authentication service.
+/// * `refresh_token` - The refresh token obtained from the authentication service.
+/// * `token_type` - The type of the token (e.g., "Bearer").
 #[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 struct JWTToken {
@@ -591,6 +808,24 @@ struct JWTToken {
     token_type: String,
 }
 
+/// Represents the claims extracted from a JSON Web Token (JWT) payload.
+///
+/// This struct is used to deserialize the claims section of a JWT token, which typically
+/// contains information about the token's expiration time, issuer, subject, and other custom
+/// claims. The fields in this struct correspond to the standard JWT claims and any additional
+/// custom claims included in the token.
+///
+/// This struct is marked with `#[allow(dead_code)]` attribute to suppress warnings about
+/// unused fields during development or if some fields are not used in the application logic.
+///
+/// # Fields
+///
+/// * `exp` - Required field indicating the expiration time of the token as a UTC timestamp.
+/// * `iat` - Optional field indicating the time at which the token was issued as a UTC timestamp.
+/// * `iss` - Optional field indicating the issuer of the token.
+/// * `sub` - Optional field indicating the subject whom the token refers to.
+/// * `email` - The email address associated with the token.
+/// * `username` - The username associated with the token, with serde renaming to "cognito:username".
 #[allow(dead_code)]
 #[derive(Debug, Deserialize)]
 struct Claims {
@@ -603,6 +838,31 @@ struct Claims {
     username: String,
 }
 
+/// Handles the callback from the Cognito authentication service after a user logs in.
+///
+/// # Arguments
+///
+/// * `session`: Session object representing the user session.
+/// * `headers`: HeaderMap containing the HTTP headers received in the request.
+/// * `query`: HashMap<String, String> containing the query parameters received in the request.
+///
+/// # Returns
+///
+/// An HTML response containing a JavaScript redirect script to the desired page.
+///
+/// # Panics
+///
+/// Panics if required environment variables are not set or if there are errors in the HTTP requests.
+///
+/// # Notes
+///
+/// This function retrieves the necessary environment variables such as the Cognito client ID,
+/// domain, user pool ID, and AWS region. It then constructs a POST request to the Cognito token
+/// endpoint with the authorization code received from the callback. The token response is parsed
+/// and decoded using the JSON Web Key Set (JWKS) obtained from the Cognito service. The decoded
+/// token is then validated using the RSA public key obtained from the JWKS. If the session ID
+/// is not present, it is inserted along with the token into the session. Finally, the function
+/// responds with a simple HTML script to redirect the user to the desired page.
 async fn cognito_callback(
     session: Session,
     headers: HeaderMap,
@@ -684,6 +944,34 @@ async fn cognito_callback(
     Html::from(r#"<script> window.location.replace("/"); </script>"#)
 }
 
+/// Middleware for checking the presence of a JWT token in the user's session.
+///
+/// This middleware intercepts incoming requests and checks if they require authentication.
+/// If the request URI is `/login`, `/cognito_callback`, or `/logged_out/`, the middleware
+/// allows the request to proceed without checking for a token.
+///
+/// If the request URI requires authentication and a JWT token is present in the user's session,
+/// the middleware allows the request to proceed.
+///
+/// If the request URI requires authentication but no JWT token is present in the user's session,
+/// the middleware redirects the user to the login page.
+///
+/// # Arguments
+///
+/// * `uri`: OriginalUri representing the requested URI.
+/// * `session`: Session object representing the user session.
+/// * `request`: Request object representing the HTTP request.
+/// * `next`: Next object representing the next middleware or handler in the chain.
+///
+/// # Returns
+///
+/// An implementation of `IntoResponse`.
+///
+/// # Note
+///
+/// This middleware assumes that the presence of a JWT token in the user's session indicates
+/// that the user is authenticated. It redirects users to the login page if they attempt to
+/// access protected resources without a valid token.
 async fn check_token(
     uri: OriginalUri,
     session: Session,

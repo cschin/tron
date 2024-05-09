@@ -210,11 +210,11 @@ pub fn add_radio_group_to_context(
     });
 }
 
-pub fn get_radio_group_actions(comp: TnComponent<'static>) -> Vec<(TnComponentId, ActionFn)> {
+pub fn get_radio_group_actions(comp: TnComponent<'static>) -> Vec<(TnComponentId, TnActionFn)> {
     let comp_guard = comp.blocking_write();
     assert!(comp_guard.get_type() == TnComponentType::RadioGroup);
     let children = comp_guard.get_children().clone();
-    let mut events: Vec<(TnComponentId, ActionFn)> = Vec::default();
+    let mut events: Vec<(TnComponentId, TnActionFn)> = Vec::default();
     for child in children {
         let child = child.blocking_read();
         events.push((child.tron_id().clone(), set_radio_item))

@@ -323,30 +323,30 @@ fn layout(context: TnContext) -> String {
 }
 
 fn build_session_actions(context: TnContext) -> TnEventActions {
-    let mut actions = Vec::<(String, ActionExecutionMethod, ActionFn)>::new();
+    let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
     actions.push((
         "rec_button".into(),
-        ActionExecutionMethod::Await,
+        TnActionExecutionMethod::Await,
         toggle_recording,
     ));
     actions.push((
         "recorder".into(),
-        ActionExecutionMethod::Await,
+        TnActionExecutionMethod::Await,
         audio_input_stream_processing,
     ));
     actions.push((
         "player".into(),
-        ActionExecutionMethod::Await,
+        TnActionExecutionMethod::Await,
         audio_player::stop_audio_playing_action,
     ));
     actions.push((
         "reset_button".into(),
-        ActionExecutionMethod::Await,
+        TnActionExecutionMethod::Await,
         reset_conversation,
     ));
     actions.push((
         "preset_prompt_select".into(),
-        ActionExecutionMethod::Await,
+        TnActionExecutionMethod::Await,
         preset_prompt_select_change,
     ));
 

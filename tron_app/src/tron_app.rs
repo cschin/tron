@@ -16,7 +16,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    ActionExecutionMethod, TnAsset, TnComponentIndex, TnComponentValue, TnContext, TnEvent,
+    TnActionExecutionMethod, TnAsset, TnComponentIndex, TnComponentValue, TnContext, TnEvent,
     TnEventActions, TnSseMsgChannel,
 };
 //use std::sync::Mutex;
@@ -330,11 +330,11 @@ async fn tron_entry(
 
             let action = action_generator(context, evt, payload);
             match action_exec_method {
-                ActionExecutionMethod::Spawn => {
+                TnActionExecutionMethod::Spawn => {
                     tokio::task::spawn(action);
                     None
                 }
-                ActionExecutionMethod::Await => action.await,
+                TnActionExecutionMethod::Await => action.await,
             }
         } else {
             None

@@ -15,7 +15,7 @@ use tron_components::{
     checklist,
     radio_group,
     text::{self, append_stream_textarea, append_textarea_value},
-    ActionExecutionMethod, ActionFn, TnButton, TnComponentBaseTrait, TnComponentState,
+    TnActionExecutionMethod, TnActionFn, TnButton, TnComponentBaseTrait, TnComponentState,
     TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse,
     TnRangeSlider, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput,
 };
@@ -221,11 +221,11 @@ fn build_session_context() -> TnContext {
 }
 
 fn build_session_actions(context: TnContext) -> TnEventActions {
-    let mut actions = Vec::<(String, ActionExecutionMethod, ActionFn)>::new();
+    let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
     for i in 0..10 {
         actions.push((
             format!("btn-{:02}", i),
-            ActionExecutionMethod::Spawn,
+            TnActionExecutionMethod::Spawn,
             test_event_actions,
         ));
     }
@@ -233,7 +233,7 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
         let checklist = context.blocking_get_component("checklist");
         let checklist_actions = checklist::get_checklist_actions(checklist);
         checklist_actions.into_iter().for_each(|(tron_id, action)| {
-            actions.push((tron_id, ActionExecutionMethod::Await, action));
+            actions.push((tron_id, TnActionExecutionMethod::Await, action));
         });
     }
 
@@ -241,31 +241,31 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
         let radio_group: Arc<RwLock<Box<dyn TnComponentBaseTrait<'_>>>> = context.blocking_get_component("radio_group");
         let radio_group_actions = radio_group::get_radio_group_actions(radio_group);
         radio_group_actions.into_iter().for_each(|(tron_id, action)| {
-            actions.push((tron_id, ActionExecutionMethod::Await, action));
+            actions.push((tron_id, TnActionExecutionMethod::Await, action));
         });
     }
 
     actions.push((
         "slider".into(),
-        ActionExecutionMethod::Await,
+        TnActionExecutionMethod::Await,
         slider_value_update,
     ));
 
     actions.push((
         "clean_stream_textarea".into(),
-        ActionExecutionMethod::Await,
+        TnActionExecutionMethod::Await,
         clean_stream_textarea,
     ));
 
     actions.push((
         "clean_textarea".into(),
-        ActionExecutionMethod::Await,
+        TnActionExecutionMethod::Await,
         clean_textarea,
     ));
 
     actions.push((
         "clean_textinput".into(),
-        ActionExecutionMethod::Await,
+        TnActionExecutionMethod::Await,
         clean_textinput,
     ));
 
@@ -317,7 +317,7 @@ fn test_event_actions(
                     {
                         let mut btn = components_guard.get_mut(&id).unwrap().write().await;
 
-                        btn.set_value(TnComponentValue::String(format!("{:02}", v + 1)));
+                        btn.set_value(TnComponentValue::String(format!("{:02}", v+1)));
                         btn.set_state(TnComponentState::Updating);
                     }
                 }
@@ -326,7 +326,7 @@ fn test_event_actions(
                     let id = context_guard.get_component_index("stream_textarea");
                     let mut components_guard = context_guard.components.write().await;
                     let stream_textarea = components_guard.get_mut(&id).unwrap().clone();
-                    let new_str = format!("{} -- {:02};\n", event.e_trigger, v + 1);
+                    let new_str = format!("{} -- {:02};\n", event.e_trigger, v);
                     append_stream_textarea(stream_textarea, &new_str).await;
                 };
 
@@ -334,7 +334,7 @@ fn test_event_actions(
                     let id = context_guard.get_component_index("textarea");
                     let mut components_guard = context_guard.components.write().await;
                     let textarea = components_guard.get_mut(&id).unwrap().clone();
-                    let new_str = format!("{} -- {:02};", event.e_trigger, v + 1);
+                    let new_str = format!("{} -- {:02};", event.e_trigger, v);
                     append_textarea_value(textarea, &new_str, Some("\n")).await;
                 };
             }

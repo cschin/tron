@@ -209,11 +209,11 @@ pub async fn checklist_update_value(comp: TnComponent<'static>) {
 
 pub fn get_checklist_actions(
     comp: TnComponent<'static>,
-) -> Vec<(TnComponentId, ActionFn)> {
+) -> Vec<(TnComponentId, TnActionFn)> {
     let comp_guard = comp.blocking_write();
     assert!(comp_guard.get_type() == TnComponentType::CheckList);
     let children = comp_guard.get_children().clone();
-    let mut events: Vec<(TnComponentId, ActionFn)> = Vec::default();
+    let mut events: Vec<(TnComponentId, TnActionFn)> = Vec::default();
     for child in children {
         let child = child.blocking_read();
      

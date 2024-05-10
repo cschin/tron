@@ -11,9 +11,9 @@ use tokio::sync::RwLock;
 use serde_json::Value;
 
 use tracing::debug;
+use tron_app::tron_components;
 use tron_components::{
-    checklist,
-    radio_group,
+    checklist, radio_group,
     text::{self, append_stream_textarea, append_textarea_value},
     TnActionExecutionMethod, TnActionFn, TnButton, TnComponentBaseTrait, TnComponentState,
     TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse,
@@ -126,13 +126,13 @@ fn build_session_context() -> TnContext {
             .blocking_write()
             .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
     }
-    
+
     component_index += 1;
     let radio_group_items = vec![
-        ( "radio-1".to_string(), "Radio 1".to_string() ),
-        ( "radio-2".to_string(), "Radio 2".to_string() ),
-        ( "radio-3".to_string(), "Radio 3".to_string() ),
-        ( "radio-4".to_string(), "Radio 4".to_string() ),
+        ("radio-1".to_string(), "Radio 1".to_string()),
+        ("radio-2".to_string(), "Radio 2".to_string()),
+        ("radio-3".to_string(), "Radio 3".to_string()),
+        ("radio-4".to_string(), "Radio 4".to_string()),
     ];
     let radio_group_tron_id = "radio_group".to_string();
     let container_attributes = vec![("class".to_string(), "flex-1".to_string())];
@@ -142,7 +142,7 @@ fn build_session_context() -> TnContext {
         radio_group_tron_id,
         radio_group_items,
         container_attributes,
-        "radio-1".into()
+        "radio-1".into(),
     );
     {
         let component_guard = context.components.blocking_read();
@@ -267,11 +267,14 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
     }
 
     {
-        let radio_group: Arc<RwLock<Box<dyn TnComponentBaseTrait<'_>>>> = context.blocking_get_component("radio_group");
+        let radio_group: Arc<RwLock<Box<dyn TnComponentBaseTrait<'_>>>> =
+            context.blocking_get_component("radio_group");
         let radio_group_actions = radio_group::get_radio_group_actions(radio_group);
-        radio_group_actions.into_iter().for_each(|(tron_id, action)| {
-            actions.push((tron_id, TnActionExecutionMethod::Await, action));
-        });
+        radio_group_actions
+            .into_iter()
+            .for_each(|(tron_id, action)| {
+                actions.push((tron_id, TnActionExecutionMethod::Await, action));
+            });
     }
 
     actions.push((
@@ -374,7 +377,7 @@ fn test_event_actions(
                     {
                         let mut btn = components_guard.get_mut(&id).unwrap().write().await;
 
-                        btn.set_value(TnComponentValue::String(format!("{:02}", v+1)));
+                        btn.set_value(TnComponentValue::String(format!("{:02}", v + 1)));
                         btn.set_state(TnComponentState::Updating);
                     }
                 }

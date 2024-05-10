@@ -11,6 +11,7 @@ use tokio::sync::{mpsc::Sender, RwLock};
 use serde_json::Value;
 
 use tracing::debug;
+use tron_app::tron_components;
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
     TnContext, TnContextBase, TnEvent, TnEventActions, TnTextArea,
@@ -27,7 +28,7 @@ async fn main() {
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
-        session_expiry: RwLock::new(HashMap::default()), 
+        session_expiry: RwLock::new(HashMap::default()),
         event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_context)),
         build_actions: Arc::new(Box::new(build_actions)),
@@ -35,7 +36,6 @@ async fn main() {
     };
     tron_app::run(app_share_data, app_config).await
 }
-
 
 // These functions are used to build the application context,
 // layout, and event actions respectively
@@ -52,7 +52,6 @@ fn build_actions(context: TnContext) -> TnEventActions {
     let actions = TnEventActions::default();
     actions
 }
-
 
 // The test_event_action function is a placeholder for handling events
 // It takes a context, a sender for sending JSON data, and an event

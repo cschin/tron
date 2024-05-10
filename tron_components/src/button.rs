@@ -19,6 +19,7 @@ impl<'a: 'static> TnButton<'a> {
 }
 
 impl<'a: 'static> Default for TnButton<'a> {
+    /// Creates a default instance of `TnButton`.
     fn default() -> Self {
         Self {
             base: TnComponentBase {

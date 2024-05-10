@@ -2,12 +2,14 @@ use super::*;
 use futures_util::Future;
 use tron_macro::*;
 
+/// Represents a checklist component.
 #[derive(ComponentBase)]
 pub struct TnCheckList<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
 impl<'a: 'static> TnCheckList<'a> {
+    /// Creates a new checklist component with the specified ID, name, and values.
     pub fn new(id: TnComponentIndex, name: String, value: HashMap<String, bool>) -> Self {
         let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
         base.set_value(TnComponentValue::CheckItems(value));
@@ -19,6 +21,7 @@ impl<'a: 'static> TnCheckList<'a> {
 }
 
 impl<'a: 'static> Default for TnCheckList<'a> {
+    /// Creates a default checklist component with an empty value.
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -30,6 +33,7 @@ impl<'a: 'static> Default for TnCheckList<'a> {
 }
 
 impl<'a: 'static> TnCheckList<'a> {
+    /// Renders the checklist component including its children.
     pub fn internal_render(&self) -> String {
         let children_render_results = self
             .get_children()
@@ -46,17 +50,19 @@ impl<'a: 'static> TnCheckList<'a> {
         )
     }
 
+    /// Renders the checklist component for the first time.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
 }
-
+/// Represents a checkbox component.
 #[derive(ComponentBase)]
 pub struct TnCheckBox<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
 impl<'a: 'static> TnCheckBox<'a> {
+    /// Creates a new checkbox component.
     pub fn new(id: TnComponentIndex, name: String, value: bool) -> Self {
         let mut base =
             TnComponentBase::new("input".into(), id, name.clone(), TnComponentType::CheckBox);
@@ -75,6 +81,7 @@ impl<'a: 'static> TnCheckBox<'a> {
 }
 
 impl<'a: 'static> Default for TnCheckBox<'a> {
+    /// Creates a default checkbox component.
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -86,6 +93,7 @@ impl<'a: 'static> Default for TnCheckBox<'a> {
 }
 
 impl<'a: 'static> TnCheckBox<'a> {
+    /// Renders the checkbox component internally.
     pub fn internal_render(&self) -> String {
         let checked = if let &TnComponentValue::CheckItem(v) = self.value() {
             if v {
@@ -131,11 +139,13 @@ impl<'a: 'static> TnCheckBox<'a> {
             self.generate_attr_string(),
         )
     }
+    /// Renders the first instance of the checkbox component.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
 }
 
+/// Adds a checklist component to the context along with its child checkboxes.
 pub fn add_checklist_to_context(
     context: &mut TnContextBase<'static>,
     component_index: &mut u32,
@@ -190,6 +200,7 @@ pub fn add_checklist_to_context(
     });
 }
 
+/// Updates the value of the checklist component based on its child checkboxes.
 pub async fn checklist_update_value(comp: TnComponent<'static>) {
     let mut comp_guard = comp.write().await;
     assert!(comp_guard.get_type() == TnComponentType::CheckList);
@@ -207,6 +218,7 @@ pub async fn checklist_update_value(comp: TnComponent<'static>) {
     }
 }
 
+/// Retrieves the actions associated with the checkboxes within the checklist component.
 pub fn get_checklist_actions(
     comp: TnComponent<'static>,
 ) -> Vec<(TnComponentId, TnActionFn)> {
@@ -222,6 +234,7 @@ pub fn get_checklist_actions(
     events
 }
 
+/// Toggles the state of the checkbox based on the event payload.
 pub fn toggle_checkbox(
     context: TnContext,
     event: TnEvent,

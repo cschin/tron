@@ -2,15 +2,27 @@ use super::*;
 use tron_macro::*;
 use tron_utils::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
 
+/// A component representing a chat box.
 #[derive(ComponentBase)]
 pub struct TnChatBox<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
+/// Creates a new instance of `TnChatBox`.
+///
+/// # Arguments
+///
+/// * `idx` - The unique identifier of the chat box.
+/// * `tnid` - The name of the chat box.
+/// * `value` - Initial messages to be displayed in the chat box, each message consists of a tuple containing the sender and the message content.
+///
+/// # Returns
+///
+/// A new instance of `TnChatBox`.
 impl<'a: 'static> TnChatBox<'a> {
-    pub fn new(id: TnComponentIndex, name: String, value: Vec<(String, String)>) -> Self {
+    pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<(String, String)>) -> Self {
         let mut base =
-            TnComponentBase::new("div".into(), id, name, TnComponentType::ChatBox);
+            TnComponentBase::new("div".into(), idx, tnid, TnComponentType::ChatBox);
         base.set_value(TnComponentValue::VecString2(value));
 
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
@@ -40,6 +52,7 @@ impl<'a: 'static> TnChatBox<'a> {
 }
 
 impl<'a: 'static> Default for TnChatBox<'a> {
+    /// Creates a default instance of `TnChatBox` with an empty message list.
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -51,6 +64,7 @@ impl<'a: 'static> Default for TnChatBox<'a> {
 }
 
 impl<'a: 'static> TnChatBox<'a> {
+    /// Renders the chat box component for the first time.
     pub fn internal_first_render(&self) -> String {
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
@@ -60,6 +74,7 @@ impl<'a: 'static> TnChatBox<'a> {
             None
         };
 
+        // Extract tag-message pairs from the component's value and generate HTML for chat records
         let chat_recorders = if let TnComponentValue::VecString2(tag_msg) = self.value() {
             tag_msg
                 .iter()
@@ -84,7 +99,8 @@ impl<'a: 'static> TnChatBox<'a> {
         } else {
             "".to_string()
         };
-
+        
+        // Format the complete HTML for the chat box
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -94,7 +110,9 @@ impl<'a: 'static> TnChatBox<'a> {
         )
     }
 
+    /// Renders the chat box component.
     pub fn internal_render(&self) -> String { 
+        // Retrieve the class attribute from the component's assets
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
         {
@@ -102,10 +120,14 @@ impl<'a: 'static> TnChatBox<'a> {
         } else {
             None
         };
+
+        // Extract the last record from the component's value and generate HTML for it
         let last_record = match self.value() {
             TnComponentValue::VecString2(s) => s.last(),
             _ => None,
         };
+
+        // Generate HTML for the last chat record
         if let Some((tag, msg)) = last_record {
             let class_str = if let Some(class) = class {
                 class.get(tag)
@@ -128,6 +150,7 @@ impl<'a: 'static> TnChatBox<'a> {
     }
 }
 
+/// Appends a new tag-message pair to the chat box component's value.
 pub async fn append_chatbox_value(
     comp: Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>,
     tag_msg: (String, String)
@@ -139,6 +162,24 @@ pub async fn append_chatbox_value(
     }
 }
 
+/// Cleans the chat box component's transcript and triggers an update.
+///
+/// This function removes the transcript content of the chat box component identified by `tron_id` 
+/// within the given `context`. It then triggers a server-side update by setting the component's state
+/// to `Ready` and sending a server-side trigger message via Server-Sent Events (SSE). 
+/// Once the update is triggered, the content of the chat box will be empty.
+///
+/// # Arguments
+///
+/// * `context` - The context containing the chat box component.
+/// * `tron_id` - The unique identifier of the chat box component to be cleaned.
+///
+/// # Panics
+///
+/// This function will panic if:
+/// - The chat box component's type is not `ChatBox`.
+/// - Unable to acquire a write lock for the chat box component.
+///
 pub async fn clean_chatbox_with_context(context: TnContext, tron_id: &str) {
     let sse_tx = context.get_sse_tx().await;
     {
@@ -167,6 +208,5 @@ pub async fn clean_chatbox_with_context(context: TnContext, tron_id: &str) {
             send_sse_msg_to_client(&sse_tx, msg).await;
         }
     }
- 
 }
 

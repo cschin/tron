@@ -1,5 +1,4 @@
 [workspace]
-
 resolver = "2"
 
 members = [ "tron_app", "tron_components", "tron_macro" , "tron_utils",
@@ -8,4 +7,11 @@ members = [ "tron_app", "tron_components", "tron_macro" , "tron_utils",
 "examples/02_conversational_bot/",
 "examples/03_cognito_login/"
 ]
+
+[workspace.package]
+name = "tron" # the name of the package
+version = "0.1.0"    # the current version, obeying semver
+edition = "2021"
+authors = ["Jason Chin <cschin@infoecho.net>"]
+description = "Tron: A simple server side model for creating single page application"
 

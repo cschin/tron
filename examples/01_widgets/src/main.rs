@@ -22,6 +22,9 @@ use tron_components::{
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, str::FromStr, sync::Arc};
 
+// This is the main entry point of the application
+// It sets up the application configuration and state
+// and then starts the application by calling tron_app::run
 #[tokio::main]
 async fn main() {
     let app_config = tron_app::AppConfigure {
@@ -39,6 +42,11 @@ async fn main() {
     };
     tron_app::run(app_share_data, app_config).await
 }
+
+/// Builds the initial context for the session.
+/// This function creates and adds various components to the context,
+/// such as buttons, textareas, checklists, radio groups, a select dropdown,
+/// a range slider, and buttons for cleaning the textareas and text input.
 
 fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
@@ -220,6 +228,27 @@ fn build_session_context() -> TnContext {
     }
 }
 
+/// Builds the event actions for the session.
+///
+/// This function creates a vector of tuples containing the component ID, execution method,
+/// and action function for each component. It then maps these tuples to the corresponding
+/// component indices in the `TnContext` and returns a `TnEventActions` object.
+///
+/// The event actions include:
+///
+/// - Test actions for buttons with IDs `btn-00` to `btn-09`
+/// - Actions for the checklist component
+/// - Actions for the radio group component
+/// - Action for updating the slider value
+/// - Actions for cleaning the stream textarea, textarea, and text input
+///
+/// # Arguments
+///
+/// * `context` - The `TnContext` object containing the components and their states.
+///
+/// # Returns
+///
+/// A `TnEventActions` object mapping component indices to their corresponding action functions.
 fn build_session_actions(context: TnContext) -> TnEventActions {
     let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
     for i in 0..10 {
@@ -278,6 +307,34 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
         .collect::<TnEventActions>()
 }
 
+/// Test event actions for buttons with IDs `btn-00` to `btn-09`.
+///
+/// This function is called when a button with an ID from `btn-00` to `btn-09` is clicked.
+/// It performs the following actions:
+///
+/// 1. Logs the event information to the console.
+/// 2. If the event type is "server_side_trigger", it renders the component associated with the
+///    event trigger and returns the rendered HTML.
+/// 3. Otherwise, it starts a loop that runs for 10 iterations:
+///     - Updates the value and state of the clicked button.
+///     - Appends a new line to the "stream_textarea" component with the button ID and current value.
+///     - Appends a new line to the "textarea" component with the button ID and current value.
+///     - Sends a server-sent event (SSE) message to update the UI state of the button, "stream_textarea",
+///       and "textarea" components.
+///     - Waits for 100 milliseconds before the next iteration.
+/// 4. After the loop, it sets the state of the clicked button to "ready" and sends a final SSE message
+///    to update its UI state.
+///
+/// # Arguments
+///
+/// * `context` - The `TnContext` object containing the components and their states.
+/// * `event` - The `TnEvent` object representing the triggered event.
+/// * `_payload` - The payload data associated with the event (not used in this function).
+///
+/// # Returns
+///
+/// A `Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>>` representing the asynchronous
+/// operation that generates the HTML response.
 fn test_event_actions(
     context: TnContext,
     event: TnEvent,
@@ -388,6 +445,30 @@ fn test_event_actions(
     Box::pin(f())
 }
 
+/// Cleans the stream textarea component.
+///
+/// This function handles two types of events:
+///
+/// 1. "click" event: It sets the value of the target component to an empty vector of strings,
+///    and returns an HTML response with an empty string and a header indicating that the
+///    response should replace the innerHTML of the target component.
+///
+/// 2. "clean_stream_textarea" event: It renders the target component and returns an HTML
+///    response with the rendered HTML.
+///
+/// If the event type is neither "click" nor "clean_stream_textarea", it returns `None`.
+///
+/// # Arguments
+///
+/// * `context` - The `TnContext` object containing the components and their states.
+/// * `event` - The `TnEvent` object representing the triggered event.
+/// * `_payload` - The payload data associated with the event (not used in this function).
+///
+/// # Returns
+///
+/// A `Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>>` representing the asynchronous
+/// operation that generates the HTML response, or `None` if the event type is not handled.
+
 fn clean_stream_textarea(
     context: TnContext,
     event: TnEvent,
@@ -441,6 +522,23 @@ fn clean_textarea(
     Box::pin(f())
 }
 
+/// Cleans the textarea component.
+///
+/// This function cleans the value of the textarea component by calling the
+/// `clean_textarea_with_context` function from the `text` module. It then sets
+/// the state of the component that triggered the event to "ready" and renders
+/// the HTML for that component.
+///
+/// # Arguments
+///
+/// * `context` - The `TnContext` object containing the components and their states.
+/// * `event` - The `TnEvent` object representing the triggered event.
+/// * `_payload` - The payload data associated with the event (not used in this function).
+///
+/// # Returns
+///
+/// A `Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>>` representing the asynchronous
+/// operation that generates the HTML response for the component that triggered the event.
 fn clean_textinput(
     context: TnContext,
     event: TnEvent,
@@ -455,6 +553,31 @@ fn clean_textinput(
     Box::pin(f())
 }
 
+/// Updates the stream textarea with the new value of the slider component.
+///
+/// This function is triggered when the value of the slider component changes. It performs
+/// the following actions:
+///
+/// 1. Retrieves the "stream_textarea" component from the context.
+/// 2. Retrieves the slider component that triggered the event from the context.
+/// 3. If the value of the slider component is a string, formats a new string with the
+///    component ID and the new value of the slider.
+/// 4. Appends the formatted string to the "stream_textarea" component.
+/// 5. Sends a server-sent event (SSE) message to update the UI state of the "stream_textarea"
+///    component to "ready".
+/// 6. Renders the HTML for the slider component and returns it as the response, along with
+///    an empty header map.
+///
+/// # Arguments
+///
+/// * `context` - The `TnContext` object containing the components and their states.
+/// * `event` - The `TnEvent` object representing the triggered event.
+/// * `_payload` - The payload data associated with the event (not used in this function).
+///
+/// # Returns
+///
+/// A `Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>>` representing the asynchronous
+/// operation that generates the HTML response for the slider component.
 fn slider_value_update(
     context: TnContext,
     event: TnEvent,
@@ -480,6 +603,27 @@ fn slider_value_update(
     Box::pin(f())
 }
 
+/// Struct representing the HTML template for the application's main page.
+///
+/// This struct contains fields for the HTML content of various components, such as buttons,
+/// textareas, checklist, radio group, select dropdown, and slider. The fields are populated
+/// with the rendered HTML content for the respective components, and the struct is used
+/// to generate the complete HTML for the main page by rendering the `app_page.html` template
+/// with the provided field values.
+///
+/// # Fields
+///
+/// - `buttons`: A `Vec<String>` containing the HTML for the buttons.
+/// - `textarea`: A `String` containing the HTML for the textarea.
+/// - `stream_textarea`: A `String` containing the HTML for the stream textarea.
+/// - `textinput`: A `String` containing the HTML for the text input.
+/// - `checklist`: A `String` containing the HTML for the checklist.
+/// - `radio_group`: A `String` containing the HTML for the radio group.
+/// - `select`: A `String` containing the HTML for the select dropdown.
+/// - `clean_stream_textarea`: A `String` containing the HTML for the button to clean the stream textarea.
+/// - `clean_textarea`: A `String` containing the HTML for the button to clean the textarea.
+/// - `clean_textinput`: A `String` containing the HTML for the button to clean the text input.
+/// - `slider`: A `String` containing the HTML for the slider.
 #[derive(Template)] // this will generate the code...
 #[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
 struct AppPageTemplate {
@@ -495,6 +639,25 @@ struct AppPageTemplate {
     clean_textinput: String,
     slider: String,
 }
+
+/// Generates the HTML layout for the application's main page.
+///
+/// This function uses the `AppPageTemplate` struct to render the HTML template for the main page.
+/// It retrieves the HTML content for each component (buttons, textareas, checklist, radio group,
+/// select dropdown, and slider) by rendering them individually using the `render_to_string` and
+/// `first_render_to_string` methods of the `TnContext` struct.
+///
+/// The rendered HTML content for each component is then passed to an instance of the
+/// `AppPageTemplate` struct, which is rendered using the `render` method to generate the complete
+/// HTML for the main page.
+///
+/// # Arguments
+///
+/// * `context` - The `TnContext` object containing the components and their states.
+///
+/// # Returns
+///
+/// A `String` containing the HTML for the application's main page.
 
 fn layout(context: TnContext) -> String {
     let context_guard = context.blocking_read();

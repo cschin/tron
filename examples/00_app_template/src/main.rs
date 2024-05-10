@@ -18,6 +18,9 @@ use tron_components::{
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 
+// This is the main entry point of the application
+// It sets up the application configuration and state
+// and then starts the application by calling tron_app::run
 #[tokio::main]
 async fn main() {
     let app_config = tron_app::AppConfigure::default();
@@ -33,6 +36,9 @@ async fn main() {
     tron_app::run(app_share_data, app_config).await
 }
 
+
+// These functions are used to build the application context,
+// layout, and event actions respectively
 fn build_context() -> TnContext {
     let context = Arc::new(RwLock::new(TnContextBase::default()));
     TnContext { base: context }
@@ -47,6 +53,10 @@ fn build_actions(context: TnContext) -> TnEventActions {
     actions
 }
 
+
+// The test_event_action function is a placeholder for handling events
+// It takes a context, a sender for sending JSON data, and an event
+// and returns a Future that does nothing (for now)
 fn test_event_action(
     context: TnContext,
     tx: Sender<Json<Value>>,

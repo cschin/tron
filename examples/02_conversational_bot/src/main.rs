@@ -31,6 +31,7 @@ use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
 #[tokio::main]
 async fn main() {
+    // Configure the application
     let app_configure = tron_app::AppConfigure {
         log_level: Some("server=info,tower_http=info,tron_app=info"),
         cognito_login: false,
@@ -46,10 +47,21 @@ async fn main() {
         build_layout: Arc::new(Box::new(layout)),
     };
 
+    // Run the application
     //tron_app::run(app_share_data, Some("server=debug,tower_http=debug,tron_app=info")).await
     tron_app::run(app_share_data, app_configure).await
 }
 
+/// Builds and initializes the session context for the application.
+///
+/// This function sets up the components, assets, and services required for the application to run.
+/// It creates and configures various UI components such as buttons, audio recorder, audio player,
+/// chatbox, text areas, and select dropdowns. It also loads and sets up prompt templates and
+/// initializes services for speech transcription, language model interaction, and text-to-speech
+/// generation.
+///
+/// Returns:
+///     A `TnContext` instance containing the initialized application context.
 fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
     let mut component_index = 0_u32;
@@ -270,6 +282,9 @@ fn build_session_context() -> TnContext {
     context
 }
 
+/// Struct representing the HTML template for the application page.
+/// It contains fields for various components like buttons, recorder, player,
+/// chatbox, text areas, and select dropdowns.
 #[derive(Template)] // this will generate the code...
 #[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
 struct AppPageTemplate {
@@ -285,6 +300,15 @@ struct AppPageTemplate {
     preset_prompt_select: String,
 }
 
+/// Renders the HTML layout for the application page.
+///
+/// This function sets the initial values and states for the "recorder" and "rec_button" components.
+/// It then retrieves the rendered HTML strings for various components and constructs an
+/// `AppPageTemplate` struct with these strings. Finally, it renders the template to produce the
+/// HTML layout for the application page.
+///
+/// Returns:
+///     A `String` containing the rendered HTML layout for the application page.
 fn layout(context: TnContext) -> String {
     context.set_value_for_component_blocking("recorder", TnComponentValue::String("Paused".into()));
     context.set_state_for_component_blocking("recorder", TnComponentState::Ready);
@@ -322,6 +346,14 @@ fn layout(context: TnContext) -> String {
     html.render().unwrap()
 }
 
+/// Builds and initializes the event actions for the application.
+///
+/// This function sets up the event actions for various components such as the record button,
+/// audio recorder, audio player, reset button, and preset prompt select dropdown. It associates
+/// each component with a specific action function and an execution method (await or immediate).
+///
+/// Returns:
+///     A `TnEventActions` instance 
 fn build_session_actions(context: TnContext) -> TnEventActions {
     let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
     actions.push((
@@ -384,6 +416,16 @@ fn _do_nothing(
     Box::pin(f)
 }
 
+/// Handles the change event for the preset prompt select dropdown.
+///
+/// This function retrieves the selected value from the "preset_prompt_select" component and uses
+/// it to fetch the corresponding prompt from the application's asset store. It then sets the
+/// fetched prompt as the value of the "prompt" text area component and marks both the "prompt"
+/// and "preset_prompt_select" components as ready.
+///
+/// Returns:
+///     A `TnHtmlResponse` containing the rendered HTML for the component that triggered the event.
+///     If the event type is not "change" or the component state is not "ready", it returns `None`.
 fn preset_prompt_select_change(
     context: TnContext,
     event: TnEvent,
@@ -424,6 +466,15 @@ fn preset_prompt_select_change(
     Box::pin(f)
 }
 
+/// Handles the reset conversation action.
+///
+/// This function is triggered when the "reset_button" component is clicked and in the "ready" state.
+/// It sends a "clear-history" request to the "llm_service" to clear the conversation history.
+/// Then, it cleans the chatbox component with the ID "transcript" and sets the "reset_button" component to the "ready" state.
+///
+/// Returns:
+///     A `TnHtmlResponse` containing the rendered HTML for the component that triggered the event.
+///     If the event type is not "click" or the component state is not "ready", it returns `None`.
 fn reset_conversation(
     context: TnContext,
     event: TnEvent,
@@ -464,6 +515,25 @@ fn reset_conversation(
     Box::pin(f)
 }
 
+/// Toggles the recording state of the audio recorder component.
+///
+/// This function is triggered when the "rec_button" component is clicked or a server-side trigger
+/// event occurs. It handles the start and stop of the audio recording process.
+///
+/// When the recording is started, it sets the "recorder" component's value to "Pending" and its
+/// state to "Updating". It then clears the audio stream buffer and sends a server-sent event (SSE)
+/// to start the audio recording on the client-side.
+///
+/// When the recording is stopped, it sets the "recorder" component's value to "Paused" and sends
+/// an SSE to stop the audio recording on the client-side. It also sends a request to the
+/// "transcript_service" to stop the transcription process.
+///
+/// After handling the start or stop of the recording, it sets the "rec_button" component's state
+/// to "ready" and renders the updated component HTML.
+///
+/// Returns:
+///     A `TnHtmlResponse` containing the rendered HTML for the component that triggered the event.
+///     If the event type is not "click" or "server_side_trigger", it returns `None`.
 fn toggle_recording(
     context: TnContext,
     event: TnEvent,
@@ -593,6 +663,22 @@ struct AudioChunk {
     audio_data: String,
 }
 
+/// Handles the processing of audio input stream data.
+///
+/// This function is triggered when an audio input stream event occurs with the event type
+/// "streaming" and the state "updating". It deserializes the payload data into an `AudioChunk`
+/// struct and processes the audio data.
+///
+/// It appends the audio data to the "recorder" component, updates the value and state of the
+/// "recorder" component as needed, and sends the audio data to the "transcript_service" for
+/// transcription.
+///
+/// Additionally, it logs a message to the "status" component with the chunk length of the audio
+/// data, sampled at a rate of 1/10.
+///
+/// Returns:
+///     A `TnHtmlResponse` containing the rendered HTML for the component that triggered the event.
+///     If the event type is not "streaming" or the component state is not "updating", it returns `None`.
 fn audio_input_stream_processing(
     context: TnContext,
     event: TnEvent,
@@ -681,6 +767,23 @@ fn audio_input_stream_processing(
     Box::pin(f)
 }
 
+/// Handles the transcription service for the application.
+///
+/// This function receives audio data from the client and sends it to the DeepGram transcription
+/// service. It then processes the transcription responses received from DeepGram and sends the
+/// final transcripts to the `transcript_post_processing_service`.
+///
+/// It spawns a separate task to maintain the connection with the DeepGram WebSocket and handle
+/// incoming audio data. If the connection with DeepGram is lost, it re-establishes the connection.
+///
+/// The function continuously listens for transcription responses from DeepGram and processes them
+/// accordingly. It accumulates transcript fragments until a final transcript is received or an
+/// utterance ends, at which point it sends the final transcript to the
+/// `transcript_post_processing_service`.
+///
+/// Args:
+///     rx: A `Receiver` for receiving `TnServiceRequestMsg` messages containing audio data.
+///     tx: A `Sender` for sending `TnServiceResponseMsg` messages containing transcripts.
 async fn transcript_service(
     mut rx: Receiver<TnServiceRequestMsg>,
     tx: Sender<TnServiceResponseMsg>,
@@ -784,6 +887,22 @@ async fn transcript_service(
     }
 }
 
+/// Handles the post-processing of transcription responses.
+///
+/// This function listens for transcription responses from the transcription service and performs
+/// further processing based on the response type. It handles both final transcripts and transcript
+/// fragments.
+///
+/// When a final transcript is received, it sends the transcript to the language model service for
+/// generating a response, appends the user's transcript to the chatbox, and triggers a server-sent
+/// event to update the chatbox component.
+///
+/// When a transcript fragment is received, it stores the fragment in the application's asset store
+/// and logs the fragment to the status component.
+///
+/// Args:
+///     context: The application context.
+///     response_rx: A receiver for receiving transcription responses.
 async fn transcript_post_processing_service(
     context: TnContext,
     mut response_rx: Receiver<TnServiceResponseMsg>,

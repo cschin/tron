@@ -1,19 +1,28 @@
 use super::*;
 use tron_macro::*;
 
+/// Represents a select component.
 #[derive(ComponentBase)]
 pub struct TnSelect<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
 impl<'a: 'static> TnSelect<'a> {
+    /// Creates a new select component.
+    ///
+    /// # Arguments
+    ///
+    /// * `idx` - The index of the component.
+    /// * `tnid` - The unique ID of the component.
+    /// * `value` - The initial value of the select.
+    /// * `options` - A vector of tuples representing the options of the select, where each tuple contains the value and label of an option.
     pub fn new(
-        id: TnComponentIndex,
-        tron_id: String,
+        idx: TnComponentIndex,
+        tnid: String,
         value: String,
         options: Vec<(String, String)>,
     ) -> Self {
-        let mut base = TnComponentBase::new("select".into(), id, tron_id, TnComponentType::Select);
+        let mut base = TnComponentBase::new("select".into(), idx, tnid, TnComponentType::Select);
         base.set_value(TnComponentValue::String(value));
         base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
         base.set_attribute("type".into(), "select".into());
@@ -34,6 +43,7 @@ impl<'a: 'static> TnSelect<'a> {
 }
 
 impl<'a: 'static> Default for TnSelect<'a> {
+    /// Returns a default TnSelect component.
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -45,6 +55,7 @@ impl<'a: 'static> Default for TnSelect<'a> {
 }
 
 impl<'a: 'static> TnSelect<'a> {
+    /// Renders the TnSelect component.
     pub fn internal_render(&self) -> String {
         let options = {
             let options = self.base.asset.as_ref().unwrap().get("options").unwrap();
@@ -78,6 +89,7 @@ impl<'a: 'static> TnSelect<'a> {
         )
     }
 
+    /// Renders the TnSelect component for the first time.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }

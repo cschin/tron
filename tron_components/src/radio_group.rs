@@ -2,19 +2,32 @@ use super::*;
 use futures_util::Future;
 use tron_macro::*;
 
+/// Defines a radio group component.
 #[derive(ComponentBase)]
 pub struct TnRadioGroup<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
 impl<'a: 'static> TnRadioGroup<'a> {
+    /// Creates a new instance of `TnRadioGroup`.
+    ///
+    /// # Arguments
+    ///
+    /// * `idx` - The index of the component.
+    /// * `tnid` - The name of the radio group.
+    /// * `value` - The default value for the radio group.
+    /// * `radio_group_items` - A vector of tuples containing the IDs and labels of the radio items in the group.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `TnRadioGroup`.
     pub fn new(
-        id: TnComponentIndex,
-        name: String,
+        idx: TnComponentIndex,
+        tnid: String,
         value: String,
         radio_group_items: Vec<(String, String)>,
     ) -> Self {
-        let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::RadioGroup);
+        let mut base = TnComponentBase::new("div".into(), idx, tnid, TnComponentType::RadioGroup);
         base.set_value(TnComponentValue::String(value));
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         base.set_attribute("type".into(), "radio_group".into());
@@ -29,7 +42,13 @@ impl<'a: 'static> TnRadioGroup<'a> {
     }
 }
 
+/// Implements the default trait for `TnRadioGroup`.
 impl<'a: 'static> Default for TnRadioGroup<'a> {
+    /// Creates a default instance of `TnRadioGroup`.
+    ///
+    /// # Returns
+    ///
+    /// A default instance of `TnRadioGroup`.
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -40,7 +59,9 @@ impl<'a: 'static> Default for TnRadioGroup<'a> {
     }
 }
 
+/// Implements methods for rendering `TnRadioGroup`.
 impl<'a: 'static> TnRadioGroup<'a> {
+    /// Renders the internal structure of the `TnRadioGroup`.
     pub fn internal_render(&self) -> String {
         let children_render_results = self
             .get_children()
@@ -57,23 +78,36 @@ impl<'a: 'static> TnRadioGroup<'a> {
         )
     }
 
+    /// Renders the internal structure of the `TnRadioGroup` for the first time.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
 }
 
+/// Represents a radio item component within a radio group.
 #[derive(ComponentBase)]
 pub struct TnRadioItem<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
+/// Creates a new radio item component.
+///
+/// # Arguments
+///
+/// * `idx` - The unique identifier of the radio item.
+/// * `tnid` - The name of the radio item.
+/// * `value` - The initial value of the radio item.
+///
+/// # Returns
+///
+/// A new `TnRadioItem` instance.
 impl<'a: 'static> TnRadioItem<'a> {
-    pub fn new(id: TnComponentIndex, name: String, value: bool) -> Self {
+    pub fn new(idx: TnComponentIndex, tnid: String, value: bool) -> Self {
         let mut base =
-            TnComponentBase::new("input".into(), id, name.clone(), TnComponentType::RadioItem);
+            TnComponentBase::new("input".into(), idx, tnid.clone(), TnComponentType::RadioItem);
         base.set_value(TnComponentValue::RadioItem(value));
         base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        base.set_attribute("hx-target".into(), format!("#{}-container", name));
+        base.set_attribute("hx-target".into(), format!("#{}-container", tnid));
         base.set_attribute(
             "hx-vals".into(),
             r##"js:{event_data: get_radio_group_event(event)}"##.into(),
@@ -85,7 +119,9 @@ impl<'a: 'static> TnRadioItem<'a> {
     }
 }
 
+/// Implements the default trait for `TnRadioItem`.
 impl<'a: 'static> Default for TnRadioItem<'a> {
+    /// Creates a default `TnRadioItem` instance.
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -97,7 +133,8 @@ impl<'a: 'static> Default for TnRadioItem<'a> {
 }
 
 impl<'a: 'static> TnRadioItem<'a> {
-    pub fn internal_render(&self) -> String {
+     /// Renders the `TnRadioItem` component into HTML.
+     pub fn internal_render(&self) -> String {
         let checked = if let &TnComponentValue::RadioItem(v) = self.value() {
             if v {
                 "checked"
@@ -142,6 +179,8 @@ impl<'a: 'static> TnRadioItem<'a> {
             self.generate_attr_string(),
         )
     }
+    /// Renders the first instance of the `TnRadioItem` component into HTML.
+
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
@@ -210,6 +249,16 @@ pub fn add_radio_group_to_context(
     });
 }
 
+/// Adds a radio group component and its items to the given context.
+///
+/// # Arguments
+///
+/// * `context` - A mutable reference to the TnContextBase where the components will be added.
+/// * `component_index` - A mutable reference to the index of the component.
+/// * `radio_group_tron_id` - The TRON ID of the radio group.
+/// * `radio_group_items` - A vector containing tuples of radio item TRON IDs and their labels.
+/// * `container_attributes` - A vector containing attributes for the radio group container.
+/// * `default_item` - The TRON ID of the default radio item.
 pub fn get_radio_group_actions(comp: TnComponent<'static>) -> Vec<(TnComponentId, TnActionFn)> {
     let comp_guard = comp.blocking_write();
     assert!(comp_guard.get_type() == TnComponentType::RadioGroup);
@@ -222,6 +271,17 @@ pub fn get_radio_group_actions(comp: TnComponent<'static>) -> Vec<(TnComponentId
     events
 }
 
+/// Sets the value of a radio item in a radio group component based on the event trigger.
+///
+/// # Arguments
+///
+/// * `context` - The TnContext containing the radio group and radio item components.
+/// * `event` - The TnEvent triggering the action.
+/// * `_payload` - The payload associated with the event (not used in this function).
+///
+/// # Returns
+///
+/// A future resolving to a TnHtmlResponse representing the updated HTML response.
 pub fn set_radio_item(
     context: TnContext,
     event: TnEvent,

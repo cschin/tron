@@ -2,16 +2,14 @@ use super::*;
 use tron_macro::*;
 use tron_utils::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
 
-//
-// For TextArea
-//
-
+/// Represents a TextArea component.
 #[derive(ComponentBase)]
 pub struct TnTextArea<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
 impl<'a: 'static> TnTextArea<'a> {
+    /// Creates a new TextArea component with the specified ID, name, and value.
     pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("textarea".into(), id, name, TnComponentType::TextArea);
         base.set_value(TnComponentValue::String(value));
@@ -24,6 +22,7 @@ impl<'a: 'static> TnTextArea<'a> {
 }
 
 impl<'a: 'static> Default for TnTextArea<'a> {
+    /// Creates a default TextArea component with an empty value.
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -35,6 +34,7 @@ impl<'a: 'static> Default for TnTextArea<'a> {
 }
 
 impl<'a: 'static> TnTextArea<'a> {
+    /// Renders the TextArea component.
     pub fn internal_render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
@@ -47,12 +47,14 @@ impl<'a: 'static> TnTextArea<'a> {
             self.base.tag
         )
     }
-
+    
+    /// Renders the TextArea component for the first time.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
 }
 
+/// Appends text to the value of a TextArea component.
 pub async fn append_textarea_value(comp: TnComponent<'static>, new_str: &str, sep: Option<&str>) {
     let v;
     {
@@ -70,6 +72,8 @@ pub async fn append_textarea_value(comp: TnComponent<'static>, new_str: &str, se
         comp.set_value(TnComponentValue::String(v.join(sep)));
     }
 }
+
+/// Appends text to the value of a TextArea component.
 pub async fn append_textarea_value_with_context(
     context: TnContext,
     tron_id: &str,
@@ -80,6 +84,7 @@ pub async fn append_textarea_value_with_context(
     append_textarea_value(comp, new_str, sep).await;
 }
 
+/// Appends text to the value of a TextArea component with a given context.
 pub async fn update_and_send_textarea_with_context(
     context: TnContext,
     tron_id: &str,
@@ -106,23 +111,33 @@ pub async fn update_and_send_textarea_with_context(
     }
 }
 
+/// Cleans the value of a TextArea component within a given context.
 pub async fn clean_textarea_with_context(context: TnContext, tron_id: &str) {
     update_and_send_textarea_with_context(context, tron_id, "").await;
 }
 
-//
-// For Streamable TextArea
-//
 
+/// Represents a TextArea component with streaming updates.
 #[derive(ComponentBase)]
 pub struct TnStreamTextArea<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
+/// Creates a new instance of TnStreamTextArea.
+///
+/// # Arguments
+///
+/// * `idx` - The ID of the component.
+/// * `tnid` - The name of the component.
+/// * `value` - The initial value of the textarea.
+///
+/// # Returns
+///
+/// A new instance of TnStreamTextArea.
 impl<'a: 'static> TnStreamTextArea<'a> {
-    pub fn new(id: TnComponentIndex, name: String, value: Vec<String>) -> Self {
+    pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<String>) -> Self {
         let mut base =
-            TnComponentBase::new("textarea".into(), id, name, TnComponentType::StreamTextArea);
+            TnComponentBase::new("textarea".into(), idx, tnid, TnComponentType::StreamTextArea);
         base.set_value(TnComponentValue::VecString(value));
 
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
@@ -137,6 +152,9 @@ impl<'a: 'static> TnStreamTextArea<'a> {
     }
 }
 
+/// Implements the default trait for TnStreamTextArea.
+///
+/// This sets the default value for TnStreamTextArea as an empty vector.
 impl<'a: 'static> Default for TnStreamTextArea<'a> {
     fn default() -> Self {
         Self {
@@ -148,7 +166,9 @@ impl<'a: 'static> Default for TnStreamTextArea<'a> {
     }
 }
 
+/// Implements internal rendering functions for TnStreamTextArea.
 impl<'a: 'static> TnStreamTextArea<'a> {
+    /// Implements internal rendering functions for TnStreamTextArea.
     pub fn internal_first_render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
@@ -162,6 +182,7 @@ impl<'a: 'static> TnStreamTextArea<'a> {
         )
     }
 
+    /// Renders the stream text area, showing only the last appended string.
     pub fn internal_render(&self) -> String {
         let empty = "".to_string();
         match self.value() {
@@ -171,6 +192,7 @@ impl<'a: 'static> TnStreamTextArea<'a> {
     }
 }
 
+/// Appends a new string to the stream text area component.
 pub async fn append_stream_textarea(comp: TnComponent<'static>, new_str: &str) {
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::StreamTextArea);
@@ -179,6 +201,7 @@ pub async fn append_stream_textarea(comp: TnComponent<'static>, new_str: &str) {
     }
 }
 
+/// Appends a new string to the stream text area component and sends a server-sent event (SSE) message to the client.
 pub async fn append_and_send_stream_textarea_with_context(
     context: TnContext,
     tron_id: &str,
@@ -199,6 +222,7 @@ pub async fn append_and_send_stream_textarea_with_context(
     }
 }
 
+/// Cleans the content of the stream text area component with the specified ID and sends a server-sent event (SSE) message to the client.
 pub async fn clean_stream_textarea_with_context(context: TnContext, tron_id: &str) {
     let sse_tx = context.get_sse_tx().await;
     {
@@ -230,17 +254,26 @@ pub async fn clean_stream_textarea_with_context(context: TnContext, tron_id: &st
     }
 }
 
-//
-// For TextInput
-//
+/// Represents a text input component.
 #[derive(ComponentBase)]
 pub struct TnTextInput<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
+/// Creates a new text input component.
+///
+/// # Arguments
+///
+/// * `idx` - The unique index of the component.
+/// * `tnid` - The name or identifier of the component.
+/// * `value` - The initial value of the text input.
+///
+/// # Returns
+///
+/// A new `TnTextInput` instance.
 impl<'a: 'static> TnTextInput<'a> {
-    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
-        let mut base = TnComponentBase::new("input".into(), id, name, TnComponentType::TextInput);
+    pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
+        let mut base = TnComponentBase::new("input".into(), idx, tnid, TnComponentType::TextInput);
         base.set_value(TnComponentValue::String(value.to_string()));
 
         base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
@@ -255,6 +288,9 @@ impl<'a: 'static> TnTextInput<'a> {
     }
 }
 
+/// Implements the default trait for `TnTextInput`, providing a default instance.
+///
+/// The default value for the text input is set to "input".
 impl<'a: 'static> Default for TnTextInput<'a> {
     fn default() -> Self {
         Self {
@@ -267,6 +303,7 @@ impl<'a: 'static> Default for TnTextInput<'a> {
 }
 
 impl<'a: 'static> TnTextInput<'a> {
+    /// Renders the internal representation of the text input component.
     pub fn internal_render(&self) -> String {
         format!(
             r##"<{} {} value="{}">"##,
@@ -278,12 +315,19 @@ impl<'a: 'static> TnTextInput<'a> {
             }
         )
     }
-
+    /// Renders the initial representation of the text input component.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
 }
 
+/// Cleans the text input component with the given context and Tron ID.
+///
+/// # Arguments
+///
+/// * `context` - The context containing the text input component.
+/// * `tron_id` - The Tron ID of the text input component to clean.
+///
 pub async fn clean_textinput_with_context(context: TnContext, tron_id: &str) {
     {
         let comp = context.get_component(tron_id).await;

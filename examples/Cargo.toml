@@ -1,6 +1,0 @@
-[workspace]
-
-resolver = "2"
-
-members = [ "00_app_template", "01_widgets", "02_conversational_bot", "03_cognito_login"]
-

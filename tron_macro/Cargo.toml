@@ -11,5 +11,3 @@ syn = "2.0.57"
 
 [lib]
 proc-macro = true
-
-

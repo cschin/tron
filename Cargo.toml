@@ -1,15 +1,9 @@
 [workspace]
 resolver = "2"
-
-members = [ "tron_app", "tron_components", "tron_macro" , "tron_utils",
-"examples/00_app_template/",
-"examples/01_widgets/",
-"examples/02_conversational_bot/",
-"examples/03_cognito_login/"
-]
+members = [ "tron_app", "tron_components", "tron_macro" , "tron_utils", "examples/*" ]
 
 [workspace.package]
-name = "tron" # the name of the package
+name = "Tron" # the name of the package
 version = "0.1.0"    # the current version, obeying semver
 edition = "2021"
 authors = ["Jason Chin <cschin@infoecho.net>"]

@@ -1,6 +1,6 @@
 # Tron - A Rust Backend Framework for Interactive Web Apps
 
-`Tron` is a modern Rust backend framework designed to simplify building interactive Single Page Applications (SPAs). It seamlessly integrates the Rust asynchronous runtime with (HTMX)[https://htmx.org], allowing developers to write backend Rust code that defines UI components, handles events, and manages interaction between components. The framework minimizes the need for frontend JavaScript programming, offering a streamlined development experience for Rust enthusiasts.
+`Tron` is a modern Rust backend framework designed to simplify building interactive Single Page Applications (SPAs). It seamlessly integrates the Rust asynchronous runtime with [HTMX](https://htmx.org), allowing developers to write backend Rust code that defines UI components, handles events, and manages interaction between components. The framework minimizes the need for frontend JavaScript programming, offering a streamlined development experience for Rust enthusiasts.
 
 ## Key Features
 

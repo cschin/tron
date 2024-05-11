@@ -77,12 +77,21 @@ pub struct AppData {
 /// Represents configuration options for a Tron application.
 ///
 /// This struct encapsulates various configuration options for a Tron application,
-/// including the network address, ports, Cognito login flag, and log level.
+/// including the network address, ports, Cognito login flag, log level, and session expiry duration.
+///
+/// # Fields
+///
+/// * `address` - A static array of 4 bytes representing the network address.
+/// * `ports` - A `Ports` struct containing the HTTP and HTTPS ports.
+/// * `cognito_login` - A boolean flag indicating whether Cognito login is enabled.
+/// * `log_level` - An optional static string slice representing the log level.
+/// * `session_expiry` - An optional `Duration` representing the session expiry duration.
 pub struct AppConfigure {
     pub address: [u8; 4],
     pub ports: Ports,
     pub cognito_login: bool,
     pub log_level: Option<&'static str>,
+    pub session_expiry: Option<time::Duration>,
 }
 
 /// Implements the default trait for creating a default instance of `AppConfigure`.
@@ -111,6 +120,7 @@ impl Default for AppConfigure {
             ports,
             cognito_login,
             log_level,
+            session_expiry: None,
         }
     }
 }
@@ -151,9 +161,17 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         .init();
 
     let session_store = MemoryStore::default();
-    let session_layer = SessionManagerLayer::new(session_store.clone())
+
+    let expiry_duration = if let Some(expiry_duration) = config.session_expiry {
+        expiry_duration 
+    } else {
+        Duration::minutes(20)
+    };
+
+    let session_layer = 
+        SessionManagerLayer::new(session_store.clone())
         .with_secure(false)
-        .with_expiry(Expiry::OnInactivity(Duration::minutes(20)));
+        .with_expiry(Expiry::OnInactivity(expiry_duration));
 
     let serve_dir = ServeDir::new("static").not_found_service(ServeFile::new("static/index.html"));
 
@@ -1028,10 +1046,10 @@ async fn clean_up_session(app_data: Arc<AppData>) {
         let to_remove = {
             let guard = app_data.session_expiry.read().await;
             let now = OffsetDateTime::now_utc();
-            tracing::info!(target: "tron_app", "clean up expiry sessions {}", now);
+            tracing::debug!(target: "tron_app", "in clean up expiry sessions {}", now);
             let mut to_remove = Vec::new();
             for (key, value) in guard.iter() {
-                tracing::info!(target: "tron_app", "clean up expiry sessions: {} {} {}", key, now, value );
+                tracing::debug!(target: "tron_app", "in clean up expiry session: {} {} {}", key, now, value );
                 if *value < now {
                     to_remove.push(*key);
                 }
@@ -1041,7 +1059,7 @@ async fn clean_up_session(app_data: Arc<AppData>) {
         {
             let mut context_guard = app_data.context.write().await;
             for key in to_remove {
-                tracing::info!(target: "tron_app", "session removed: {} ", key );
+                tracing::debug!(target: "tron_app", "session removed: {} ", key );
                 context_guard.remove(&key);
             }
         }

@@ -23,7 +23,7 @@ use tron_components::{
 use std::{
     collections::HashMap, convert::Infallible, env, net::SocketAddr, path::PathBuf, sync::Arc,
 };
-use time::Duration;
+use time::{Duration, OffsetDateTime};
 use tower_http::cors::CorsLayer;
 use tower_http::{
     services::{ServeDir, ServeFile},
@@ -215,8 +215,11 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
             .layer(session_layer)
     };
 
+    tokio::task::spawn(clean_up_session(app_share_data.clone()));
+
     let addr = SocketAddr::from((config.address, ports.https));
 
+    tracing::info!(target:"tron_app", "Starting server at {}", addr);
     axum_server::bind_rustls(addr, tls_config)
         .serve(app.into_make_service())
         .await
@@ -246,16 +249,16 @@ async fn index(
     let index_html = include_str!("../static/index.html");
     if session.is_empty().await {
         // the line below is necessary to make sure the session is set
-        session.insert("session_set", true).await.unwrap();
-        tracing::debug!(target:"tron_app", "set session");
+        session.insert("session is not set, redirect to set the session", true).await.unwrap();
+        tracing::info!(target:"tron_app", "set session");
         Redirect::to("/").into_response()
     } else {
+        tracing::info!(target:"tron_app", "setting session");
         let mut session_expiry = app_data.session_expiry.write().await;
         session_expiry.insert(session.id().unwrap(), session.expiry_date());
         Html::from(index_html.to_string()).into_response()
     }
 }
-
 
 /// Loads the page content for the Tron application.
 ///
@@ -372,7 +375,6 @@ async fn match_event(payload: &Value) -> Option<TnEventData> {
         None
     }
 }
-
 
 /// Handles requests to the Tron entry endpoint.
 ///
@@ -718,7 +720,6 @@ async fn login_handler() -> Redirect {
     Redirect::to(&format!("https://{cognito_domain}/login?client_id={cognito_client_id}&response_type={cognito_response_type}&redirect_uri={redirect_uri}"))
 }
 
-
 /// Handles logout redirection for authentication.
 ///
 /// This asynchronous function constructs and returns a redirect to the logout page of the configured
@@ -993,5 +994,57 @@ async fn check_token(
     } else {
         tracing::debug!(target:"tron_app", "has NO jwt token, session: {:?}", session);
         Redirect::permanent("/login").into_response()
+    }
+}
+
+/// Periodically cleans up expired sessions from the application data.
+///
+/// This function runs in an infinite loop and performs the following tasks:
+///
+/// 1. Reads the `session_expiry` map from the application data.
+/// 2. Determines the current time.
+/// 3. Iterates over the `session_expiry` map and collects the session IDs of expired sessions.
+/// 4. Acquires a write lock on the `context` map in the application data.
+/// 5. Removes the session data for the expired sessions from the `context` map.
+/// 6. Sleeps for 20 minutes before repeating the process.
+///
+/// This function is designed to run as a separate task or thread to periodically clean up
+/// expired sessions and free up memory used by stale session data.
+///
+/// # Arguments
+///
+/// * `app_data` - An `Arc` (atomic reference-counted) pointer to the `AppData` struct containing
+///   the application data, including the `session_expiry` and `context` maps.
+///
+/// # Notes
+///
+/// - This function runs in an infinite loop and never returns.
+/// - It acquires read and write locks on the `session_expiry` and `context` maps, respectively,
+///   to ensure thread safety when accessing and modifying the shared data.
+/// - The sleep duration of 2.5 minutes can be adjusted as needed to control the frequency of
+///   session cleanup.
+async fn clean_up_session(app_data: Arc<AppData>) {
+    loop {
+        let to_remove = {
+            let guard = app_data.session_expiry.read().await;
+            let now = OffsetDateTime::now_utc();
+            tracing::info!(target: "tron_app", "clean up expiry sessions {}", now);
+            let mut to_remove = Vec::new();
+            for (key, value) in guard.iter() {
+                tracing::info!(target: "tron_app", "clean up expiry sessions: {} {} {}", key, now, value );
+                if *value < now {
+                    to_remove.push(*key);
+                }
+            }
+            to_remove
+        };
+        {
+            let mut context_guard = app_data.context.write().await;
+            for key in to_remove {
+                tracing::info!(target: "tron_app", "session removed: {} ", key );
+                context_guard.remove(&key);
+            }
+        }
+        tokio::time::sleep(tokio::time::Duration::from_secs(180)).await;
     }
 }

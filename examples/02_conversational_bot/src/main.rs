@@ -1,7 +1,7 @@
 mod dg_service;
-mod openai_service;
+mod llm_service;
 use http::HeaderMap;
-use openai_service::simulate_dialog;
+use llm_service::simulate_dialog;
 
 use askama::Template;
 use dg_service::{deepgram_transcript_service, DeepgramError, StreamResponse};
@@ -35,7 +35,7 @@ async fn main() {
     // Configure the application
     let app_configure = tron_app::AppConfigure {
         log_level: Some("server=info,tower_http=info,tron_app=info"),
-        cognito_login: false,
+        cognito_login: true,
         ..Default::default()
     };
     // set app state

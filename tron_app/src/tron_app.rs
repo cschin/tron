@@ -170,6 +170,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
 
     let session_layer = 
         SessionManagerLayer::new(session_store.clone())
+        .with_same_site(tower_sessions::cookie::SameSite::Lax)
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(expiry_duration));
 
@@ -960,7 +961,10 @@ async fn cognito_callback(
     tracing::debug!(target:"tron_app", "in congito_callback token: {:?}", session.get_value("token").await.unwrap());
 
     // we can't use the axum redirect response as it won't set the session cookie
-    Html::from(r#"<script> window.location.replace("/"); </script>"#)
+    // Html::from(r#"<script> window.location.replace("/"); </script>"#)
+    // Using the .with_same_site(tower_sessions::cookie::SameSite::Lax)
+    // The re-direction work for 127.0.0.1 but not sure about behind AWS ALB 
+    Redirect::to("/")
 }
 
 /// Middleware for checking the presence of a JWT token in the user's session.
@@ -1011,7 +1015,7 @@ async fn check_token(
         response.into_response()
     } else {
         tracing::debug!(target:"tron_app", "has NO jwt token, session: {:?}", session);
-        Redirect::permanent("/login").into_response()
+        Redirect::to("/login").into_response()
     }
 }
 

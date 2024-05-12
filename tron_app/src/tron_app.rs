@@ -788,7 +788,8 @@ async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> i
         if let Some(TnAsset::String(logout_html)) = logout_html.get("logout_page") {
             logout_html.clone()
         } else {
-            r#"logged out"#.into()
+            r#"<html><body>logged out, <a href="/login">click here</a> to login again</body></html>"#
+               .into()
         }
     };
     // remove data from the session in app_data

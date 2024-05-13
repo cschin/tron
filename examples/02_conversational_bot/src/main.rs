@@ -919,17 +919,7 @@ async fn transcript_post_processing_service(
         .await
         .get_component_index("transcript");
 
-    let make_tss_request = |request: String, payload: String| async {
-        let (tx, mut rx) = oneshot::channel::<String>();
-        let msg = TnServiceRequestMsg {
-            request,
-            payload: TnAsset::String(payload),
-            response: tx,
-        };
-        let tts_tx = context.get_service_tx("tts_service").await;
-        let _ = tts_tx.send(msg).await;
-        let _ = rx.try_recv();
-    };
+   
 
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {

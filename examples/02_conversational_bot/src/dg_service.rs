@@ -352,12 +352,12 @@ pub async fn tts_service(
                     let player = context.get_component("player").await;
                     let sse_tx = context.get_sse_tx().await;
                     start_audio(player.clone(), sse_tx).await;
-                    tracing::info!( target:"tron_app", "set audio to play");
+                    tracing::debug!( target:"tron_app", "set audio to play");
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                     break;
                 }
                 _ => {
-                    tracing::info!( target:"tron_app", "Waiting for audio to be ready");
+                    tracing::debug!( target:"tron_app", "Waiting for audio to be ready");
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 }
             }
@@ -378,12 +378,12 @@ pub async fn tts_service(
                     let context_guard = context.write().await;
                     let mut stream_data_guard = context_guard.stream_data.write().await;
                     stream_data_guard.get_mut("player").unwrap().1.clear();
-                    tracing::info!( target:"tron_app", "clean audio stream data");
+                    tracing::debug!( target:"tron_app", "clean audio stream data");
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                     break;
                 }
                 _ => {
-                    tracing::info!( target:"tron_app", "Waiting for audio to be ready");
+                    tracing::debug!( target:"tron_app", "Waiting for audio to be ready");
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 }
             }

@@ -220,6 +220,7 @@ async fn tts_service(mut rx: Receiver<String>, context: TnContext) {
         };
 
         let json_data = json!({"text": llm_response}).to_string();
+        tracing::info!(target:"tron_app", "json_data: {}", json_data);
         let time = SystemTime::now();
 
         let mut response = reqwest_client
@@ -255,11 +256,27 @@ async fn tts_service(mut rx: Receiver<String>, context: TnContext) {
             }
         }
         {
-            let player_guard = context.get_component("player").await;
-            let player = player_guard.read().await;
-            let audio_ready = player.state();
-            tracing::debug!( target:"tron_app", "Start: player status {:?}", audio_ready);
+            let context_guard = context.write().await;
+            let mut stream_data_guard = context_guard.stream_data.write().await;
+            let player_data = stream_data_guard.get_mut("player").unwrap();
+            // ensure we don't send empty data to the player, or the empty data can trigger an infinite loop 
+            if player_data.1.is_empty() {
+                continue
+            }
         }
+
+        // for debug
+        // {
+        //     let player_guard = context.get_component("player").await;
+        //     let player = player_guard.read().await;
+        //     let audio_ready = player.state();
+        //     let context_guard = context.write().await;
+        //     let mut stream_data_guard = context_guard.stream_data.write().await;
+        //     let player_data = stream_data_guard.get_mut("player").unwrap();
+
+        //     tracing::info!( target:"tron_app", "Start: player status {:?}", audio_ready);
+        //     tracing::info!( target:"tron_app", "player data len: {:?}", player_data.1.len());
+        // }
 
         // This loop waits for the audio player component to be in the "Ready" state.
         // Once the player is ready, it calls the `start_audio` function with the player
@@ -310,6 +327,7 @@ async fn tts_service(mut rx: Receiver<String>, context: TnContext) {
                     let context_guard = context.write().await;
                     let mut stream_data_guard = context_guard.stream_data.write().await;
                     stream_data_guard.get_mut("player").unwrap().1.clear();
+                    tracing::debug!( target:"tron_app", "clean audio stream data");
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                     break;
                 }

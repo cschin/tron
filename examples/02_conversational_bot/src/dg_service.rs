@@ -171,6 +171,7 @@ pub async fn trx_service(
                 }
             }
         }
+        drop(write);
         drop(source);
     };
 
@@ -196,6 +197,7 @@ pub async fn trx_service(
                 }
             }
         }
+        drop(tx);
         drop(read);
     };
 

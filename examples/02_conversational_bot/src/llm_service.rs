@@ -10,7 +10,10 @@ use async_openai::{
     Client,
 };
 use futures::StreamExt;
-use tokio::{sync::{mpsc::Receiver, oneshot, RwLock}, task::JoinHandle};
+use tokio::{
+    sync::{mpsc::Receiver, oneshot, RwLock},
+    task::JoinHandle,
+};
 use tron_app::send_sse_msg_to_client;
 use tron_app::tron_components;
 use tron_app::{TnServerSideTriggerData, TnSseTriggerMsg};
@@ -21,7 +24,6 @@ use tron_components::{text::append_and_send_stream_textarea_with_context, TnComp
 static SENTENCE_END_TOKEN: &str = "<!--EOS-->";
 
 pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceRequestMsg>) {
-
     //let reqwest_client = reqwest::Client::new();
     //let dg_api_key = std::env::var("DG_API_KEY").unwrap();
 
@@ -59,7 +61,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
             [
                 prompt.clone(),
                 format!(
-                    "you need to put a token '{SENTENCE_END_TOKEN}' at the end of every sentence or every 12 words.",
+                    "you need to put a token '{SENTENCE_END_TOKEN}' at the end of every sentence and every 12 words and the end of the message.",
                 ),
             ]
             .join(" ")
@@ -70,7 +72,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
 
         if let TnAsset::String(query) = r.payload {
             {
-            history.write().await.push(("user".into(), query.clone()));
+                history.write().await.push(("user".into(), query.clone()));
             }
             let mut messages: Vec<ChatCompletionRequestMessage> =
                 vec![ChatCompletionRequestSystemMessageArgs::default()
@@ -79,7 +81,9 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                     .expect("error")
                     .into()];
             messages.extend(
-                history.read().await
+                history
+                    .read()
+                    .await
                     .iter()
                     .filter_map(|(tag, msg)| match tag.as_str() {
                         "user" => Some(
@@ -101,7 +105,12 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                     .collect::<Vec<ChatCompletionRequestMessage>>(),
             );
 
-            handle = Some(tokio::spawn(openai_stream_service(context.clone(), query, messages, history.clone())));
+            handle = Some(tokio::spawn(openai_stream_service(
+                context.clone(),
+                query,
+                messages,
+                history.clone(),
+            )));
         }
     }
 }
@@ -112,7 +121,7 @@ async fn openai_stream_service(
     messages: Vec<ChatCompletionRequestMessage>,
     history: Arc<RwLock<Vec<(String, String)>>>,
 ) {
-    let make_tss_request = |request: String, payload: String| async {
+    let make_tts_request = |request: String, payload: String| async {
         let (tx, mut rx) = oneshot::channel::<String>();
         let msg = TnServiceRequestMsg {
             request,
@@ -169,7 +178,7 @@ async fn openai_stream_service(
                                 if llm_response_sentences.is_empty() {
                                     llm_response_sentences.push(s[..sentence_end].to_string());
 
-                                    make_tss_request(
+                                    make_tts_request(
                                         "new_llm_message".into(),
                                         s[..sentence_end].to_string(),
                                     )
@@ -179,7 +188,7 @@ async fn openai_stream_service(
                                     llm_response_sentences
                                         .push(s[last_end..sentence_end].to_string());
 
-                                    make_tss_request(
+                                    make_tts_request(
                                         "llm_message".into(),
                                         s[last_end..sentence_end].to_string(),
                                     )
@@ -187,7 +196,8 @@ async fn openai_stream_service(
                                     last_end = sentence_end + SENTENCE_END_TOKEN.len();
                                 }
                             }
-                        };
+                        }
+
                         let s = s.chars().collect::<Vec<_>>();
                         let last_100 = s.len() % 100;
 
@@ -218,6 +228,12 @@ async fn openai_stream_service(
     } else {
         "".into()
     };
+    if last_end < s.len() - 1 {
+        llm_response_sentences.push(s[last_end..].to_string());
+
+        make_tts_request("llm_message".into(), s[last_end..].to_string()).await;
+    };
+
     text::update_and_send_textarea_with_context(context.clone(), "llm_stream_output", &s).await;
 
     let llm_response = llm_response.join("");

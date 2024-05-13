@@ -1,4 +1,4 @@
-use std::time::SystemTime;
+use std::{collections::VecDeque, sync::Arc, time::SystemTime};
 
 #[allow(unused_imports)]
 use async_openai::{
@@ -12,7 +12,7 @@ use async_openai::{
 use bytes::{BufMut, BytesMut};
 use futures::StreamExt;
 use serde_json::json;
-use tokio::sync::mpsc::Receiver;
+use tokio::sync::{mpsc::Receiver, Mutex};
 use tron_app::tron_components;
 use tron_app::{send_sse_msg_to_client, tron_components::TnComponentState};
 use tron_app::{TnServerSideTriggerData, TnSseTriggerMsg};
@@ -31,7 +31,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
     //let dg_api_key = std::env::var("DG_API_KEY").unwrap();
 
     let mut history = Vec::<(String, String)>::new();
-    let (audio_tx, audio_rx) = tokio::sync::mpsc::channel::<String>(32);
+    let (audio_tx, audio_rx) = tokio::sync::mpsc::channel::<(bool, String)>(32);
 
     tokio::spawn(tts_service(audio_rx, context.clone()));
     while let Some(r) = rx.recv().await {
@@ -130,14 +130,18 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                                         if llm_response_sentences.is_empty() {
                                             llm_response_sentences
                                                 .push(s[..sentence_end].to_string());
-                                            let _ =
-                                                audio_tx.send(s[..sentence_end].to_string()).await;
+                                            let _ = audio_tx
+                                                .send((true, s[..sentence_end].to_string()))
+                                                .await;
                                             last_end = sentence_end + SENTENCE_END_TOKEN.len();
                                         } else {
                                             llm_response_sentences
                                                 .push(s[last_end..sentence_end].to_string());
                                             let _ = audio_tx
-                                                .send(s[last_end..sentence_end].to_string())
+                                                .send((
+                                                    false,
+                                                    s[last_end..sentence_end].to_string(),
+                                                ))
                                                 .await;
                                             last_end = sentence_end + SENTENCE_END_TOKEN.len();
                                         }
@@ -207,10 +211,35 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
     }
 }
 
-async fn tts_service(mut rx: Receiver<String>, context: TnContext) {
+async fn tts_service(mut rx: Receiver<(bool, String)>, context: TnContext) {
     let reqwest_client = reqwest::Client::new();
-    let dg_api_key = std::env::var("DG_API_KEY").unwrap();
-    while let Some(llm_response) = rx.recv().await {
+    let dg_api_key: String = std::env::var("DG_API_KEY").unwrap();
+    let msg_queue = Arc::new(Mutex::new(VecDeque::<String>::new()));
+    let msg_queue1 = msg_queue.clone();
+
+    // put the message into a buffer
+    // when a new LLM response comes in, clean up the buffer to stop TTS to emulate the 
+    // bot's response is interrupted. Currently, the TTS is done by sentence by sentence.
+    // The interuption will be done after the current sentence is finished.
+    tokio::spawn(async move {
+        while let Some((restart, llm_response)) = rx.recv().await {
+            if restart {
+                msg_queue1.lock().await.clear();
+                msg_queue1.lock().await.push_back(llm_response);
+            } else {
+                msg_queue1.lock().await.push_back(llm_response);
+            }
+        }
+    });
+
+    loop {
+        let llm_response = if msg_queue.lock().await.is_empty() {
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            continue;
+        } else {
+            msg_queue.lock().await.pop_front().unwrap()
+        };
+
         let tts_model = if let TnComponentValue::String(tts_model) =
             context.get_value_from_component("tts_model_select").await
         {
@@ -259,9 +288,9 @@ async fn tts_service(mut rx: Receiver<String>, context: TnContext) {
             let context_guard = context.write().await;
             let mut stream_data_guard = context_guard.stream_data.write().await;
             let player_data = stream_data_guard.get_mut("player").unwrap();
-            // ensure we don't send empty data to the player, or the empty data can trigger an infinite loop 
+            // ensure we don't send empty data to the player, or the empty data can trigger an infinite loop
             if player_data.1.is_empty() {
-                continue
+                continue;
             }
         }
 

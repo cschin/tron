@@ -498,6 +498,15 @@ impl TnContext {
             send_sse_msg_to_client(&sse_tx, msg).await;
         }
     }
+
+    pub async fn get_service_tx(&self, service_id: &str) -> Sender<TnServiceRequestMsg> {
+        let context_guard = self
+        .read()
+        .await;
+        context_guard.services
+        .get(service_id)
+        .unwrap().0.clone()
+    }
 }
 
 /// Implements the default trait for creating a default instance of `TnContextBase<'a>`.

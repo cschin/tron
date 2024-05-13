@@ -4,7 +4,7 @@ use http::HeaderMap;
 use llm_service::simulate_dialog;
 
 use askama::Template;
-use dg_service::{deepgram_transcript_service, DeepgramError, StreamResponse};
+use dg_service::{deepgram_transcript_service, tts_service, DeepgramError, StreamResponse};
 use futures_util::Future;
 
 use axum::{body::Bytes, response::Html};
@@ -25,8 +25,8 @@ use tokio::sync::{
 };
 #[allow(unused_imports)]
 use tracing::{debug, info};
+use tron_app::tron_components;
 use tron_app::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
-use tron_app::tron_components as tron_components;
 use tron_components::audio_recorder::SseAudioRecorderTriggerMsg;
 use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
@@ -41,7 +41,7 @@ async fn main() {
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
-        session_expiry: RwLock::new(HashMap::default()), 
+        session_expiry: RwLock::new(HashMap::default()),
         event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_session_context)),
         build_actions: Arc::new(Box::new(build_session_actions)),
@@ -271,6 +271,13 @@ fn build_session_context() -> TnContext {
             (llm_request_tx.clone(), Mutex::new(None)),
         );
         tokio::task::spawn(simulate_dialog(context.clone(), llm_request_rx));
+
+        let (tts_tx, tts_rx) = tokio::sync::mpsc::channel::<TnServiceRequestMsg>(32);
+        context
+            .blocking_write()
+            .services
+            .insert("tts_service".into(), (tts_tx.clone(), Mutex::new(None)));
+        tokio::spawn(tts_service(tts_rx, context.clone()));
     }
 
     {
@@ -354,7 +361,7 @@ fn layout(context: TnContext) -> String {
 /// each component with a specific action function and an execution method (await or immediate).
 ///
 /// Returns:
-///     A `TnEventActions` instance 
+///     A `TnEventActions` instance
 fn build_session_actions(context: TnContext) -> TnEventActions {
     let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
     actions.push((
@@ -487,14 +494,8 @@ fn reset_conversation(
                 return None;
             }
             // send message to the llm service to clean up the history
-            let llm_tx = context
-                .read()
-                .await
-                .services
-                .get("llm_service")
-                .unwrap()
-                .0
-                .clone();
+
+            let llm_tx = context.get_service_tx("llm_service").await;
             let (tx, mut rx) = oneshot::channel::<String>();
 
             let llm_req_msg = TnServiceRequestMsg {
@@ -917,6 +918,19 @@ async fn transcript_post_processing_service(
         .read()
         .await
         .get_component_index("transcript");
+
+    let make_tss_request = |request: String, payload: String| async {
+        let (tx, mut rx) = oneshot::channel::<String>();
+        let msg = TnServiceRequestMsg {
+            request,
+            payload: TnAsset::String(payload),
+            response: tx,
+        };
+        let tts_tx = context.get_service_tx("tts_service").await;
+        let _ = tts_tx.send(msg).await;
+        let _ = rx.try_recv();
+    };
+
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {
             "transcript_final" => {
@@ -929,15 +943,7 @@ async fn transcript_post_processing_service(
                         )
                         .await;
 
-                        let llm_tx = context
-                            .clone()
-                            .read()
-                            .await
-                            .services
-                            .get("llm_service")
-                            .unwrap()
-                            .0
-                            .clone();
+                        let llm_tx = context.get_service_tx("llm_service").await;
 
                         let (tx, rx) = oneshot::channel::<String>();
 

@@ -624,11 +624,13 @@ fn toggle_recording(
                             .set_state_for_component("recorder", TnComponentState::Updating)
                             .await;
 
+                        context.set_ready_for("player").await; // rest the player state to ready
+
                         {
                             let context_guard = context.write().await;
                             let mut stream_data_guard = context_guard.stream_data.write().await;
-                            stream_data_guard.get_mut("player").unwrap().1.clear();
                             // clear the stream buffer
+                            stream_data_guard.get_mut("player").unwrap().1.clear();
                         }
 
                         let msg = SseAudioRecorderTriggerMsg {

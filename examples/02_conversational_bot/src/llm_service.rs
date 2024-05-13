@@ -49,7 +49,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
             [
                 prompt.clone(),
                 format!(
-                    "Please append a token '{SENTENCE_END_TOKEN}' at the end of each sentence."
+                    "Please append a token '{SENTENCE_END_TOKEN}' at the end of a sentence or every 12 words.",
                 ),
             ]
             .join(" ")

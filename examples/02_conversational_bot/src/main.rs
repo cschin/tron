@@ -791,7 +791,7 @@ async fn transcript_service(
     mut rx: Receiver<TnServiceRequestMsg>,
     tx: Sender<TnServiceResponseMsg>,
 ) {
-    let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<StreamResponse>(1);
+    let (transcript_tx, mut transcript_rx) = tokio::sync::mpsc::channel::<StreamResponse>(16);
 
     // start a loop for maintaining connection with DG, this calls the DG WS,
     // it passes transcript_tx to deepgram_transcript_service(), so it can send the transcript back
@@ -799,7 +799,7 @@ async fn transcript_service(
         tracing::debug!(target: "tran_app", "restart dg_trx");
 
         let (mut audio_tx, audio_rx) =
-            tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
+            tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(16);
 
         let mut handle = tokio::spawn(deepgram_transcript_service(audio_rx, transcript_tx.clone()));
 
@@ -811,7 +811,7 @@ async fn transcript_service(
             if handle.is_finished() {
                 audio_tx.closed().await;
                 let (audio_tx0, audio_rx) =
-                    tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(1);
+                    tokio::sync::mpsc::channel::<Result<Bytes, DeepgramError>>(16);
                 audio_tx = audio_tx0;
                 handle = tokio::spawn(deepgram_transcript_service(audio_rx, transcript_tx.clone()));
                 tokio::time::sleep(std::time::Duration::from_secs(1)).await;

@@ -234,7 +234,7 @@ async fn tts_service(mut rx: Receiver<(bool, String)>, context: TnContext) {
 
     loop {
         let llm_response = if msg_queue.lock().await.is_empty() {
-            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
             continue;
         } else {
             msg_queue.lock().await.pop_front().unwrap()

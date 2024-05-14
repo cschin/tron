@@ -61,7 +61,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
             [
                 prompt.clone(),
                 format!(
-                    "you need to put a token '{SENTENCE_END_TOKEN}' at the end of every sentence and every 12 words and the end of the message.",
+                    "you need to put a token '{SENTENCE_END_TOKEN}' at the end of every sentence and the end of the message.",
                 ),
             ]
             .join(" ")
@@ -146,7 +146,7 @@ async fn openai_stream_service(
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(512u16)
         //.model("gpt-4")
-        .model("gpt-4-turbo")
+        .model("gpt-4o")
         .messages(messages)
         .build()
         .expect("error");
@@ -221,6 +221,11 @@ async fn openai_stream_service(
         }
     }
     let s = llm_response.join("");
+    if last_end < s.len() - 1 {
+        llm_response_sentences.push(s[last_end..].to_string());
+
+        make_tts_request("llm_message".into(), s[last_end..].to_string()).await;
+    };
     let s = s.chars().collect::<Vec<_>>();
     let last_100 = s.len() % 100;
     let s = if last_100 > 0 {
@@ -228,11 +233,7 @@ async fn openai_stream_service(
     } else {
         "".into()
     };
-    if last_end < s.len() - 1 {
-        llm_response_sentences.push(s[last_end..].to_string());
-
-        make_tts_request("llm_message".into(), s[last_end..].to_string()).await;
-    };
+   
 
     text::update_and_send_textarea_with_context(context.clone(), "llm_stream_output", &s).await;
 

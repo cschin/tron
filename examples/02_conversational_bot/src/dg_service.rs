@@ -1,5 +1,6 @@
 use std::{collections::VecDeque, sync::Arc, time::SystemTime};
 
+use crate::{PLAYER, STATUS, TRON_APP};
 use bytes::{BufMut, Bytes, BytesMut};
 use futures::channel::mpsc::Receiver;
 use futures::sink::SinkExt;
@@ -115,7 +116,7 @@ pub async fn deepgram_transcript_service(
                 transcript_tx.send(r).await.expect("transcript send fail");
             }
             Err(e) => {
-                tracing::debug!(target: "tron_app", "in deepgram_transcript_service, Err {:?}", e );
+                tracing::debug!(target: TRON_APP, "in deepgram_transcript_service, Err {:?}", e );
                 return Err(e);
             }
         }
@@ -153,7 +154,7 @@ pub async fn trx_service(
     let (ws_stream, _response) = tokio_tungstenite::connect_async(request).await?;
     let (mut write, mut read) = ws_stream.split();
     let (mut tx, rx) = futures::channel::mpsc::channel::<Result<StreamResponse>>(1);
-    tracing::info!(target: "tron_app", "new dg ws established");
+    tracing::info!(target: TRON_APP, "new dg ws established");
 
     let data_stream = tokio_stream::wrappers::ReceiverStream::new(audio_rx);
 
@@ -198,7 +199,7 @@ pub async fn trx_service(
                     }
                 }
                 Some(e) => {
-                    tracing::info!(target: "tron_app", "in recv_task, message received error len={:?}", e);
+                    tracing::info!(target: TRON_APP, "in recv_task, message received error len={:?}", e);
                     let _ = dbg!(e);
                     break;
                 }
@@ -212,10 +213,10 @@ pub async fn trx_service(
         //tokio::join!(send_task, recv_task);
         tokio::select! {
             _ = send_task => {
-                tracing::debug!(target: "tron_app", "dg websocket send task end first");
+                tracing::debug!(target: TRON_APP, "dg websocket send task end first");
             },
             _ = recv_task => {
-                tracing::debug!(target: "tron_app", "dg websocket recv task end first");
+                tracing::debug!(target: TRON_APP, "dg websocket recv task end first");
             },
         }
     });
@@ -241,13 +242,13 @@ pub async fn tts_service(
             if req_msg.request == "new_llm_response" {
                 msg_queue1.lock().await.clear();
                 if let TnAsset::String(llm_response) = req_msg.payload {
-                    tracing::info!(target: "tron_app", "new llm response received: {}", llm_response);
-                    if !llm_response.is_empty() { 
-                    msg_queue1.lock().await.push_back(llm_response);
+                    tracing::info!(target: TRON_APP, "new llm response received: {}", llm_response);
+                    if !llm_response.is_empty() {
+                        msg_queue1.lock().await.push_back(llm_response);
                     }
                 }
             } else if let TnAsset::String(llm_response) = req_msg.payload {
-                if !llm_response.is_empty() { 
+                if !llm_response.is_empty() {
                     msg_queue1.lock().await.push_back(llm_response);
                 }
             };
@@ -271,7 +272,7 @@ pub async fn tts_service(
         };
 
         let json_data = json!({"text": llm_response}).to_string();
-        tracing::info!(target:"tron_app", "json_data: {}", json_data);
+        tracing::info!(target:TRON_APP, "json_data: {}", json_data);
         let time = SystemTime::now();
 
         let mut response = reqwest_client
@@ -285,22 +286,22 @@ pub async fn tts_service(
             .send()
             .await
             .unwrap();
-        tracing::debug!( target:"tron_app", "response: {:?}", response);
+        tracing::debug!( target:TRON_APP, "response: {:?}", response);
 
         let duration = time.elapsed().unwrap();
         append_and_send_stream_textarea_with_context(
             context.clone(),
-            "status",
+            STATUS,
             &format!("TTS request request done: {duration:?}\n"),
         )
         .await;
         // send TTS data to the player stream out
         while let Some(chunk) = response.chunk().await.unwrap() {
-            tracing::debug!( target:"tron_app", "Chunk: {}", chunk.len());
+            tracing::debug!( target:TRON_APP, "Chunk: {}", chunk.len());
             {
                 let context_guard = context.write().await;
                 let mut stream_data_guard = context_guard.stream_data.write().await;
-                let player_data = stream_data_guard.get_mut("player").unwrap();
+                let player_data = stream_data_guard.get_mut(PLAYER).unwrap();
                 let mut data = BytesMut::new();
                 data.put(&chunk[..]);
                 player_data.1.push_back(data);
@@ -309,7 +310,7 @@ pub async fn tts_service(
         {
             let context_guard = context.write().await;
             let mut stream_data_guard = context_guard.stream_data.write().await;
-            let player_data = stream_data_guard.get_mut("player").unwrap();
+            let player_data = stream_data_guard.get_mut(PLAYER).unwrap();
             // ensure we don't send empty data to the player, or the empty data can trigger an infinite loop
             if player_data.1.is_empty() {
                 continue;
@@ -318,15 +319,15 @@ pub async fn tts_service(
 
         // for debug
         // {
-        //     let player_guard = context.get_component("player").await;
+        //     let player_guard = context.get_component(PLAYER).await;
         //     let player = player_guard.read().await;
         //     let audio_ready = player.state();
         //     let context_guard = context.write().await;
         //     let mut stream_data_guard = context_guard.stream_data.write().await;
-        //     let player_data = stream_data_guard.get_mut("player").unwrap();
+        //     let player_data = stream_data_guard.get_mut(PLAYER).unwrap();
 
-        //     tracing::info!( target:"tron_app", "Start: player status {:?}", audio_ready);
-        //     tracing::info!( target:"tron_app", "player data len: {:?}", player_data.1.len());
+        //     tracing::info!( target:TRON_APP, "Start: player status {:?}", audio_ready);
+        //     tracing::info!( target:TRON_APP, "player data len: {:?}", player_data.1.len());
         // }
 
         // This loop waits for the audio player component to be in the "Ready" state.
@@ -342,22 +343,22 @@ pub async fn tts_service(
         // continue with other tasks.
         loop {
             let audio_ready = {
-                let player_guard = context.get_component("player").await;
+                let player_guard = context.get_component(PLAYER).await;
                 let player = player_guard.read().await;
                 player.state().clone()
             };
-            tracing::debug!( target:"tron_app", "wait for the player to ready to play {:?}", audio_ready);
+            tracing::debug!( target:TRON_APP, "wait for the player to ready to play {:?}", audio_ready);
             match audio_ready {
                 TnComponentState::Ready => {
-                    let player = context.get_component("player").await;
+                    let player = context.get_component(PLAYER).await;
                     let sse_tx = context.get_sse_tx().await;
                     start_audio(player.clone(), sse_tx).await;
-                    tracing::debug!( target:"tron_app", "set audio to play");
+                    tracing::debug!( target:TRON_APP, "set audio to play");
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                     break;
                 }
                 _ => {
-                    tracing::debug!( target:"tron_app", "Waiting for audio to be ready");
+                    tracing::debug!( target:TRON_APP, "Waiting for audio to be ready");
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 }
             }
@@ -367,23 +368,23 @@ pub async fn tts_service(
         // Once the player is ready, it clean up the stream buffer.
         loop {
             let audio_ready = {
-                let player_guard = context.get_component("player").await;
+                let player_guard = context.get_component(PLAYER).await;
                 let player = player_guard.read().await;
                 player.state().clone()
             };
-            tracing::debug!( target:"tron_app", "wait for the player in the ready state to clean up the stream data: {:?}", audio_ready);
+            tracing::debug!( target:TRON_APP, "wait for the player in the ready state to clean up the stream data: {:?}", audio_ready);
             match audio_ready {
                 TnComponentState::Ready => {
                     // clear the stream buffer
                     let context_guard = context.write().await;
                     let mut stream_data_guard = context_guard.stream_data.write().await;
-                    stream_data_guard.get_mut("player").unwrap().1.clear();
-                    tracing::debug!( target:"tron_app", "clean audio stream data");
+                    stream_data_guard.get_mut(PLAYER).unwrap().1.clear();
+                    tracing::debug!( target:TRON_APP, "clean audio stream data");
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                     break;
                 }
                 _ => {
-                    tracing::debug!( target:"tron_app", "Waiting for audio to be ready");
+                    tracing::debug!( target:TRON_APP, "Waiting for audio to be ready");
                     tokio::time::sleep(std::time::Duration::from_millis(200)).await;
                 }
             }

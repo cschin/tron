@@ -18,6 +18,7 @@ use tron_app::send_sse_msg_to_client;
 use tron_app::tron_components;
 use tron_app::{TnServerSideTriggerData, TnSseTriggerMsg};
 
+use crate::{LLM_STREAM_OUTPUT, STATUS, TRANSCRIPT, TRON_APP};
 use tron_components::{chatbox, text, TnAsset, TnContext, TnServiceRequestMsg};
 use tron_components::{text::append_and_send_stream_textarea_with_context, TnComponentValue};
 
@@ -68,7 +69,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
         } else {
             "You a useful assistant.".to_string()
         };
-        // tracing::info!(target: "tron_app", "prompt: {}", prompt1);
+        // tracing::info!(target: TRON_APP, "prompt: {}", prompt1);
 
         if let TnAsset::String(query) = r.payload {
             {
@@ -138,7 +139,7 @@ async fn openai_stream_service(
 
     append_and_send_stream_textarea_with_context(
         context.clone(),
-        "status",
+        STATUS,
         "LLM service request start\n",
     )
     .await;
@@ -151,7 +152,7 @@ async fn openai_stream_service(
         .build()
         .expect("error");
 
-    tracing::debug!( target:"tron_app", "chat request to open ai {}", serde_json::to_string(&request).unwrap());
+    tracing::debug!( target:TRON_APP, "chat request to open ai {}", serde_json::to_string(&request).unwrap());
 
     let mut llm_stream = client
         .chat()
@@ -169,7 +170,7 @@ async fn openai_stream_service(
             Ok(response) => {
                 if let Some(choice) = response.choices.first() {
                     if let Some(ref content) = choice.delta.content {
-                        tracing::debug!(target: "tron_app", "LLM delta content: {}", content);
+                        tracing::debug!(target: TRON_APP, "LLM delta content: {}", content);
                         llm_response.push(content.clone());
                         let s = llm_response.join("");
                         let sentence_end = s.rfind(SENTENCE_END_TOKEN);
@@ -208,7 +209,7 @@ async fn openai_stream_service(
                         };
                         text::update_and_send_textarea_with_context(
                             context.clone(),
-                            "llm_stream_output",
+                            LLM_STREAM_OUTPUT,
                             &s,
                         )
                         .await;
@@ -216,7 +217,7 @@ async fn openai_stream_service(
                 }
             }
             Err(_err) => {
-                tracing::info!(target: "tron_app", "LLM stream error");
+                tracing::info!(target: TRON_APP, "LLM stream error");
             }
         }
     }
@@ -233,16 +234,15 @@ async fn openai_stream_service(
     } else {
         "".into()
     };
-   
 
-    text::update_and_send_textarea_with_context(context.clone(), "llm_stream_output", &s).await;
+    text::update_and_send_textarea_with_context(context.clone(), LLM_STREAM_OUTPUT, &s).await;
 
     let llm_response = llm_response.join("");
-    tracing::info!(target: "tron_app", "LLM response: {}", llm_response);
+    tracing::info!(target: TRON_APP, "LLM response: {}", llm_response);
     //history.push(("bot".into(), llm_response.clone()));
 
     {
-        let transcript_area = context.get_component("transcript").await;
+        let transcript_area = context.get_component(TRANSCRIPT).await;
 
         chatbox::append_chatbox_value(
             transcript_area.clone(),
@@ -254,7 +254,7 @@ async fn openai_stream_service(
     {
         let msg = TnSseTriggerMsg {
             server_side_trigger_data: TnServerSideTriggerData {
-                target: "transcript".into(),
+                target: TRANSCRIPT.into(),
                 new_state: "ready".into(),
             },
         };
@@ -262,5 +262,5 @@ async fn openai_stream_service(
         send_sse_msg_to_client(&sse_tx, msg).await;
     }
 
-    text::update_and_send_textarea_with_context(context.clone(), "llm_stream_output", "").await;
+    text::update_and_send_textarea_with_context(context.clone(), LLM_STREAM_OUTPUT, "").await;
 }

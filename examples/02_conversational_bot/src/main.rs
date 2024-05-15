@@ -30,12 +30,11 @@ use tron_app::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg}
 use tron_components::audio_recorder::SseAudioRecorderTriggerMsg;
 use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
-
 static RECORDING_BUTTON: &str = "rec_button";
 static RECORDER: &str = "recorder";
 static PLAYER: &str = "player";
 static RESET_BUTTON: &str = "reset_button";
-static TRANSCRIPT: &str = "transcript";
+static TRANSCRIPT_OUTPUT: &str = "transcript_output";
 static LLM_STREAM_OUTPUT: &str = "llm_stream_output";
 static STATUS: &str = "status";
 static PROMPT: &str = "prompt";
@@ -136,7 +135,7 @@ fn build_session_context() -> TnContext {
         // add a chatbox
         component_index += 1;
         let mut transcript_output =
-            TnChatBox::<'static>::new(component_index, TRANSCRIPT.to_string(), vec![]);
+            TnChatBox::<'static>::new(component_index, TRANSCRIPT_OUTPUT.to_string(), vec![]);
         transcript_output.set_attribute(
             "class".to_string(),
             "flex flex-col overflow-auto flex-1 p-2".to_string(),
@@ -347,7 +346,7 @@ fn layout(context: TnContext) -> String {
     let btn = guard.render_to_string(RECORDING_BUTTON);
     let recorder = guard.render_to_string(RECORDER);
     let player = guard.render_to_string(PLAYER);
-    let transcript = guard.first_render_to_string(TRANSCRIPT);
+    let transcript = guard.first_render_to_string(TRANSCRIPT_OUTPUT);
     let status = guard.first_render_to_string(STATUS);
     let prompt = guard.first_render_to_string(PROMPT);
     let reset_button = guard.first_render_to_string(RESET_BUTTON);
@@ -524,7 +523,7 @@ fn reset_conversation(
             let _ = rx.try_recv();
         }
 
-        chatbox::clean_chatbox_with_context(context.clone(), TRANSCRIPT).await;
+        chatbox::clean_chatbox_with_context(context.clone(), TRANSCRIPT_OUTPUT).await;
         context.set_ready_for(RESET_BUTTON).await;
 
         let html = context.render_component(&event.h_target.unwrap()).await;
@@ -933,7 +932,7 @@ async fn transcript_post_processing_service(
         .clone()
         .read()
         .await
-        .get_component_index(TRANSCRIPT);
+        .get_component_index(TRANSCRIPT_OUTPUT);
 
    
 
@@ -978,7 +977,7 @@ async fn transcript_post_processing_service(
                         {
                             let msg = TnSseTriggerMsg {
                                 server_side_trigger_data: TnServerSideTriggerData {
-                                    target: TRANSCRIPT.into(),
+                                    target: TRANSCRIPT_OUTPUT.into(),
                                     new_state: "ready".into(),
                                 },
                             };
@@ -993,7 +992,7 @@ async fn transcript_post_processing_service(
                     if !transcript.is_empty() {
                         let mut assets_guard = assets.write().await;
                         let e = assets_guard
-                            .entry(TRANSCRIPT.into())
+                            .entry(TRANSCRIPT_OUTPUT.into())
                             .or_insert(TnAsset::VecString(Vec::default()));
                         if let TnAsset::VecString(ref mut v) = e {
                             v.push(transcript.clone());

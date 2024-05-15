@@ -18,7 +18,7 @@ use tron_app::send_sse_msg_to_client;
 use tron_app::tron_components;
 use tron_app::{TnServerSideTriggerData, TnSseTriggerMsg};
 
-use crate::{LLM_STREAM_OUTPUT, STATUS, TRANSCRIPT, TRON_APP};
+use crate::{LLM_STREAM_OUTPUT, STATUS, TRANSCRIPT_OUTPUT, TRON_APP};
 use tron_components::{chatbox, text, TnAsset, TnContext, TnServiceRequestMsg};
 use tron_components::{text::append_and_send_stream_textarea_with_context, TnComponentValue};
 
@@ -242,7 +242,7 @@ async fn openai_stream_service(
     //history.push(("bot".into(), llm_response.clone()));
 
     {
-        let transcript_area = context.get_component(TRANSCRIPT).await;
+        let transcript_area = context.get_component(TRANSCRIPT_OUTPUT).await;
 
         chatbox::append_chatbox_value(
             transcript_area.clone(),
@@ -254,7 +254,7 @@ async fn openai_stream_service(
     {
         let msg = TnSseTriggerMsg {
             server_side_trigger_data: TnServerSideTriggerData {
-                target: TRANSCRIPT.into(),
+                target: TRANSCRIPT_OUTPUT.into(),
                 new_state: "ready".into(),
             },
         };

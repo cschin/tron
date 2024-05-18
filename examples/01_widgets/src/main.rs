@@ -29,6 +29,7 @@ use std::{collections::HashMap, pin::Pin, str::FromStr, sync::Arc};
 async fn main() {
     let app_config = tron_app::AppConfigure {
         cognito_login: false,
+        http_only: true,
         ..Default::default()
     };
     // set app state

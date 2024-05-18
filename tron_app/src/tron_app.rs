@@ -90,6 +90,7 @@ pub struct AppConfigure {
     pub address: [u8; 4],
     pub ports: Ports,
     pub cognito_login: bool,
+    pub http_only: bool,
     pub log_level: Option<&'static str>,
     pub session_expiry: Option<time::Duration>,
 }
@@ -115,9 +116,11 @@ impl Default for AppConfigure {
         };
         let cognito_login = false;
         let log_level = Some("server=info,tower_http=info,tron_app=info");
+        let http_only = false;
         Self {
             address,
             ports,
+            http_only,
             cognito_login,
             log_level,
             session_expiry: None,
@@ -163,13 +166,12 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     let session_store = MemoryStore::default();
 
     let expiry_duration = if let Some(expiry_duration) = config.session_expiry {
-        expiry_duration 
+        expiry_duration
     } else {
         Duration::minutes(20)
     };
 
-    let session_layer = 
-        SessionManagerLayer::new(session_store.clone())
+    let session_layer = SessionManagerLayer::new(session_store.clone())
         .with_same_site(tower_sessions::cookie::SameSite::Lax)
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(expiry_duration));
@@ -177,18 +179,6 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     let serve_dir = ServeDir::new("static").not_found_service(ServeFile::new("static/index.html"));
 
     let ports = config.ports;
-    // optional: spawn a second server to redirect http requests to this server
-    tokio::spawn(redirect_http_to_https(config.address, ports));
-
-    // configure certificate and private key used by https
-    let tls_config = RustlsConfig::from_pem_file(
-        PathBuf::from(".")
-            .join("self_signed_certs")
-            .join("cert.pem"),
-        PathBuf::from(".").join("self_signed_certs").join("key.pem"),
-    )
-    .await
-    .unwrap();
 
     // build our application with a route
     let app_share_data = Arc::new(app_share_data);
@@ -238,11 +228,32 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
 
     let addr = SocketAddr::from((config.address, ports.https));
 
-    tracing::info!(target:"tron_app", "Starting server at {}", addr);
-    axum_server::bind_rustls(addr, tls_config)
-        .serve(app.into_make_service())
+    if config.http_only {
+        tracing::info!(target:"tron_app", "Starting server at {}", addr);
+        axum_server::bind(addr)
+            .serve(app.into_make_service())
+            .await
+            .unwrap();
+    } else {
+        // optional: spawn a second server to redirect http requests to this server
+        tokio::spawn(redirect_http_to_https(config.address, ports));
+
+        // configure certificate and private key used by https
+        let tls_config = RustlsConfig::from_pem_file(
+            PathBuf::from(".")
+                .join("self_signed_certs")
+                .join("cert.pem"),
+            PathBuf::from(".").join("self_signed_certs").join("key.pem"),
+        )
         .await
         .unwrap();
+
+        tracing::info!(target:"tron_app", "Starting server at {}", addr);
+        axum_server::bind_rustls(addr, tls_config)
+            .serve(app.into_make_service())
+            .await
+            .unwrap();
+    }
 }
 
 /// Handles requests to the index route.
@@ -268,7 +279,10 @@ async fn index(
     let index_html = include_str!("../static/index.html");
     if session.is_empty().await {
         // the line below is necessary to make sure the session is set
-        session.insert("session is not set, redirect to set the session", true).await.unwrap();
+        session
+            .insert("session is not set, redirect to set the session", true)
+            .await
+            .unwrap();
         tracing::info!(target:"tron_app", "set session");
         Redirect::to("/").into_response()
     } else {
@@ -535,7 +549,7 @@ async fn tron_entry(
 }
 
 #[allow(dead_code)]
-async fn redirect_http_to_https(addr: [u8;4], ports: Ports) {
+async fn redirect_http_to_https(addr: [u8; 4], ports: Ports) {
     fn make_https(host: String, uri: Uri, ports: Ports) -> Result<Uri, BoxError> {
         let mut parts = uri.into_parts();
 
@@ -964,7 +978,7 @@ async fn cognito_callback(
     // we can't use the axum redirect response as it won't set the session cookie
     // Html::from(r#"<script> window.location.replace("/"); </script>"#)
     // Using the .with_same_site(tower_sessions::cookie::SameSite::Lax)
-    // The re-direction work for 127.0.0.1 but not sure about behind AWS ALB 
+    // The re-direction work for 127.0.0.1 but not sure about behind AWS ALB
     Redirect::to("/")
 }
 

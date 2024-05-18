@@ -26,7 +26,10 @@ static BUTTON: &str = "button";
 // and then starts the application by calling tron_app::run
 #[tokio::main]
 async fn main() {
-    let app_config = tron_app::AppConfigure::default();
+    let app_config = tron_app::AppConfigure {
+        http_only: true,
+        ..Default::default()
+    };
     // set app state
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
@@ -53,7 +56,10 @@ fn build_context() -> TnContext {
 
     btn.set_attribute("hx-target".to_string(), "#count".to_string());
     btn.set_attribute("hx-swap".to_string(), "innerHTML".to_string());
-    context.asset.blocking_write().insert("count".into(), TnAsset::U32(0));
+    context
+        .asset
+        .blocking_write()
+        .insert("count".into(), TnAsset::U32(0));
 
     context.add_component(btn);
 

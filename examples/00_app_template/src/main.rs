@@ -11,7 +11,7 @@ use tokio::sync::{mpsc::Sender, RwLock};
 use serde_json::Value;
 
 use tracing::debug;
-use tron_app::tron_components;
+use tron_app::tron_components::{self, TnHtmlResponse};
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
     TnContext, TnContextBase, TnEvent, TnEventActions, TnTextArea,
@@ -53,13 +53,10 @@ fn build_actions(context: TnContext) -> TnEventActions {
     actions
 }
 
-// The test_event_action function is a placeholder for handling events
-// It takes a context, a sender for sending JSON data, and an event
-// and returns a Future that does nothing (for now)
 fn test_event_action(
     context: TnContext,
-    tx: Sender<Json<Value>>,
     event: TnEvent,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     todo!()
 }

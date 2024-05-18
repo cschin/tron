@@ -86,6 +86,7 @@ pub enum TnAsset {
     HashMapString(HashMap<String, String>),
     String(String),
     Bytes(BytesMut),
+    U32(u32),
     Value(Value), //json
     Bool(bool),
 }
@@ -507,6 +508,14 @@ impl TnContext {
         .get(service_id)
         .unwrap().0.clone()
     }
+
+
+    pub async fn get_asset_ref(&self) -> Arc<RwLock<HashMap<String, TnAsset>>> {
+        let context_guard = self
+        .write()
+        .await;
+        context_guard.asset.clone()
+    }
 }
 
 /// Implements the default trait for creating a default instance of `TnContextBase<'a>`.
@@ -542,6 +551,7 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn state(&self) -> &TnComponentState;
     fn set_state(&mut self, state: TnComponentState);
 
+    fn create_assets(&mut self);
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>>;
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
 
@@ -761,6 +771,10 @@ where
 
     fn state(&self) -> &TnComponentState {
         &self.state
+    }
+
+    fn create_assets(&mut self) {
+        self.asset = Some(HashMap::default());
     }
 
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>> {

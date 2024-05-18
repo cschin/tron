@@ -232,7 +232,7 @@ fn layout(context: TnContext) -> String {
 
 The `app_page.html` file is a template file which contains HTML code. It looks like this defined where to render the `button` component and defined the `div` to show the counter and the CSS class for the style and layout:
 
-```rust
+```html
 <div class="container mx-auto px-4">
     <div class="flex flex-row p-1">
         <div class="flex flex-row p-1 basic-2">

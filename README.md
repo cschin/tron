@@ -149,7 +149,7 @@ A Tron App typically need to set a couple of logical code blocks and chain them 
 
 The `main` function is the entry point of the app. It is responsible for configuring the app and setting up the components. This is boilerplate code for setting up the app. It looks like this:
 
-```
+```rust
 // This is the main entry point of the application
 // It sets up the application configuration and state
 // and then starts the application by calling tron_app::run
@@ -178,7 +178,7 @@ It set up the `context` member which contains the app state and the `event_actio
 
 A developer needs to define the `fn build_context()` to create the `context` which contains a set of components first. For example, the following code creates a `button` component and return a context with it.
 
-```
+```rust
 static BUTTON: &str = "button";
 
 // These functions are used to build the application context,
@@ -213,7 +213,7 @@ We also create a component level asset. This asset is used to store the number o
 
 The `layout` function should generate a `String` that represents the initial HTML layout of the app, sent to the browser to render when the page loads. In this example, we use the [`askama`](https://github.com/djc/askama) template library to assist in generating the HTML layout. Unlike Gradio, developers need to know HTML to create layouts with components defined in the `build_context` function. This is certainly more tedious than Gradio but offers more flexibility and control over the layout. Here's a simple example of a `layout` function for a button and a `div` element that displays a counter for how many times the button is clicked:
 
-```
+```rust
 #[derive(Template)] // this will generate the code...
 #[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
 struct AppPageTemplate {
@@ -232,7 +232,7 @@ fn layout(context: TnContext) -> String {
 
 The `app_page.html` file is a template file which contains HTML code. It looks like this defined where to render the `button` component and defined the `div` to show the counter and the CSS class for the style and layout:
 
-```
+```rust
 <div class="container mx-auto px-4">
     <div class="flex flex-row p-1">
         <div class="flex flex-row p-1 basic-2">
@@ -248,8 +248,7 @@ The `app_page.html` file is a template file which contains HTML code. It looks l
 Our simple goal here is for the counter to increase by one each time a user clicks the button. We can achieve this by creating an action, which is a function called upon the button's click. Here's what a simple action function looks like: it returns a "pinned future" so the Tron app can use it to respond to the HTTP request. The "future" takes `context`, `event`, and `payload` (additional configurable data, e.g., client-side states, values) and generates an `Option` of `TnHtmlResponse`. The `TnHtmlResponse` encapsulates the HTTP response header and the HTML body, allowing a developer to use customized headers to control the [HTMX behavior](https://htmx.org/reference/#response_headers) after receiving the response.
 
 
-```
-
+```rust
 fn button_clicked(
     context: TnContext,
     event: TnEvent,
@@ -288,7 +287,7 @@ should respond when a click event is triggered on the button in the web frontend
 
 Our `build_action` is defined as follows:
 
-```
+```rust
 fn build_actions(context: TnContext) -> TnEventActions {
     let mut actions = TnEventActions::default();
     let index = context.blocking_read().get_component_index(BUTTON);

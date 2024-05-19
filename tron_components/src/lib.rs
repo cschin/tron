@@ -7,6 +7,7 @@ pub mod radio_group;
 pub mod range_slider;
 pub mod select;
 pub mod text;
+pub mod scatter_plot;
 
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
@@ -16,6 +17,7 @@ pub use checklist::{TnCheckBox, TnCheckList};
 pub use radio_group::{TnRadioGroup, TnRadioItem};
 pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
+pub use scatter_plot::TnSimpleScatterPlot;
 use serde_json::Value;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
 
@@ -81,6 +83,10 @@ pub enum TnComponentValue {
 pub enum TnAsset {
     None,
     VecU8(Vec<u8>),
+    VecF32(Vec<f32>),
+    VecF32_2(Vec<(f32, f32)>),
+    VecF32_3(Vec<(f32, f32, f32)>),
+    VecF32_4(Vec<(f32, f32, f32, f32)>),
     VecString(Vec<String>),
     VecString2(Vec<(String, String)>),
     HashMapString(HashMap<String, String>),
@@ -125,6 +131,7 @@ pub enum TnComponentType {
     Slider,
     RadioGroup,
     RadioItem,
+    SimpleScatterPlot,
     UserDefined(String),
 }
 

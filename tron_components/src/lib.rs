@@ -7,7 +7,7 @@ pub mod radio_group;
 pub mod range_slider;
 pub mod select;
 pub mod text;
-pub mod scatter_plot;
+pub mod d3_plot;
 
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
@@ -17,7 +17,7 @@ pub use checklist::{TnCheckBox, TnCheckList};
 pub use radio_group::{TnRadioGroup, TnRadioItem};
 pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
-pub use scatter_plot::TnSimpleScatterPlot;
+pub use d3_plot::TnD3Plot;
 use serde_json::Value;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
 
@@ -132,6 +132,7 @@ pub enum TnComponentType {
     RadioGroup,
     RadioItem,
     SimpleScatterPlot,
+    D3Plot,
     UserDefined(String),
 }
 

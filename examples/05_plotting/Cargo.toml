@@ -15,3 +15,4 @@ futures-util = "0.3.30"
 #tron_components = { path = "../../tron_components" }
 tron_app = {path = "../../tron_app"}
 askama = "0.12.1"
+bytes = "1.6.0"

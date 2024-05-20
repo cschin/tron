@@ -3,6 +3,7 @@
 
 use askama::Template;
 use futures_util::Future;
+use bytes::{BufMut, Bytes, BytesMut};
 
 use axum::{extract::Json, http::HeaderMap, response::Html};
 //use serde::{Deserialize, Serialize};
@@ -24,7 +25,7 @@ use tron_components::{
     TnContext, TnContextBase, TnEvent, TnEventActions, TnTextArea,
 };
 //use std::sync::Mutex;
-use std::{collections::HashMap, pin::Pin, sync::Arc, task::Context, vec};
+use std::{collections::{HashMap, VecDeque}, pin::Pin, sync::Arc, task::Context, vec};
 
 static D3PLOT: &str = "d3_plot";
 static BUTTON: &str = "button";
@@ -71,6 +72,19 @@ fn build_context() -> TnContext {
     btn.set_attribute("hx-target".to_string(), format!("#{D3PLOT}"));
     btn.set_attribute("hx-swap".to_string(), "none".to_string());
     context.add_component(btn);
+
+    
+    {
+        let mut stream_data_guard = context.stream_data.blocking_write();
+        stream_data_guard.insert("plot_data".into(), ("application/text".into(), VecDeque::default()));
+        let mut data = VecDeque::default();
+        let raw_data = include_str!("../templates/2_TwoNum.csv").as_bytes(); 
+        let raw_data = BytesMut::from(raw_data);
+
+        data.push_back(raw_data); 
+        stream_data_guard.insert("plot_data".into(), ("application/text".into(), data));
+
+    }
 
     TnContext {
         base: Arc::new(RwLock::new(context)),
@@ -125,11 +139,7 @@ fn d3_plot_clicked(
     let action = async move {
         tracing::info!(target: "tron_app event", "{:?}", event);
         tracing::info!(target: "tron_app payload", "{:?}", payload);
-        if event.e_trigger != D3PLOT {
-            None
-        } else {
-            Some((HeaderMap::new(), Html::from("".to_string())))
-        }
+        None
     };
     Box::pin(action)
 }
@@ -144,16 +154,25 @@ fn button_clicked(
         if event.e_trigger != BUTTON {
             None
         } else {
+            {
+                let raw_data = include_str!("../templates/2_TwoNum.csv").to_string();
+                let raw_data = raw_data.split('\n').take(20).collect::<String>(); 
+                let context_guard = context.write().await;
+                let mut stream_data_guard = context_guard.stream_data.write().await;
+                let data = stream_data_guard.get_mut("plot_data").unwrap();
+                data.1.clear();
+                data.1.push_back(bytes::BytesMut::from(raw_data.as_bytes()));
+                tracing::info!(target: "tron_app stream_data", "{:?}", data.1[0].len());
+            }
             let sse_tx = context.get_sse_tx().await;
             let msg = SseD3PlotTriggerMsg {
                 server_side_trigger_data: TnServerSideTriggerData {
                     target: D3PLOT.into(),
                     new_state: "ready".into(),
                 },
-                d3_scatter_plot: "re-plot".into(),
+                d3_plot: "re-plot".into(),
             };
             send_sse_msg_to_client(&sse_tx, msg).await;
-
             None
         }
     };

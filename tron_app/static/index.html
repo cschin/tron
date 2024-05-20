@@ -27,6 +27,7 @@
       const event_data = JSON.parse(event.data);
       const state = event_data["server_side_trigger_data"]["new_state"];
       const target = event_data["server_side_trigger_data"]["target"];
+      console.log("event_data:", event_data);
       for (const key in window.process_special_events) {
         if (window.process_special_events.hasOwnProperty(key)) {
           window.process_special_events[key](target, state, event_data)

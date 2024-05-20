@@ -248,7 +248,7 @@ fn build_session_context() -> TnContext {
         prompts.insert("poet".into(), prompt.into());
         let prompts = TnAsset::HashMapString(prompts);
         context
-            .asset
+            .assets
             .blocking_write()
             .insert("prompts".into(), prompts);
     }
@@ -467,7 +467,7 @@ fn preset_prompt_select_change(
         } else {
             "".into()
         };
-        let prompt = if let Some(m) = context.read().await.asset.read().await.get("prompts") {
+        let prompt = if let Some(m) = context.read().await.assets.read().await.get("prompts") {
             if let TnAsset::HashMapString(ref m) = m {
                 m.get(&s).unwrap().clone()
             } else {
@@ -926,7 +926,7 @@ async fn transcript_post_processing_service(
     context: TnContext,
     mut response_rx: Receiver<TnServiceResponseMsg>,
 ) {
-    let assets = context.read().await.asset.clone();
+    let assets = context.read().await.assets.clone();
     let components = context.read().await.components.clone();
     let transcript_area_id = context
         .clone()

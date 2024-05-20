@@ -6,7 +6,7 @@ use tron_macro::*;
 #[derive(Serialize)]
 pub struct SseD3PlotTriggerMsg {
     pub server_side_trigger_data: TnServerSideTriggerData,
-    pub d3_scatter_plot: String,
+    pub d3_plot: String,
 }
 
 #[derive(ComponentBase)]

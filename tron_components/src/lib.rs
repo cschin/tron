@@ -257,7 +257,7 @@ pub type TnStreamMap = Arc<RwLock<HashMap<TnStreamID, (TnStreamProtocol, TnStrea
 
 /// Alias for a thread-safe, reference-counted hash map that maps asset names
 /// to their respective `TnAsset` instances.
-pub type TnContextAsset = Arc<RwLock<HashMap<TnAssetName, TnAsset>>>;
+pub type TnContextAssets = Arc<RwLock<HashMap<TnAssetName, TnAsset>>>;
 
 /// Alias for a thread-safe, reference-counted wrapper around an optional SSE message channel.
 pub type TnSseChannel = Arc<RwLock<Option<TnSseMsgChannel>>>;
@@ -285,7 +285,7 @@ pub type TnService = (
 pub struct TnContextBase<'a: 'static> {
     pub components: TnComponentMap<'a>, // component ID mapped to Component structs
     pub stream_data: TnStreamMap,
-    pub asset: TnContextAsset,
+    pub assets: TnContextAssets,
     pub sse_channel: TnSseChannel,
     pub tnid_to_index: HashMap<TnComponentId, TnComponentIndex>,
     pub services: HashMap<TnServiceName, TnService>,
@@ -300,7 +300,7 @@ impl<'a: 'static> TnContextBase<'a> {
     pub fn new() -> Self {
         TnContextBase {
             components: Arc::new(RwLock::new(HashMap::default())),
-            asset: Arc::new(RwLock::new(HashMap::default())),
+            assets: Arc::new(RwLock::new(HashMap::default())),
             tnid_to_index: HashMap::default(),
             stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
@@ -522,7 +522,7 @@ impl TnContext {
         let context_guard = self
         .write()
         .await;
-        context_guard.asset.clone()
+        context_guard.assets.clone()
     }
 }
 

@@ -798,7 +798,7 @@ async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> i
         let context_guard = app_data.context.write().await;
         let context = context_guard.get(&session_id).unwrap();
         let base = context.base.read().await;
-        let logout_html = base.asset.read().await;
+        let logout_html = base.assets.read().await;
         if let Some(TnAsset::String(logout_html)) = logout_html.get("logout_page") {
             logout_html.clone()
         } else {

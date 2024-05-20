@@ -57,7 +57,7 @@ fn build_context() -> TnContext {
     btn.set_attribute("hx-target".to_string(), "#count".to_string());
     btn.set_attribute("hx-swap".to_string(), "innerHTML".to_string());
     context
-        .asset
+        .assets
         .blocking_write()
         .insert("count".into(), TnAsset::U32(0));
 

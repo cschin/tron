@@ -59,7 +59,11 @@ fn build_context() -> TnContext {
     let mut component_index = 0;
    
     let d3_plot_script = include_str!("../templates/d3_plot_script.html").to_string();
-    let d3_plot = TnD3Plot::new(component_index, D3PLOT.into(), d3_plot_script);
+    let mut d3_plot = TnD3Plot::new(component_index, D3PLOT.into(), d3_plot_script);
+    // override the default event handler so we can get the transformed coordinates in the plot
+    d3_plot.set_attribute(
+        "hx-vals".into(),
+        r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##.into()); 
     context.add_component(d3_plot);
 
     component_index += 1;
@@ -154,7 +158,7 @@ fn button_clicked(
         if event.e_trigger != BUTTON {
             None
         } else {
-            {
+            {   // we need
                 let raw_data = include_str!("../templates/2_TwoNum.csv").to_string();
                 let raw_data = raw_data.split('\n').take(20).collect::<String>(); 
                 let context_guard = context.write().await;

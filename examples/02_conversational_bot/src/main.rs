@@ -458,9 +458,7 @@ fn preset_prompt_select_change(
         if event.e_type != "change" || event.e_state != "ready" {
             return None;
         }
-        let value = context
-            .get_value_from_component(PRESET_PROMPT_SELECT)
-            .await;
+        let value = context.get_value_from_component(PRESET_PROMPT_SELECT).await;
         tracing::info!(target: TRON_APP, "preset_prompt_select_change, value:{:?}", value);
         let s = if let TnComponentValue::String(s) = value {
             s
@@ -934,8 +932,6 @@ async fn transcript_post_processing_service(
         .await
         .get_component_index(TRANSCRIPT_OUTPUT);
 
-   
-
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {
             "transcript_final" => {
@@ -952,13 +948,28 @@ async fn transcript_post_processing_service(
 
                         let (tx, rx) = oneshot::channel::<String>();
 
-                        let llm_req_msg = TnServiceRequestMsg {
-                            request: "chat-complete".into(),
-                            payload: TnAsset::String(transcript.clone()),
-                            response: tx,
+                        let player_state = {
+                            let player = context.get_component(PLAYER).await;
+                            let player_guard = player.read().await;
+                            let player_state = player_guard.state();
+                            tracing::info!(target:"tron_app", "player state: {:?}", player_state);
+                            player_state.clone()
                         };
-
-                        let _ = llm_tx.send(llm_req_msg).await;
+                        if player_state == TnComponentState::Updating {
+                            let llm_req_msg = TnServiceRequestMsg {
+                                request: "chat-complete-interrupted".into(),
+                                payload: TnAsset::String(transcript.clone()),
+                                response: tx,
+                            };
+                            let _ = llm_tx.send(llm_req_msg).await;
+                        } else {
+                            let llm_req_msg = TnServiceRequestMsg {
+                                request: "chat-complete".into(),
+                                payload: TnAsset::String(transcript.clone()),
+                                response: tx,
+                            };
+                            let _ = llm_tx.send(llm_req_msg).await;
+                        }
 
                         if let Ok(out) = rx.await {
                             tracing::debug!(target: TRON_APP, "returned string: {}", out);

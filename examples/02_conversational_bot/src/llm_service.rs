@@ -23,6 +23,7 @@ use tron_components::{chatbox, text, TnAsset, TnContext, TnServiceRequestMsg};
 use tron_components::{text::append_and_send_stream_textarea_with_context, TnComponentValue};
 
 static SENTENCE_END_TOKEN: &str = "<!--EOS-->";
+//static SENTENCE_END_TOKEN: &str = " "; // end on "word boundary"
 
 pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceRequestMsg>) {
     //let reqwest_client = reqwest::Client::new();
@@ -55,15 +56,33 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
             continue;
         }
 
+        let interrupted = r.request == "chat-complete-interrupted";
+        tracing::info!(target: "tron_app", "interrupted: {}", interrupted);
+
         let _ = r.response.send("got it".to_string());
+        let interrupted_prompt = if let TnComponentValue::String(prompt) =
+            context.get_value_from_component("prompt").await
+        {
+            [
+                    prompt.clone(),
+                    format!(
+                         "you need to put a token '{SENTENCE_END_TOKEN}' at the end of 4 words and the end of the message.",
+                    ),
+                    "response as you are interrupted while you are trying to say something. Start with 'Ok...' or 'sorry,..' or ask what the question was, don't say more than one sentence.".into(),
+                ]
+                .join(" ")
+        } else {
+            "You a useful assistant.".to_string()
+        };
+
         let prompt1 = if let TnComponentValue::String(prompt) =
             context.get_value_from_component("prompt").await
         {
             [
                 prompt.clone(),
                 format!(
-                    "you need to put a token '{SENTENCE_END_TOKEN}' at the end of every sentence and the end of the message.",
-                ),
+                     "you need to put a token '{SENTENCE_END_TOKEN}' at the end of every sentence and the end of the message.",
+                )
             ]
             .join(" ")
         } else {
@@ -75,37 +94,50 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
             {
                 history.write().await.push(("user".into(), query.clone()));
             }
+
+            let prompt = if interrupted {
+                interrupted_prompt
+            } else {
+                prompt1
+            };
+
             let mut messages: Vec<ChatCompletionRequestMessage> =
                 vec![ChatCompletionRequestSystemMessageArgs::default()
-                    .content(&prompt1)
+                    .content(&prompt)
                     .build()
                     .expect("error")
                     .into()];
-            messages.extend(
-                history
-                    .read()
-                    .await
-                    .iter()
-                    .filter_map(|(tag, msg)| match tag.as_str() {
-                        "user" => Some(
-                            ChatCompletionRequestUserMessageArgs::default()
-                                .content(msg.clone())
-                                .build()
-                                .expect("error")
-                                .into(),
-                        ),
-                        "bot" => Some(
-                            ChatCompletionRequestAssistantMessageArgs::default()
-                                .content(msg.clone())
-                                .build()
-                                .expect("error")
-                                .into(),
-                        ),
-                        _ => None,
-                    })
-                    .collect::<Vec<ChatCompletionRequestMessage>>(),
-            );
 
+            if !interrupted {
+                let start = if history.read().await.len() > 6 {
+                    messages.len() - 6
+                } else {
+                    0
+                };
+                let guard = history.read().await;
+                let history = guard.iter().skip(start).take(6);
+                messages.extend(
+                    history
+                        .filter_map(|(tag, msg)| match tag.as_str() {
+                            "user" => Some(
+                                ChatCompletionRequestUserMessageArgs::default()
+                                    .content(msg.clone())
+                                    .build()
+                                    .expect("error")
+                                    .into(),
+                            ),
+                            "bot" => Some(
+                                ChatCompletionRequestAssistantMessageArgs::default()
+                                    .content(msg.clone())
+                                    .build()
+                                    .expect("error")
+                                    .into(),
+                            ),
+                            _ => None,
+                        })
+                        .collect::<Vec<ChatCompletionRequestMessage>>(),
+                );
+            }
             handle = Some(tokio::spawn(openai_stream_service(
                 context.clone(),
                 query,

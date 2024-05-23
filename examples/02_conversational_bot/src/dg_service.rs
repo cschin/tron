@@ -258,7 +258,7 @@ pub async fn tts_service(
 
     loop {
         let llm_response = if msg_queue.lock().await.is_empty() {
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             continue;
         } else {
             msg_queue.lock().await.pop_front().unwrap()
@@ -355,12 +355,12 @@ pub async fn tts_service(
                     let sse_tx = context.get_sse_tx().await;
                     start_audio(player.clone(), sse_tx).await;
                     tracing::debug!( target:TRON_APP, "set audio to play");
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
                     break;
                 }
                 _ => {
                     tracing::debug!( target:TRON_APP, "Waiting for audio to be ready");
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
                 }
             }
         }
@@ -381,12 +381,12 @@ pub async fn tts_service(
                     let mut stream_data_guard = context_guard.stream_data.write().await;
                     stream_data_guard.get_mut(PLAYER).unwrap().1.clear();
                     tracing::debug!( target:TRON_APP, "clean audio stream data");
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
                     break;
                 }
                 _ => {
                     tracing::debug!( target:TRON_APP, "Waiting for audio to be ready");
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
                 }
             }
         }

@@ -136,7 +136,8 @@ pub async fn trx_service(
         query_pairs.append_pair("endpointing", "1250");
         query_pairs.append_pair("utterance_end_ms", "1250");
         query_pairs.append_pair("interim_results", "true");
-        query_pairs.append_pair("model", "nova-2-phonecall");
+        query_pairs.append_pair("model", "nova-2-conversationalai");
+        query_pairs.append_pair("punctuate", "true");
     }
 
     let api_key = std::env::var("DG_API_KEY").unwrap();

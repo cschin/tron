@@ -22,7 +22,7 @@ use crate::{LLM_STREAM_OUTPUT, STATUS, TRANSCRIPT_OUTPUT, TRON_APP};
 use tron_components::{chatbox, text, TnAsset, TnContext, TnServiceRequestMsg};
 use tron_components::{text::append_and_send_stream_textarea_with_context, TnComponentValue};
 
-static SENTENCE_END_TOKEN: &str = "<!--EOS-->";
+static SENTENCE_END_TOKEN: &str = "<br/>";
 //static SENTENCE_END_TOKEN: &str = " "; // end on "word boundary"
 
 pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceRequestMsg>) {
@@ -66,7 +66,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
             [
                     prompt.clone(),
                     format!(
-                         "you need to put a token '{SENTENCE_END_TOKEN}' at the end of 4 words and the end of the message.",
+                         "you need to put a token '{SENTENCE_END_TOKEN}' at the end of four words and the end of the message.",
                     ),
                     "response as you are interrupted while you are trying to say something. Start with 'Ok...' or 'sorry,..' or ask what the question was, don't say more than one sentence.".into(),
                 ]
@@ -109,8 +109,9 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                     .into()];
 
             if !interrupted {
-                let start = if history.read().await.len() > 6 {
-                    messages.len() - 6
+                let history_len = history.read().await.len();
+                let start = if history_len > 6 {
+                    history_len - 6
                 } else {
                     0
                 };
@@ -138,6 +139,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                         .collect::<Vec<ChatCompletionRequestMessage>>(),
                 );
             }
+            tracing::info!(target: TRON_APP, "sending messages: {:?}", messages);
             handle = Some(tokio::spawn(openai_stream_service(
                 context.clone(),
                 query,
@@ -167,7 +169,7 @@ async fn openai_stream_service(
     };
 
     let client = Client::new();
-    history.write().await.push(("user".into(), query.clone()));
+    { history.write().await.push(("user".into(), query.clone())); }
 
     append_and_send_stream_textarea_with_context(
         context.clone(),
@@ -271,6 +273,7 @@ async fn openai_stream_service(
 
     let llm_response = llm_response.join("");
     tracing::info!(target: TRON_APP, "LLM response: {}", llm_response);
+    { history.write().await.push(("bot".into(), llm_response.clone())); }
     //history.push(("bot".into(), llm_response.clone()));
 
     {

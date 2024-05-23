@@ -355,12 +355,12 @@ pub async fn tts_service(
                     let sse_tx = context.get_sse_tx().await;
                     start_audio(player.clone(), sse_tx).await;
                     tracing::debug!( target:TRON_APP, "set audio to play");
-                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
                     break;
                 }
                 _ => {
                     tracing::debug!( target:TRON_APP, "Waiting for audio to be ready");
-                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
                 }
             }
         }

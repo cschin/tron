@@ -66,7 +66,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
             [
                     prompt.clone(),
                     format!(
-                         "you need to put a token '{SENTENCE_END_TOKEN}' at the end of four words and the end of the message.",
+                         "you need to put a token '{SENTENCE_END_TOKEN}' at the end of every sentences and the end of the message.",
                     ),
                     "response as you are interrupted while you are trying to say something. Start with 'Ok...' or 'sorry,..' or ask what the question was, don't say more than one sentence.".into(),
                 ]
@@ -81,7 +81,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
             [
                 prompt.clone(),
                 format!(
-                     "you need to put a token '{SENTENCE_END_TOKEN}' at the end of every sentence and the end of the message.",
+                     "you need to put a token '{SENTENCE_END_TOKEN}' at the end of every sentences and the end of the message.",
                 )
             ]
             .join(" ")
@@ -274,7 +274,6 @@ async fn openai_stream_service(
     let llm_response = llm_response.join("");
     tracing::info!(target: TRON_APP, "LLM response: {}", llm_response);
     { history.write().await.push(("bot".into(), llm_response.clone())); }
-    //history.push(("bot".into(), llm_response.clone()));
 
     {
         let transcript_area = context.get_component(TRANSCRIPT_OUTPUT).await;

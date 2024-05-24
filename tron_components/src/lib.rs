@@ -526,10 +526,11 @@ impl TnContext {
     }
 
     pub async fn abort_all_services(&mut self)  {
-        let base = self.base.write().await;
+        let mut base = self.base.write().await;
         base.service_handles.iter().for_each(|handle| {
             handle.abort();
         });       
+        base.services.clear();
     }
 }
 

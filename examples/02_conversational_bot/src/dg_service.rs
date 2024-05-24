@@ -113,7 +113,10 @@ pub async fn deepgram_transcript_service(
     while let Some(result) = dg_response.next().await {
         match result {
             Ok(r) => {
-                transcript_tx.send(r).await.expect("transcript send fail");
+                if transcript_tx.send(r).await.is_err() { 
+                    tracing::info!(target: TRON_APP, "in deepgram_transcript_service, break");
+                    break
+                }
             }
             Err(e) => {
                 tracing::debug!(target: TRON_APP, "in deepgram_transcript_service, Err {:?}", e );

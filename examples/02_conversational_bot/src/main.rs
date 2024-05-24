@@ -51,6 +51,7 @@ async fn main() {
     let app_configure = tron_app::AppConfigure {
         log_level: Some("server=info,tower_http=info,tron_app=info"),
         cognito_login: true,
+        session_expiry: Some(time::Duration::seconds_f32(600.0)),
         ..Default::default()
     };
     // set app state

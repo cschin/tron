@@ -1065,11 +1065,12 @@ async fn clean_up_session(app_data: Arc<AppData>) {
         let to_remove = {
             let guard = app_data.session_expiry.read().await;
             let now = OffsetDateTime::now_utc();
-            tracing::debug!(target: "tron_app", "in clean up expiry sessions {}", now);
+            tracing::info!(target: "tron_app", "in clean up expiry sessions {}", now);
             let mut to_remove = Vec::new();
+            let context_guard = app_data.context.read().await;
             for (key, value) in guard.iter() {
                 tracing::debug!(target: "tron_app", "in clean up expiry session: {} {} {}", key, now, value );
-                if *value < now {
+                if *value < now && context_guard.contains_key(key) {
                     to_remove.push(*key);
                 }
             }
@@ -1078,10 +1079,17 @@ async fn clean_up_session(app_data: Arc<AppData>) {
         {
             let mut context_guard = app_data.context.write().await;
             for key in to_remove {
-                tracing::debug!(target: "tron_app", "session removed: {} ", key );
-                let context = context_guard.get_mut(&key).unwrap();
-                context.abort_all_services().await;
+                tracing::info!(target: "tron_app", "session removed: {} ", key );
+                if let Some(context) = context_guard.get_mut(&key) {
+                    tracing::info!(target: "tron_app", "ctx rc count:{}", Arc::strong_count(&context.base) );
+                    context.abort_all_services().await;
+                };
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                if let Some(context) = context_guard.get_mut(&key) {
+                    tracing::info!(target: "tron_app", "after clean up: ctx rc count:{}", Arc::strong_count(&context.base) );
+                };
                 context_guard.remove(&key);
+
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(180)).await;

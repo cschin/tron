@@ -14,9 +14,8 @@ use tokio::{
     sync::{mpsc::Receiver, oneshot, RwLock},
     task::JoinHandle,
 };
-use tron_app::{send_sse_msg_to_client, tron_components::audio_player::stop_audio};
 use tron_app::tron_components;
-use tron_app::{TnServerSideTriggerData, TnSseTriggerMsg};
+use tron_components::audio_player::stop_audio;
 
 use crate::{LLM_STREAM_OUTPUT, PLAYER, STATUS, TRANSCRIPT_OUTPUT, TRON_APP};
 use tron_components::{chatbox, text, TnAsset, TnContext, TnServiceRequestMsg};
@@ -291,17 +290,7 @@ async fn openai_stream_service(
         )
         .await;
     }
-
-    {
-        let msg = TnSseTriggerMsg {
-            server_side_trigger_data: TnServerSideTriggerData {
-                target: TRANSCRIPT_OUTPUT.into(),
-                new_state: "ready".into(),
-            },
-        };
-        let sse_tx = context.get_sse_tx().await;
-        send_sse_msg_to_client(&sse_tx, msg).await;
-    }
+    context.set_ready_for(TRANSCRIPT_OUTPUT).await;
 
     text::update_and_send_textarea_with_context(context.clone(), LLM_STREAM_OUTPUT, "").await;
 }

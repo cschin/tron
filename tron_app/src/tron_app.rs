@@ -1080,16 +1080,18 @@ async fn clean_up_session(app_data: Arc<AppData>) {
             let mut context_guard = app_data.context.write().await;
             for key in to_remove {
                 tracing::info!(target: "tron_app", "session removed: {} ", key );
-                if let Some(context) = context_guard.get_mut(&key) {
+                let mut session_context = context_guard.remove(&key);
+                if let Some(context) = session_context.as_mut() {
                     tracing::info!(target: "tron_app", "ctx rc count:{}", Arc::strong_count(&context.base) );
                     context.abort_all_services().await;
-                };
-                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                if let Some(context) = context_guard.get_mut(&key) {
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                     tracing::info!(target: "tron_app", "after clean up: ctx rc count:{}", Arc::strong_count(&context.base) );
                 };
-                context_guard.remove(&key);
-
+                if let Some(context) = session_context {
+                    assert!(Arc::strong_count(&context.base) == 1);
+                    tracing::info!(target: "tron_app", "drop session context" );
+                    drop(context);
+                }
             }
         }
         tokio::time::sleep(tokio::time::Duration::from_secs(180)).await;

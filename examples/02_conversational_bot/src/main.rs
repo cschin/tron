@@ -925,16 +925,8 @@ async fn transcript_service(
                                 )
                                 .await;
                             }
-                            { // update value in the front end
-                                let msg = TnSseTriggerMsg {
-                                    server_side_trigger_data: TnServerSideTriggerData {
-                                        target: TRANSCRIPT_OUTPUT.into(),
-                                        new_state: "ready".into(),
-                                    },
-                                };
-                                let sse_tx = context.get_sse_tx().await;
-                                send_sse_msg_to_client(&sse_tx, msg).await;
-                            }
+                            context.set_ready_for(TRANSCRIPT_OUTPUT).await;
+
                         } else {
                             let _ = tx
                                 .send(TnServiceResponseMsg {
@@ -1028,17 +1020,7 @@ async fn transcript_post_processing_service(
                             )
                             .await;
                         }
-
-                        {
-                            let msg = TnSseTriggerMsg {
-                                server_side_trigger_data: TnServerSideTriggerData {
-                                    target: TRANSCRIPT_OUTPUT.into(),
-                                    new_state: "ready".into(),
-                                },
-                            };
-                            let sse_tx = context.get_sse_tx().await;
-                            send_sse_msg_to_client(&sse_tx, msg).await;
-                        }
+                        context.set_ready_for(TRANSCRIPT_OUTPUT).await;
                     }
                 }
             }

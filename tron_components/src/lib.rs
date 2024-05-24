@@ -3,29 +3,34 @@ pub mod audio_recorder;
 pub mod button;
 pub mod chatbox;
 pub mod checklist;
+pub mod d3_plot;
 pub mod radio_group;
 pub mod range_slider;
 pub mod select;
 pub mod text;
-pub mod d3_plot;
 
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
 pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
+pub use d3_plot::TnD3Plot;
 pub use radio_group::{TnRadioGroup, TnRadioItem};
 pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
-pub use d3_plot::TnD3Plot;
 use serde_json::Value;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
 
 use std::{
-    collections::{HashMap, VecDeque}, pin::Pin, sync::{Arc, Weak}
+    collections::{HashMap, VecDeque},
+    pin::Pin,
+    sync::{Arc, Weak},
 };
-use tokio::{sync::{mpsc::Receiver, RwLockReadGuard, RwLockWriteGuard}, task::JoinHandle};
 use tokio::sync::{oneshot, Mutex};
+use tokio::{
+    sync::{mpsc::Receiver, RwLockReadGuard, RwLockWriteGuard},
+    task::JoinHandle,
+};
 
 use rand::{thread_rng, Rng};
 
@@ -411,7 +416,7 @@ impl TnContext {
         comp.render()
     }
 
-     /// Asynchronously retrieves the value of a component by its `tron_id`.
+    /// Asynchronously retrieves the value of a component by its `tron_id`.
     pub async fn get_value_from_component(&self, tron_id: &str) -> TnComponentValue {
         let value = {
             let context_guard = self.read().await;
@@ -449,7 +454,7 @@ impl TnContext {
         component.set_state(s);
     }
 
-    /// Synchronously sets the value for a component by its `tron_id`. 
+    /// Synchronously sets the value for a component by its `tron_id`.
     pub fn set_value_for_component_blocking(&self, tron_id: &str, v: TnComponentValue) {
         let context_guard = self.blocking_read();
         let mut components_guard = context_guard.components.blocking_write();
@@ -509,28 +514,21 @@ impl TnContext {
     }
 
     pub async fn get_service_tx(&self, service_id: &str) -> Sender<TnServiceRequestMsg> {
-        let context_guard = self
-        .read()
-        .await;
-        context_guard.services
-        .get(service_id)
-        .unwrap().0.clone()
+        let context_guard = self.read().await;
+        context_guard.services.get(service_id).unwrap().0.clone()
     }
 
-
     pub async fn get_asset_ref(&self) -> Arc<RwLock<HashMap<String, TnAsset>>> {
-        let context_guard = self
-        .write()
-        .await;
+        let context_guard = self.write().await;
         context_guard.assets.clone()
     }
 
-    pub async fn abort_all_services(&mut self)  {
-        let mut base = self.base.write().await;
-        base.service_handles.iter().for_each(|handle| {
+    pub async fn abort_all_services(&mut self) {
+        let mut guard = self.write().await;
+        guard.service_handles.iter().for_each(|handle| {
             handle.abort();
-        });       
-        base.services.clear();
+        });
+        guard.services.clear();
     }
 }
 
@@ -539,11 +537,10 @@ impl<'a: 'static> Default for TnContextBase<'a>
 where
     'a: 'static,
 {
-     fn default() -> Self {
+    fn default() -> Self {
         Self::new()
     }
 }
-
 
 pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn id(&self) -> TnComponentIndex;
@@ -590,7 +587,6 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 /// such as its ID, type, attributes, headers, value, state, assets, children, parent, and script.
 /// Implementors of this trait must provide concrete implementations for these methods.
 impl<'a: 'static> TnComponentBase<'a> {
-   
     pub fn new(
         tag: String,
         index: TnComponentIndex,
@@ -870,12 +866,12 @@ pub type TnHtmlResponse = Option<(HeaderMap, Html<String>)>;
 /// This type defines a function signature for processing Tron events asynchronously. It takes a
 /// `TnContext`, a `TnEvent`, and a payload of type `Value` as input parameters and returns a future
 /// wrapping the HTML response along with its headers, represented by `TnHtmlResponse`.
-pub type TnActionFn = fn(
-    TnContext,
-    event: TnEvent,
-    payload: Value,
-)
-    -> Pin<Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send + Sync>>;
+pub type TnActionFn =
+    fn(
+        TnContext,
+        event: TnEvent,
+        payload: Value,
+    ) -> Pin<Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send + Sync>>;
 
 /// Represents the method of execution for actions associated with Tron events.
 #[derive(Clone)]
@@ -885,7 +881,6 @@ pub enum TnActionExecutionMethod {
     /// Await the action's completion.
     Await,
 }
-
 
 /// Represents a collection of event actions associated with Tron component indices.
 ///

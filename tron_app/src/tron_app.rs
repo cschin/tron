@@ -1061,6 +1061,8 @@ async fn check_token(
 /// - The sleep duration of 2.5 minutes can be adjusted as needed to control the frequency of
 ///   session cleanup.
 async fn clean_up_session(app_data: Arc<AppData>) {
+    use memory_stats::memory_stats;
+
     loop {
         let to_remove = {
             let guard = app_data.session_expiry.read().await;
@@ -1077,6 +1079,13 @@ async fn clean_up_session(app_data: Arc<AppData>) {
             to_remove
         };
         {
+            if let Some(usage) = memory_stats() {
+                println!("Current physical memory usage: {}", usage.physical_mem);
+                println!("Current virtual memory usage: {}", usage.virtual_mem);
+            } else {
+                println!("Couldn't get the current memory usage :(");
+            }
+
             let mut context_guard = app_data.context.write().await;
             for key in to_remove {
                 tracing::info!(target: "tron_app", "session removed: {} ", key );
@@ -1087,13 +1096,27 @@ async fn clean_up_session(app_data: Arc<AppData>) {
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                     tracing::info!(target: "tron_app", "after clean up: ctx rc count:{}", Arc::strong_count(&context.base) );
                 };
+                if let Some(context) = session_context.clone() {
+                    let mut guard = context.base.write().await;
+                    guard.components.write().await.clear();
+                    guard.stream_data.write().await.clear();
+                    guard.services.clear();
+                    guard.service_handles.clear();
+                    guard.assets.write().await.clear();
+                }
                 if let Some(context) = session_context {
                     assert!(Arc::strong_count(&context.base) == 1);
-                    tracing::info!(target: "tron_app", "drop session context" );
                     drop(context);
+                    tracing::info!(target: "tron_app", "drop session context" );
                 }
             }
+            if let Some(usage) = memory_stats() {
+                println!("Current physical memory usage: {}", usage.physical_mem);
+                println!("Current virtual memory usage: {}", usage.virtual_mem);
+            } else {
+                println!("Couldn't get the current memory usage :(");
+            }
         }
-        tokio::time::sleep(tokio::time::Duration::from_secs(180)).await;
+        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     }
 }

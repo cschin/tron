@@ -1079,6 +1079,8 @@ async fn clean_up_session(app_data: Arc<AppData>) {
             let mut context_guard = app_data.context.write().await;
             for key in to_remove {
                 tracing::debug!(target: "tron_app", "session removed: {} ", key );
+                let context = context_guard.get_mut(&key).unwrap();
+                context.abort_all_services().await;
                 context_guard.remove(&key);
             }
         }

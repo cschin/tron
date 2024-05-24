@@ -22,11 +22,9 @@ use serde_json::Value;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
 
 use std::{
-    collections::{HashMap, VecDeque},
-    pin::Pin,
-    sync::{Arc, Weak},
+    collections::{HashMap, VecDeque}, pin::Pin, sync::{Arc, Weak}
 };
-use tokio::sync::{mpsc::Receiver, RwLockReadGuard, RwLockWriteGuard};
+use tokio::{sync::{mpsc::Receiver, RwLockReadGuard, RwLockWriteGuard}, task::JoinHandle};
 use tokio::sync::{oneshot, Mutex};
 
 use rand::{thread_rng, Rng};
@@ -288,6 +286,7 @@ pub struct TnContextBase<'a: 'static> {
     pub assets: TnContextAssets,
     pub sse_channel: TnSseChannel,
     pub tnid_to_index: HashMap<TnComponentId, TnComponentIndex>,
+    pub service_handles: Vec<JoinHandle<()>>,
     pub services: HashMap<TnServiceName, TnService>,
 }
 
@@ -300,6 +299,7 @@ impl<'a: 'static> TnContextBase<'a> {
     pub fn new() -> Self {
         TnContextBase {
             components: Arc::new(RwLock::new(HashMap::default())),
+            service_handles: Vec::new(),
             assets: Arc::new(RwLock::new(HashMap::default())),
             tnid_to_index: HashMap::default(),
             stream_data: Arc::new(RwLock::new(HashMap::default())),
@@ -523,6 +523,13 @@ impl TnContext {
         .write()
         .await;
         context_guard.assets.clone()
+    }
+
+    pub async fn abort_all_services(&mut self)  {
+        let base = self.base.write().await;
+        base.service_handles.iter().for_each(|handle| {
+            handle.abort();
+        });       
     }
 }
 

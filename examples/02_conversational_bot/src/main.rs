@@ -269,16 +269,21 @@ fn build_session_context() -> TnContext {
             (transcript_request_tx.clone(), Mutex::new(None)),
         );
         // service sending audio stream to deepgram
-        tokio::task::spawn(transcript_service(
+        let transcript_service = tokio::task::spawn(transcript_service(
             context.clone(),
             transcript_request_rx,
             transcript_response_tx,
         ));
+
+        context.blocking_write().service_handles.push(transcript_service);
+
         // service processing the output from deepgram
-        tokio::task::spawn(transcript_post_processing_service(
+        let  transcript_post_processing_service = tokio::task::spawn(transcript_post_processing_service(
             context.clone(),
             transcript_response_rx,
         ));
+
+        context.blocking_write().service_handles.push(transcript_post_processing_service);
 
         // service handling the LLM and TTS at once
         let (llm_request_tx, llm_request_rx) = tokio::sync::mpsc::channel::<TnServiceRequestMsg>(1);
@@ -286,14 +291,17 @@ fn build_session_context() -> TnContext {
             LLM_SERVICE.into(),
             (llm_request_tx.clone(), Mutex::new(None)),
         );
-        tokio::task::spawn(simulate_dialog(context.clone(), llm_request_rx));
+        let simulate_dialog = tokio::task::spawn(simulate_dialog(context.clone(), llm_request_rx));
+
+        context.blocking_write().service_handles.push(simulate_dialog);
 
         let (tts_tx, tts_rx) = tokio::sync::mpsc::channel::<TnServiceRequestMsg>(32);
         context
             .blocking_write()
             .services
             .insert(TTS_SERVICE.into(), (tts_tx.clone(), Mutex::new(None)));
-        tokio::spawn(tts_service(tts_rx, context.clone()));
+        let tts_service = tokio::spawn(tts_service(tts_rx, context.clone()));
+        context.blocking_write().service_handles.push(tts_service);
     }
 
     {

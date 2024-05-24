@@ -276,7 +276,7 @@ pub async fn tts_service(
         tracing::info!(target:TRON_APP, "json_data: {}", json_data);
         let time = SystemTime::now();
 
-        let mut response = reqwest_client
+        let response = reqwest_client
             .post(format!(
                 "https://api.deepgram.com/v1/speak?model={tts_model}"
             ))
@@ -285,8 +285,11 @@ pub async fn tts_service(
             .header("Authorization", format!("Token {}", dg_api_key))
             .body(json_data.to_owned())
             .send()
-            .await
-            .unwrap();
+            .await;
+
+        if response.is_err() { continue };
+        let mut response = response.unwrap();
+            
         tracing::debug!( target:TRON_APP, "response: {:?}", response);
 
         let duration = time.elapsed().unwrap();
@@ -355,12 +358,12 @@ pub async fn tts_service(
                     let sse_tx = context.get_sse_tx().await;
                     start_audio(player.clone(), sse_tx).await;
                     tracing::debug!( target:TRON_APP, "set audio to play");
-                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                     break;
                 }
                 _ => {
                     tracing::debug!( target:TRON_APP, "Waiting for audio to be ready");
-                    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 }
             }
         }
@@ -381,12 +384,12 @@ pub async fn tts_service(
                     let mut stream_data_guard = context_guard.stream_data.write().await;
                     stream_data_guard.get_mut(PLAYER).unwrap().1.clear();
                     tracing::debug!( target:TRON_APP, "clean audio stream data");
-                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                     break;
                 }
                 _ => {
                     tracing::debug!( target:TRON_APP, "Waiting for audio to be ready");
-                    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 }
             }
         }

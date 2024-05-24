@@ -270,6 +270,7 @@ fn build_session_context() -> TnContext {
         );
         // service sending audio stream to deepgram
         tokio::task::spawn(transcript_service(
+            context.clone(),
             transcript_request_rx,
             transcript_response_tx,
         ));
@@ -802,6 +803,7 @@ fn audio_input_stream_processing(
 ///     rx: A `Receiver` for receiving `TnServiceRequestMsg` messages containing audio data.
 ///     tx: A `Sender` for sending `TnServiceResponseMsg` messages containing transcripts.
 async fn transcript_service(
+    context: TnContext,
     mut rx: Receiver<TnServiceRequestMsg>,
     tx: Sender<TnServiceResponseMsg>,
 ) {
@@ -878,12 +880,60 @@ async fn transcript_service(
                 if speech_final {
                     let transcript = transcript_fragments.join(" ").trim().to_string();
                     if !transcript.is_empty() {
-                        let _ = tx
-                            .send(TnServiceResponseMsg {
-                                response: "transcript_final".to_string(),
-                                payload: TnAsset::String(transcript),
-                            })
-                            .await;
+                        let player_state = {
+                            let player = context.get_component(PLAYER).await;
+                            let player_guard = player.read().await;
+                            let player_state = player_guard.state();
+                            tracing::info!(target:"tron_app", "player state: {:?}", player_state);
+                            player_state.clone()
+                        };
+
+                        if player_state == TnComponentState::Updating {
+                            {
+                                let context_guard = context.write().await;
+                                let mut stream_data_guard = context_guard.stream_data.write().await;
+                                stream_data_guard.get_mut(PLAYER).unwrap().1.clear();
+                                tracing::info!( target:TRON_APP, "clean audio stream data");
+                            }
+                            {
+                                let llm_tx = context.get_service_tx(LLM_SERVICE).await;
+
+                                let (tx, _rx) = oneshot::channel::<String>();
+
+                                let llm_req_msg = TnServiceRequestMsg {
+                                    request: "chat-complete-interrupted".into(),
+                                    payload: TnAsset::String("stop".into()),
+                                    response: tx,
+                                };
+
+                                let _ = llm_tx.send(llm_req_msg).await;
+                            }
+                            {
+                                let chatbot = context.get_component(TRANSCRIPT_OUTPUT).await;
+                                chatbox::append_chatbox_value(
+                                    chatbot.clone(),
+                                    ("user".into(), transcript.clone()),
+                                )
+                                .await;
+                            }
+                            { // update value in the front end
+                                let msg = TnSseTriggerMsg {
+                                    server_side_trigger_data: TnServerSideTriggerData {
+                                        target: TRANSCRIPT_OUTPUT.into(),
+                                        new_state: "ready".into(),
+                                    },
+                                };
+                                let sse_tx = context.get_sse_tx().await;
+                                send_sse_msg_to_client(&sse_tx, msg).await;
+                            }
+                        } else {
+                            let _ = tx
+                                .send(TnServiceResponseMsg {
+                                    response: "transcript_final".to_string(),
+                                    payload: TnAsset::String(transcript),
+                                })
+                                .await;
+                        }
                         transcript_fragments.clear();
                     }
                 }
@@ -948,28 +998,12 @@ async fn transcript_post_processing_service(
 
                         let (tx, rx) = oneshot::channel::<String>();
 
-                        let player_state = {
-                            let player = context.get_component(PLAYER).await;
-                            let player_guard = player.read().await;
-                            let player_state = player_guard.state();
-                            tracing::info!(target:"tron_app", "player state: {:?}", player_state);
-                            player_state.clone()
+                        let llm_req_msg = TnServiceRequestMsg {
+                            request: "chat-complete".into(),
+                            payload: TnAsset::String(transcript.clone()),
+                            response: tx,
                         };
-                        if player_state == TnComponentState::Updating {
-                            let llm_req_msg = TnServiceRequestMsg {
-                                request: "chat-complete-interrupted".into(),
-                                payload: TnAsset::String(transcript.clone()),
-                                response: tx,
-                            };
-                            let _ = llm_tx.send(llm_req_msg).await;
-                        } else {
-                            let llm_req_msg = TnServiceRequestMsg {
-                                request: "chat-complete".into(),
-                                payload: TnAsset::String(transcript.clone()),
-                                response: tx,
-                            };
-                            let _ = llm_tx.send(llm_req_msg).await;
-                        }
+                        let _ = llm_tx.send(llm_req_msg).await;
 
                         if let Ok(out) = rx.await {
                             tracing::debug!(target: TRON_APP, "returned string: {}", out);
@@ -985,6 +1019,7 @@ async fn transcript_post_processing_service(
                             )
                             .await;
                         }
+
                         {
                             let msg = TnSseTriggerMsg {
                                 server_side_trigger_data: TnServerSideTriggerData {
@@ -1008,7 +1043,6 @@ async fn transcript_post_processing_service(
                         if let TnAsset::VecString(ref mut v) = e {
                             v.push(transcript.clone());
                         }
-                        //(*e).push(TnAsset::String(transcript.clone()));
 
                         append_and_send_stream_textarea_with_context(
                             context.clone(),

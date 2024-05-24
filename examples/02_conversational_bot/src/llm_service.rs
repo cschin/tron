@@ -14,11 +14,11 @@ use tokio::{
     sync::{mpsc::Receiver, oneshot, RwLock},
     task::JoinHandle,
 };
-use tron_app::send_sse_msg_to_client;
+use tron_app::{send_sse_msg_to_client, tron_components::audio_player::stop_audio};
 use tron_app::tron_components;
 use tron_app::{TnServerSideTriggerData, TnSseTriggerMsg};
 
-use crate::{LLM_STREAM_OUTPUT, STATUS, TRANSCRIPT_OUTPUT, TRON_APP};
+use crate::{LLM_STREAM_OUTPUT, PLAYER, STATUS, TRANSCRIPT_OUTPUT, TRON_APP};
 use tron_components::{chatbox, text, TnAsset, TnContext, TnServiceRequestMsg};
 use tron_components::{text::append_and_send_stream_textarea_with_context, TnComponentValue};
 
@@ -58,6 +58,13 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
 
         let interrupted = r.request == "chat-complete-interrupted";
         tracing::info!(target: "tron_app", "interrupted: {}", interrupted);
+        if interrupted {
+            {
+                let player = context.get_component(PLAYER).await;
+                let sse_tx = context.get_sse_tx().await;
+                stop_audio(player.clone(), sse_tx).await;
+            }
+        };
 
         let _ = r.response.send("got it".to_string());
         let interrupted_prompt = if let TnComponentValue::String(prompt) =
@@ -139,7 +146,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
                         .collect::<Vec<ChatCompletionRequestMessage>>(),
                 );
             }
-            tracing::info!(target: TRON_APP, "sending messages: {:?}", messages);
+            tracing::debug!(target: TRON_APP, "sending messages: {:?}", messages);
             handle = Some(tokio::spawn(openai_stream_service(
                 context.clone(),
                 query,

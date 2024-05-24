@@ -1,0 +1,20 @@
+<script>
+    function stop_playing(target) {
+        document.getElementById(target).pause();
+    }
+    function start_playing(target) {
+        document.getElementById(target).play();
+    }
+
+    window.process_special_events["player_control"] = (target, state, event_data) => {
+
+        if ("audio_player_control" in event_data && event_data["audio_player_control"] == "start") {
+            start_playing(target); 
+        };
+        if ("audio_player_control" in event_data && event_data["audio_player_control"] == "stop") {
+            stop_playing(target);
+        }
+    }
+
+
+</script>

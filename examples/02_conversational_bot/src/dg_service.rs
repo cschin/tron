@@ -133,8 +133,8 @@ pub async fn trx_service(
 
     {
         let query_pairs = &mut base.query_pairs_mut();
-        query_pairs.append_pair("endpointing", "1250");
-        query_pairs.append_pair("utterance_end_ms", "1250");
+        query_pairs.append_pair("endpointing", "1010");
+        query_pairs.append_pair("utterance_end_ms", "1020");
         query_pairs.append_pair("interim_results", "true");
         query_pairs.append_pair("model", "nova-2-conversationalai");
         query_pairs.append_pair("punctuate", "true");

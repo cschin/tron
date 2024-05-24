@@ -18,6 +18,8 @@ pub struct SseAudioPlayerTriggerMsg {
     pub audio_player_control: String,
 }
 
+
+
 /// Represents an audio player component in the application.
 ///
 /// This component provides functionality for playing audio content within the application.
@@ -50,6 +52,7 @@ impl<'a: 'static> TnAudioPlayer<'a> {
         // component_base.set_attribute("type".into(), "audio/webm".into());
         base.set_attribute("type".into(), "audio/mp3".into());
         base.set_attribute("hx-trigger".into(), "server_side_trigger, ended".into());
+        base.script = Some(include_str!("../javascript/audio_player.html").to_string());
         Self { base }
     }
 }
@@ -193,4 +196,25 @@ pub fn stop_audio_playing_action(
  
     };
     Box::pin(f)
+}
+
+
+pub async fn stop_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
+    {
+        let mut comp = comp.write().await;
+        assert!(comp.get_type() == TnComponentType::AudioPlayer);
+        // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
+        comp.remove_header("HX-Reswap".into()); 
+        comp.set_state(TnComponentState::Ready);
+    }
+
+    let comp = comp.read().await;
+    let msg = SseAudioPlayerTriggerMsg {
+        server_side_trigger_data: TnServerSideTriggerData {
+            target: comp.tron_id().clone(),
+            new_state: "ready".into(),
+        },
+        audio_player_control: "stop".into()
+    };
+    send_sse_msg_to_client(&sse_tx, msg).await;
 }

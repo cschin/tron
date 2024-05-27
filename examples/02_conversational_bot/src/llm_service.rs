@@ -286,7 +286,7 @@ async fn openai_stream_service(
 
         chatbox::append_chatbox_value(
             transcript_area.clone(),
-            ("bot".into(), llm_response_sentences.join("<br />")),
+            ("bot".into(), llm_response_sentences.join("<br/>")),
         )
         .await;
     }

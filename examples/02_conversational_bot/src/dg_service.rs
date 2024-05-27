@@ -283,7 +283,6 @@ pub async fn tts_service(
             .post(format!(
                 "https://api.deepgram.com/v1/speak?model={tts_model}"
             ))
-            //.post("https://api.deepgram.com/v1/speak?model=aura-stella-en")
             .header("Content-Type", "application/json")
             .header("Authorization", format!("Token {}", dg_api_key))
             .body(json_data.to_owned())

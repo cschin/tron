@@ -30,6 +30,10 @@ use tron_app::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg}
 use tron_components::audio_recorder::SseAudioRecorderTriggerMsg;
 use tron_components::{text::append_and_send_stream_textarea_with_context, *};
 
+
+#[global_allocator]
+static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 static RECORDING_BUTTON: &str = "rec_button";
 static RECORDER: &str = "recorder";
 static PLAYER: &str = "player";

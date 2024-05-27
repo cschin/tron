@@ -630,7 +630,6 @@ async fn sse_event_handler(
             return Err(StatusCode::SERVICE_UNAVAILABLE);
         }
     };
-
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
 
@@ -1080,10 +1079,9 @@ async fn clean_up_session(app_data: Arc<AppData>) {
         };
         {
             if let Some(usage) = memory_stats() {
-                println!("Current physical memory usage: {}", usage.physical_mem);
-                println!("Current virtual memory usage: {}", usage.virtual_mem);
+                tracing::info!(target:"tron_app", "Current physical memory usage: {}", usage.physical_mem);
             } else {
-                println!("Couldn't get the current memory usage :(");
+                tracing::info!(target:"tron_app","Couldn't get the current memory usage :(");
             }
 
             let mut context_guard = app_data.context.write().await;
@@ -1111,12 +1109,11 @@ async fn clean_up_session(app_data: Arc<AppData>) {
                 }
             }
             if let Some(usage) = memory_stats() {
-                println!("Current physical memory usage: {}", usage.physical_mem);
-                println!("Current virtual memory usage: {}", usage.virtual_mem);
+                tracing::info!(target:"tron_app", "Current physical memory usage: {}", usage.physical_mem);
             } else {
-                println!("Couldn't get the current memory usage :(");
+                tracing::info!(target:"tron_app", "Couldn't get the current memory usage :(");
             }
         }
-        tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+        tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
     }
 }

@@ -29,3 +29,6 @@ thiserror = "1.0.59"
 reqwest = "0.12.4"
 async-openai = "0.21.0"
 time = "0.3.30"
+memory-stats = "1.1.0"
+# console-subscriber = "0.2.0"
+tikv-jemallocator = { version = "0.5.4", features = ["profiling"] }

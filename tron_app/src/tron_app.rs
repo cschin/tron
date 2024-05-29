@@ -1,6 +1,6 @@
 use axum::{
     body::Body,
-    extract::{Host, Json, OriginalUri, Path, Query, Request, State},
+    extract::{DefaultBodyLimit, Host, Json, Multipart, OriginalUri, Path, Query, Request, State},
     handler::HandlerWithoutStateExt,
     http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode, Uri},
     middleware::{self, Next},
@@ -8,7 +8,7 @@ use axum::{
         sse::{self, KeepAlive},
         Html, IntoResponse, Redirect, Sse,
     },
-    routing::get,
+    routing::{get, post},
     BoxError, Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
@@ -16,16 +16,16 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    TnActionExecutionMethod, TnAsset, TnComponentIndex, TnComponentValue, TnContext, TnEvent,
-    TnEventActions, TnSseMsgChannel,
+    TnActionExecutionMethod, TnAsset, TnComponent, TnComponentIndex, TnComponentValue, TnContext,
+    TnEvent, TnEventActions, TnSseMsgChannel,
 };
 //use std::sync::Mutex;
 use std::{
     collections::HashMap, convert::Infallible, env, net::SocketAddr, path::PathBuf, sync::Arc,
 };
 use time::{Duration, OffsetDateTime};
-use tower_http::cors::CorsLayer;
 use tower_http::{
+    cors::CorsLayer,
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
 };
@@ -191,7 +191,9 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
             "/tron_streaming/:stream_id",
             get(tron_stream).post(tron_stream),
         )
-        .with_state(app_share_data.clone());
+        .route("/upload/:tron_id", post(upload))
+        .with_state(app_share_data.clone())
+        .layer(DefaultBodyLimit::max(64 * 1024 * 1024));
     //.route("/button", get(tron::button));
 
     let auth_routes = Router::new()
@@ -546,6 +548,70 @@ async fn tron_entry(
 
         (StatusCode::OK, response_headers, body)
     }
+}
+
+async fn get_session_component_from_app_data(
+    app_data: Arc<AppData>,
+    session_id: tower_sessions::session::Id,
+    tron_idx: TnComponentIndex,
+) -> TnComponent<'static> {
+    let guard = app_data.context.read().await;
+    let session_context = guard.get(&session_id).unwrap();
+    let context_guard = session_context.base.read().await;
+
+    let components = context_guard.components.read().await;
+    components.get(&tron_idx).unwrap().clone()
+}
+
+async fn upload(
+    State(app_data): State<Arc<AppData>>,
+    session: Session,
+    Path(tron_index): Path<TnComponentIndex>,
+    mut multipart: Multipart,
+) -> StatusCode {
+    let mut response_headers = HeaderMap::new();
+    response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+
+    let session_id = if let Some(session_id) = session.id() {
+        session_id
+    } else {
+        return StatusCode::FORBIDDEN;
+    };
+
+    let tnid = {
+        let component =
+            get_session_component_from_app_data(app_data.clone(), session_id, tron_index).await;
+        let guard = component.read().await;
+        guard.tron_id().clone()
+    };
+
+    let mut field_data = HashMap::<String, Vec<u8>>::new();
+    while let Some(field) = multipart.next_field().await.unwrap() {
+        let name = field.name().unwrap().to_string();
+        if name != tnid {
+            continue;
+        };
+        let file_name = field.file_name().unwrap().to_string();
+        let data = field.bytes().await.unwrap();
+        println!("Length of `{}` is {} bytes", file_name, data.len());
+        let e = field_data.entry(file_name).or_default();
+        e.extend_from_slice(&data);
+    }
+    {
+        let guard = app_data.context.read().await;
+        let context = guard.get(&session_id).unwrap();
+        let asset_ref = context.get_asset_ref().await;
+        let mut asset_guard = asset_ref.write().await;
+        let e = asset_guard
+            .entry("upload".into())
+            .or_insert(TnAsset::HashMapVecU8(HashMap::default()));
+        for (file_name, data) in field_data {
+            if let TnAsset::HashMapVecU8(ref mut e) = e {
+                e.insert(file_name, data);
+            };
+        }
+    }
+    StatusCode::OK
 }
 
 #[allow(dead_code)]

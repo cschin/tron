@@ -11,7 +11,7 @@ use tokio::sync::RwLock;
 use serde_json::Value;
 
 use tracing::debug;
-use tron_app::tron_components;
+use tron_app::tron_components::{self, TnFileUpload};
 use tron_components::{
     checklist, radio_group,
     text::{self, append_stream_textarea, append_textarea_value},
@@ -30,6 +30,7 @@ async fn main() {
     let app_config = tron_app::AppConfigure {
         cognito_login: false,
         http_only: true,
+        log_level: Some("server=debug,tower_http=debug,tron_app=info"),
         ..Default::default()
     };
     // set app state
@@ -217,11 +218,27 @@ fn build_session_context() -> TnContext {
     }
     {
         component_index += 1;
-        let mut textinput =
-            TnTextInput::<'static>::new(component_index, "textinput".into(), "".into());
+        let mut textinput = TnTextInput::new(component_index, "textinput".into(), "".into());
         textinput.set_attribute("class".into(), "input input-bordered w-full".into());
 
         context.add_component(textinput);
+    }
+    {
+        component_index += 1;
+        let button_attributes = vec![(
+            "class".into(),
+            "btn btn-sm btn-outline btn-primary flex-1".into(),
+        )]
+        .into_iter()
+        .collect::<HashMap<String, String>>();
+        let file_upload = TnFileUpload::new(
+            component_index,
+            "file_upload".into(),
+            "Upload File".into(),
+            button_attributes,
+        );
+
+        context.add_component(file_upload);
     }
 
     TnContext {
@@ -642,6 +659,7 @@ struct AppPageTemplate {
     clean_textarea: String,
     clean_textinput: String,
     slider: String,
+    file_upload: String,
 }
 
 /// Generates the HTML layout for the application's main page.
@@ -680,6 +698,7 @@ fn layout(context: TnContext) -> String {
     let clean_textarea = context_guard.render_to_string("clean_textarea");
     let clean_textinput = context_guard.render_to_string("clean_textinput");
     let slider = context_guard.render_to_string("slider");
+    let file_upload = context_guard.render_to_string("file_upload");
 
     let html = AppPageTemplate {
         buttons,
@@ -693,6 +712,7 @@ fn layout(context: TnContext) -> String {
         clean_textarea,
         clean_textinput,
         slider,
+        file_upload,
     };
     html.render().unwrap()
 }

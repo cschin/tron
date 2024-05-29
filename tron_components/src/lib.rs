@@ -8,6 +8,7 @@ pub mod radio_group;
 pub mod range_slider;
 pub mod select;
 pub mod text;
+pub mod file_upload;
 
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
@@ -20,6 +21,7 @@ pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
 use serde_json::Value;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
+pub use file_upload::TnFileUpload;
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -93,6 +95,7 @@ pub enum TnAsset {
     VecString(Vec<String>),
     VecString2(Vec<(String, String)>),
     HashMapString(HashMap<String, String>),
+    HashMapVecU8(HashMap<String, Vec<u8>>),
     String(String),
     Bytes(BytesMut),
     U32(u32),
@@ -136,6 +139,7 @@ pub enum TnComponentType {
     RadioItem,
     SimpleScatterPlot,
     D3Plot,
+    FileUpload,
     UserDefined(String),
 }
 

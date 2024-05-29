@@ -8,7 +8,7 @@ edition.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = "0.7.5"
+axum = { version = "0.7.5", features = ["multipart"] }
 axum-server = { version = "0.6.0", features = ["tls-rustls"] }
 serde = { version = "1.0.197", features = ["derive"] }
 tokio = { version = "1.37.0", features = ["full"] }

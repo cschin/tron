@@ -1,5 +1,9 @@
 <script>
-    htmx.on('#{{tron_id}}', 'htmx:xhr:progress', function(evt) {
+    htmx.on('#{{tron_id}}_form', 'htmx:xhr:progress', function(evt) {
       htmx.find('#progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
     });
+    htmx.on('#{{tron_id}}_form', 'htmx:afterRequest', function(evt) {
+      if (evt.detail.successful) htmx.trigger("#{{tron_id}}", "finished", {});
+    });
+    
 </script>

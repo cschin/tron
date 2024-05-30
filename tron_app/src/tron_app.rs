@@ -582,7 +582,7 @@ async fn upload(
         let component =
             get_session_component_from_app_data(app_data.clone(), session_id, tron_index).await;
         let guard = component.read().await;
-        guard.tron_id().clone()
+        [guard.tron_id().clone(), "_form".into()].join("")
     };
 
     let mut field_data = HashMap::<String, Vec<u8>>::new();

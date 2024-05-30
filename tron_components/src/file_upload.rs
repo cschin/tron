@@ -25,14 +25,10 @@ impl<'a: 'static> TnFileUpload<'a> {
         let mut base =
             TnComponentBase::new("div".into(), idx, tnid.clone(), TnComponentType::FileUpload);
         base.set_value(TnComponentValue::None);
-        base.set_attribute("type".into(), "file_upload_widget".into());
-        base.set_attribute("id".into(), format!("{}_container", tnid.clone()));
-        base.remove_attribute("hx-swap".into());
-        base.remove_attribute("hx-target".into());
-        base.remove_attribute("hx-post".into());
-        base.remove_attribute("hx-vals".into());
-        base.remove_attribute("hx-ext".into());
-        base.remove_attribute("state".into());
+        base.set_attribute("type".into(), "file_upload".into());
+        base.set_attribute("id".into(), tnid.clone());
+        base.set_attribute("hx-swap".into(), "none".into());
+        base.set_attribute("hx-trigger".into(), "finished".into());
         let script = ScriptTemplate { tron_id: tnid };
         let script = script.render().unwrap();
         base.script = Some(script);
@@ -78,24 +74,30 @@ where
             })
             .collect::<Vec<_>>()
             .join(" ");
+        let container_class = if self.attributes().contains_key("class") {
+            format!(r#"class="{}"#, self.attributes().get("class").unwrap().clone())
+        } else {
+            "".into()
+        };
         format!(
-            r#"<{} {}><label>{}</label><form id='{}' hx-encoding='multipart/form-data' hx-post='/upload/{}' hx-swap="none" hx-val="js:{{event_data:get_event(event)}}">
-                <input type='file' name='{}' multiple>
+            r#"<div {container_class}><{} {}></{}><label>{}</label><form id='{}_form' hx-encoding='multipart/form-data' hx-post='/upload/{}' hx-swap="none" hx-val="js:{{event_data:get_event(event)}}">
+                <input type='file' name='{}_form' multiple>
                 <button {}>
-                    Upload File
+                    Click to Upload
                 </button>
                 <progress id='progress' value='0' max='100'></progress>
-            </form></{}>"#,
+            </form></div>"#,
             self.base.tag,
             self.generate_attr_string(),
+            self.base.tag,
             self.title,
             tron_id,
             self.id(),
             tron_id,
             button_attributes,
-            self.base.tag
         )
     }
+
     /// Renders the `TnRangeSlider` component for the first time.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()

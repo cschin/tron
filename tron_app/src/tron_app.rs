@@ -549,7 +549,38 @@ async fn tron_entry(
         (StatusCode::OK, response_headers, body)
     }
 }
-
+/// Retrieves a specific component associated with a session from application data.
+///
+/// This asynchronous function accesses shared application data to retrieve a component
+/// based on the session ID and a component index. The function assumes that the necessary
+/// data structures are properly synchronized and accessible concurrently.
+///
+/// # Parameters
+/// - `app_data: Arc<AppData>`:
+///   A thread-safe reference-counted pointer to the shared application data.
+///
+/// - `session_id: tower_sessions::session::Id`:
+///   The unique identifier for the session, used to retrieve session-specific context.
+///
+/// - `tron_idx: TnComponentIndex`:
+///   An index that identifies the specific component within the session's context.
+///
+/// # Returns
+/// `TnComponent<'static>`:
+/// A clone of the component found at the specified index within the session's context.
+/// The lifetime `'static` indicates that the component does not hold references to data
+/// governed by lifetimes shorter than the program's execution.
+///
+/// # Behavior
+/// 1. Acquires a read lock on the application's context to access the session data.
+/// 2. Retrieves the context for the specific session identified by `session_id`.
+/// 3. Acquires another read lock on the base context of the session to access its components.
+/// 4. Retrieves and clones the component at the specified index `tron_idx`.
+///
+/// # Panics
+/// The function unwraps the Option values directly, and will panic if:
+/// - The session with the provided `session_id` does not exist.
+/// - The component with the provided `tron_idx` does not exist.
 async fn get_session_component_from_app_data(
     app_data: Arc<AppData>,
     session_id: tower_sessions::session::Id,
@@ -563,6 +594,44 @@ async fn get_session_component_from_app_data(
     components.get(&tron_idx).unwrap().clone()
 }
 
+
+/// Handles the uploading of files for a specific session and component, saving the uploaded data.
+///
+/// This function processes multipart form data corresponding to a file upload within a session.
+/// It ensures that the data belongs to the correct component by validating against a component-specific
+/// identifier. If the session is valid and the data matches the component, the files are stored in the
+/// application's asset storage.
+///
+/// # Parameters
+/// - `State(app_data): State<Arc<AppData>>`:
+///   Shared application data wrapped in an `Arc` for thread safety and wrapped in a `State` for
+///   access within the web framework.
+///
+/// - `session: Session`:
+///   The session from which the upload is initiated. Used to validate session existence and retrieve session-specific data.
+///
+/// - `Path(tron_index): Path<TnComponentIndex>`:
+///   The index of the component associated with the upload, encapsulated in a `Path` for extraction from the request path.
+///
+/// - `mut multipart: Multipart`:
+///   A stream of the multipart form data from the request, allowing for asynchronous processing of each field.
+///
+/// # Returns
+/// `StatusCode`:
+/// - Returns `StatusCode::OK` if the upload is successful and the data is stored.
+/// - Returns `StatusCode::FORBIDDEN` if the session ID is not found or invalid.
+///
+/// # Behavior
+/// 1. Validates the session's existence.
+/// 2. Retrieves the specific component from the session data to validate the upload is pertinent to the correct component.
+/// 3. Processes each field in the multipart form data, filtering out fields that do not match the component-specific identifier.
+/// 4. Saves the uploaded file data into the application's asset storage under the "upload" key.
+/// 5. Logs the size of each uploaded file.
+///
+/// # Panics
+/// The function will panic if essential fields (like `ContentType`) cannot be parsed, or if the multipart data stream
+/// contains unexpected null values.
+///
 async fn upload(
     State(app_data): State<Arc<AppData>>,
     session: Session,
@@ -614,6 +683,32 @@ async fn upload(
     StatusCode::OK
 }
 
+/// Redirects HTTP requests to HTTPS for a specified address and port configuration.
+///
+/// This function sets up an HTTP server that listens on a specified IP address and HTTP port. All incoming HTTP requests are
+/// permanently redirected to HTTPS using the same host and the URI but on a different port as specified by the `ports` parameter.
+///
+/// # Attributes
+/// - `#[allow(dead_code)]`: This attribute allows the function to be compiled and included even if it is not used anywhere in the code.
+///
+/// # Parameters
+/// - `addr: [u8; 4]`: The IP address on which the server listens, specified as an array of four u8 integers representing an IPv4 address.
+/// - `ports: Ports`: A struct that contains both the HTTP and HTTPS port numbers.
+///
+/// # Inner Function
+/// - `make_https(host: String, uri: Uri, ports: Ports) -> Result<Uri, BoxError>`:
+///   Attempts to convert an HTTP URI to HTTPS by modifying its scheme and port. Returns a `Result` with either the modified `Uri` or an error if conversion fails.
+///
+/// # Behavior
+/// 1. Binds a TCP listener to the provided IPv4 address and the HTTP port.
+/// 2. Uses Axum to serve incoming requests, converting each request's URI from HTTP to HTTPS.
+/// 3. Logs a warning if the URI conversion fails and returns a `BAD_REQUEST` status code.
+/// 4. Logs the address it is listening on upon successful setup.
+///
+/// # Panics
+/// This function will panic if:
+/// - It fails to bind the TCP listener to the specified address and port.
+/// - There is a failure in parsing the URI during the redirection process.
 #[allow(dead_code)]
 async fn redirect_http_to_https(addr: [u8; 4], ports: Ports) {
     fn make_https(host: String, uri: Uri, ports: Ports) -> Result<Uri, BoxError> {

@@ -319,6 +319,12 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
         clean_textinput,
     ));
 
+    actions.push((
+        "file_upload".into(),
+        TnActionExecutionMethod::Await,
+        handle_file_upload,
+    ));
+
     actions
         .into_iter()
         .map(|(id, exe_method, action_fn)| {
@@ -620,6 +626,99 @@ fn slider_value_update(
         }
         let html: String = context.render_component("slider").await;
         Some((HeaderMap::new(), Html::from(html)))
+    };
+    Box::pin(f())
+}
+
+/// Handles file upload events by processing uploaded file metadata and returning
+/// an HTML response to be displayed on the client-side.
+///
+/// This function captures and logs the details of files uploaded via an event,
+/// formats these details into HTML content, and returns a `Future` containing the
+/// response to update the client-side view dynamically.
+///
+/// # Parameters
+/// - `_context: TnContext`:
+///   Context of the transaction, not used within this function but available for
+///   potential future extensions or context-specific handling.
+///
+/// - `_event: TnEvent`:
+///   Event details specific to the file upload. Currently not utilized directly
+///   within the function, provided for compatibility and future use.
+///
+/// - `payload: Value`:
+///   JSON-like structure containing file data. Expected to contain:
+///   `["event_data"]["e_file_list"]`, an array where each element is an array representing
+///   a file's metadata: `[filename (String), size (u64), type (String)]`.
+///
+/// # Returns
+/// `Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>>`:
+/// A `Future` that resolves to an HTML formatted response. The response is designed to be
+/// compatible with multi-threaded environments, suitable for asynchronous execution.
+///
+fn handle_file_upload(
+    _context: TnContext,
+    event: TnEvent,
+    payload: Value,
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+    let f = || async move {
+        tracing::info!(target: "tron_app", "event payload: {:?}", payload["event_data"]["e_file_list"]);
+        let file_list = payload["event_data"]["e_file_list"].as_array();
+
+        let file_list = if let Some(file_list) = file_list {
+            file_list
+                .iter()
+                .flat_map(|v| {
+                    if let Value::Array(v) = v {
+                        tracing::debug!(target: "tron_app", "v:{:?}", v);
+                        let filename = v[0].as_str();
+                        let size = v[1].as_u64();
+                        let t = v[2].as_str();
+                        match (filename, size, t) {
+                            (Some(filename), Some(size), Some(t)) => Some(format!("<p>{filename}:{size}:{t}</p>")),
+                            _ => None,
+                        }
+                    } else {
+                        None
+                    }
+                })
+                .collect::<Vec<_>>()
+        } else {
+            vec![]
+        }.join("\n");
+
+        tracing::debug!(target: "tron_app", "file_list: {:?}", file_list);
+        let mut header = HeaderMap::new();
+        let tron_id = event.e_trigger;
+        let html = format!(
+            r##"
+    <div id="file_uploaded_container">
+        <dialog id="file_uploaded" class="modal">
+            <div class="modal-box">
+                <form method="dialog">
+                    <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="htmx.find('#{tron_id}_progress').setAttribute('value',  0)">✕</button>
+                </form>
+                <h3 class="font-bold text-lg">File Uploaded</h3>
+                <p class="py-2"> {file_list} </p>
+                <p class="py-4">Press ESC key or click on ✕ button to close</p>
+            </div>
+        </dialog>
+        <script> 
+            htmx.on('#file_uploaded_container', 'htmx:afterSettle', function(evt) {{
+                document.getElementById('file_uploaded').showModal();
+         }}); 
+         </script>
+    </div>"##
+        );
+        header.insert(
+            HeaderName::from_str("hx-reswap").unwrap(),
+            HeaderValue::from_str("outerHTML").unwrap(),
+        );
+        header.insert(
+            HeaderName::from_str("hx-retarget").unwrap(),
+            HeaderValue::from_str("#file_uploaded_container").unwrap(),
+        );
+        Some((header, Html::from(html.to_string())))
     };
     Box::pin(f())
 }

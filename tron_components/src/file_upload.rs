@@ -29,6 +29,7 @@ impl<'a: 'static> TnFileUpload<'a> {
         base.set_attribute("id".into(), tnid.clone());
         base.set_attribute("hx-swap".into(), "none".into());
         base.set_attribute("hx-trigger".into(), "finished".into());
+        base.set_attribute("hx-vals".into(), "js:{event_data:get_event_with_files(event)}".into());
         let script = ScriptTemplate { tron_id: tnid };
         let script = script.render().unwrap();
         base.script = Some(script);
@@ -80,21 +81,18 @@ where
             "".into()
         };
         format!(
-            r#"<div {container_class}><{} {}></{}><label>{}</label><form id='{}_form' hx-encoding='multipart/form-data' hx-post='/upload/{}' hx-swap="none" hx-val="js:{{event_data:get_event(event)}}">
-                <input type='file' name='{}_form' multiple>
-                <button {}>
+            r#"<div {container_class}><{} {}></{}><label>{}</label><form id='{tron_id}_form' hx-encoding='multipart/form-data' hx-post='/upload/{}' hx-swap="none" hx-val="js:{{event_data:get_event(event)}}">
+                <input id="{tron_id}_input" type='file' name='{tron_id}_form' multiple>
+                <button {button_attributes}>
                     Click to Upload
                 </button>
-                <progress id='progress' value='0' max='100'></progress>
+                <progress id='{tron_id}_progress' value='0' max='100'></progress>
             </form></div>"#,
             self.base.tag,
             self.generate_attr_string(),
             self.base.tag,
             self.title,
-            tron_id,
-            self.id(),
-            tron_id,
-            button_attributes,
+            self.id()
         )
     }
 

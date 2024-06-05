@@ -4,7 +4,10 @@
 use flate2::bufread::GzDecoder;
 use serde::Deserialize;
 use std::{
-    cmp::{Ordering, Reverse}, collections::HashSet, fs::File, hash::{DefaultHasher, Hash, Hasher}
+    cmp::{Ordering, Reverse},
+    collections::HashSet,
+    fs::File,
+    hash::{DefaultHasher, Hash, Hasher},
 };
 use tower_sessions::Session;
 
@@ -31,7 +34,7 @@ use tron_app::{
         self, button, d3_plot::SseD3PlotTriggerMsg, TnActionExecutionMethod, TnAsset, TnD3Plot,
         TnHtmlResponse,
     },
-    AppData, TnServerSideTriggerData,
+    AppData, TnServerSideTriggerData, TnSseTriggerMsg,
 };
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
@@ -50,6 +53,7 @@ use std::{
 
 static D3PLOT: &str = "d3_plot";
 static BUTTON: &str = "button";
+static TEXTAREA: &str = "textarea";
 
 #[derive(Deserialize, Debug)]
 struct DocumentChunk {
@@ -177,6 +181,12 @@ fn build_context() -> TnContext {
     btn.set_attribute("hx-swap".to_string(), "none".to_string());
     context.add_component(btn);
 
+    component_index += 1;
+    let mut text_area = TnTextArea::new(component_index, TEXTAREA.into(), "".into());
+    text_area.set_attribute("class".to_string(), "flex-1".to_string());
+
+    context.add_component(text_area);
+
     {
         let mut stream_data_guard = context.stream_data.blocking_write();
         stream_data_guard.insert(
@@ -221,13 +231,20 @@ fn build_context() -> TnContext {
 struct AppPageTemplate {
     d3_plot: String,
     button: String,
+    text_area: String,
 }
 
 fn layout(context: TnContext) -> String {
     let context_guard = context.blocking_read();
     let d3_plot = context_guard.render_to_string(D3PLOT);
     let button = context_guard.render_to_string(BUTTON);
-    let html = AppPageTemplate { d3_plot, button };
+    let text_area = context_guard.render_to_string(TEXTAREA);
+
+    let html = AppPageTemplate {
+        d3_plot,
+        button,
+        text_area,
+    };
     html.render().unwrap()
 }
 
@@ -377,13 +394,7 @@ fn d3_plot_clicked(
                     d_color *= 0.999995;
                     let color = CMAP[(fid % 97) as usize];
 
-                    format!(
-                        "{},{},{},{}\n",
-                        p.point.0,
-                        p.point.1,
-                        color,
-                        color_scale
-                    )
+                    format!("{},{},{},{}\n", p.point.0, p.point.1, color, color_scale)
                 })
                 .collect::<Vec<String>>(),
         );
@@ -408,11 +419,35 @@ fn d3_plot_clicked(
         };
         send_sse_msg_to_client(&sse_tx, msg).await;
 
-        let top_doc = top_10.into_iter().map(|p| p.chunk.title.clone()).collect::<HashSet<String>>();
+        let mut docs = HashSet::<String>::new();
+        let top_doc = top_10
+            .into_iter()
+            .flat_map(|p| {
+                if docs.contains(&p.chunk.title) {
+                    None
+                } else {
+                    docs.insert(p.chunk.title.clone());
+                    Some(p.chunk.title.clone())
+                }
+            })
+            .collect::<Vec<String>>();
+        let top_doc = top_doc.join("\n\n");
 
-        top_doc.into_iter().for_each(|title| 
-            tracing::info!(target:"tron_app", "top similar papers: {}", title)
-        );
+        {
+            let textarea = context.get_component(TEXTAREA).await;
+            let mut guard = textarea.write().await;
+            guard.set_value(TnComponentValue::String(top_doc));
+
+            let sse_tx = context.get_sse_tx().await;
+
+            let msg = TnSseTriggerMsg {
+                server_side_trigger_data: TnServerSideTriggerData {
+                    target: TEXTAREA.into(),
+                    new_state: "ready".into(),
+                },
+            };
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
 
         None
     };

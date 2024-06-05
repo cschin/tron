@@ -1,10 +1,16 @@
 <div class="container mx-auto px-4">
     <div class="flex flex-row p-1">
-        <div class="flex flex-row p-1 flex-1" >
+        <div class="flex flex-row p-1 flex-1">
             {{d3_plot}}
         </div>
-        <div class="flex flex-row p-1 flex-1">
-            {{button}}
+        <div class="flex flex-col p-1 flex-1">
+            <div class="flex flex-row p-1 flex-1/6">
+                {{button}}
+            </div>
+            <label> Related Documents </label>
+            <div class="flex flex-row p-1 h-5/6">
+                {{text_area}}
+            </div>
         </div>
     </div>
 </div>

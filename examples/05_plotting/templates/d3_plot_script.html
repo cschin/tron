@@ -79,7 +79,7 @@
       // Add X axis
       const x = plot_spec.x_scale;
       svg.append("g")
-        .attr("transform", `tranlate(, ${height})`)
+        .attr("transform", `translate(0, ${height})`)
         .call(d3.axisBottom(x));
 
       // Add Y axis

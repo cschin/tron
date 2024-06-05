@@ -93,6 +93,7 @@ pub struct AppConfigure {
     pub http_only: bool,
     pub log_level: Option<&'static str>,
     pub session_expiry: Option<time::Duration>,
+    pub api_router: Option<Router>,
 }
 
 /// Implements the default trait for creating a default instance of `AppConfigure`.
@@ -108,6 +109,7 @@ impl Default for AppConfigure {
     /// * `ports`: `Ports { http: 8080, https: 3001 }`
     /// * `cognito_login`: `false`
     /// * `log_level`: `Some("server=info,tower_http=info,tron_app=info")`
+    /// TODO: update doc for api_router
     fn default() -> Self {
         let address = [127, 0, 0, 1];
         let ports = Ports {
@@ -124,6 +126,7 @@ impl Default for AppConfigure {
             cognito_login,
             log_level,
             session_expiry: None,
+            api_router: None
         }
     }
 }
@@ -182,6 +185,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
 
     // build our application with a route
     let app_share_data = Arc::new(app_share_data);
+
     let routes = Router::new()
         .route("/", get(index))
         .route("/server_events", get(sse_event_handler))
@@ -194,7 +198,13 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         .route("/upload/:tron_id", post(upload))
         .with_state(app_share_data.clone())
         .layer(DefaultBodyLimit::max(64 * 1024 * 1024));
-    //.route("/button", get(tron::button));
+
+    let routes = if let Some(api_router) = config.api_router {
+        //let api_routes = Router::new().nest_service("/api", api_router);
+        Router::new().merge(routes).nest("/api", api_router)
+    } else {
+        routes
+    };
 
     let auth_routes = Router::new()
         .route("/login", get(login_handler))

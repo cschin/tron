@@ -52,8 +52,12 @@ use std::{
 };
 
 static D3PLOT: &str = "d3_plot";
-static BUTTON: &str = "button";
-static TEXTAREA: &str = "textarea";
+static RESET_BUTTON: &str = "reset_button";
+static CONTEXT_QUERY_BUTTON: &str = "context_query_button";
+static QUERY_BUTTON: &str = "query_button";
+static QUERY_TEXT_INPUT: &str = "query_text_input";
+static TOP_HIT_TEXTAREA: &str = "top_hit_textarea";
+static QUERY_RESULT_TEXTAREA: &str = "query_result_textarea";
 
 #[derive(Deserialize, Debug)]
 struct DocumentChunk {
@@ -131,7 +135,7 @@ static CMAP: [&str; 97] = [
 // and then starts the application by calling tron_app::run
 #[tokio::main]
 async fn main() {
-    let result = DOCUMENT_CHUNKS
+    let _result = DOCUMENT_CHUNKS
         .get_or_init(|| async { DocumentChunks::from_file("data/all_embedding.jsonl.gz".into()) })
         .await;
     let api_routes: Router<()> = Router::new().route("/test", get(data));
@@ -171,23 +175,54 @@ fn build_context() -> TnContext {
     context.add_component(d3_plot);
 
     component_index += 1;
-    let mut btn = TnButton::new(component_index, BUTTON.into(), "Reset".into());
-    btn.set_attribute(
+    let mut reset_btn = TnButton::new(component_index, RESET_BUTTON.into(), "Reset".into());
+    reset_btn.set_attribute(
         "class".to_string(),
-        "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        "btn btn-sm btn-outline btn-primary w-full h-min p-1".to_string(),
     );
 
-    btn.set_attribute("hx-target".to_string(), format!("#{D3PLOT}"));
-    btn.set_attribute("hx-swap".to_string(), "none".to_string());
-    context.add_component(btn);
+    reset_btn.set_attribute("hx-target".to_string(), format!("#{D3PLOT}"));
+    reset_btn.set_attribute("hx-swap".to_string(), "none".to_string());
+    context.add_component(reset_btn);
 
     component_index += 1;
-    let mut text_area = TnTextArea::new(component_index, TEXTAREA.into(), "".into());
-    text_area.set_attribute("class".to_string(), "flex-1".to_string());
+    let mut top_hit_textarea = TnTextArea::new(component_index, TOP_HIT_TEXTAREA.into(), "".into());
+    top_hit_textarea.set_attribute("class".to_string(), "w-full h-full".to_string());
+    top_hit_textarea.set_attribute("style".to_string(), "resize:none".to_string());
+    context.add_component(top_hit_textarea);
 
-    context.add_component(text_area);
+    component_index += 1;
+    let mut context_query_btn = TnButton::new(component_index, CONTEXT_QUERY_BUTTON.into(), "Query With The Hit".into());
+    context_query_btn.set_attribute(
+        "class".to_string(),
+        "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
+    );
+    context.add_component(context_query_btn);
 
-    {
+    component_index += 1;
+    let mut query_btn = TnButton::new(component_index, QUERY_BUTTON.into(), "General Query".into());
+    query_btn.set_attribute(
+        "class".to_string(),
+        "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
+    );
+    context.add_component(query_btn);
+
+    component_index += 1;
+    let mut query_text_input = TnTextArea::new(component_index, QUERY_TEXT_INPUT.into(), "".into());
+    query_text_input.set_attribute("class".to_string(), "h-24 w-full".to_string());
+    query_text_input.set_attribute("style".to_string(), "resize:none".to_string());
+    query_text_input.remove_attribute("disabled".into());
+    context.add_component(query_text_input);
+
+
+    component_index += 1;
+    let mut query_result_textarea = TnTextArea::new(component_index, QUERY_RESULT_TEXTAREA.into(), "".into());
+    query_result_textarea.set_attribute("class".to_string(), "h-96 w-full".to_string());
+    query_result_textarea.set_attribute("style".to_string(), "resize:none".to_string());
+    context.add_component(query_result_textarea);
+
+
+    { // fill in the plot stream data
         let mut stream_data_guard = context.stream_data.blocking_write();
         stream_data_guard.insert(
             "plot_data".into(),
@@ -230,20 +265,32 @@ fn build_context() -> TnContext {
 #[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
 struct AppPageTemplate {
     d3_plot: String,
-    button: String,
-    text_area: String,
+    reset_button: String,
+    context_query_button: String,
+    query_button: String,
+    top_hit_textarea: String,
+    query_result_textarea: String,
+    query_text_input: String,
 }
 
 fn layout(context: TnContext) -> String {
     let context_guard = context.blocking_read();
     let d3_plot = context_guard.render_to_string(D3PLOT);
-    let button = context_guard.render_to_string(BUTTON);
-    let text_area = context_guard.render_to_string(TEXTAREA);
+    let reset_button = context_guard.render_to_string(RESET_BUTTON);
+    let top_hit_textarea = context_guard.render_to_string(TOP_HIT_TEXTAREA);
+    let context_query_button = context_guard.render_to_string(CONTEXT_QUERY_BUTTON);
+    let query_result_textarea = context_guard.render_to_string(QUERY_RESULT_TEXTAREA); 
+    let query_button = context_guard.render_to_string(QUERY_BUTTON); 
+    let query_text_input = context_guard.render_to_string(QUERY_TEXT_INPUT); 
 
     let html = AppPageTemplate {
         d3_plot,
-        button,
-        text_area,
+        reset_button,
+        top_hit_textarea,
+        context_query_button,
+        query_result_textarea,
+        query_button, 
+        query_text_input,
     };
     html.render().unwrap()
 }
@@ -257,10 +304,10 @@ fn build_actions(context: TnContext) -> TnEventActions {
         (TnActionExecutionMethod::Await, Arc::new(d3_plot_clicked)),
     );
 
-    let index = context.blocking_read().get_component_index(BUTTON);
+    let index = context.blocking_read().get_component_index(RESET_BUTTON);
     actions.insert(
         index,
-        (TnActionExecutionMethod::Await, Arc::new(button_clicked)),
+        (TnActionExecutionMethod::Await, Arc::new(reset_button_clicked)),
     );
 
     actions
@@ -378,7 +425,7 @@ fn d3_plot_clicked(
 
         all_points_2.sort();
         all_points_2.reverse();
-        let top_10 = all_points_2[..10].iter().cloned().collect::<Vec<_>>();
+        let top_10 = all_points_2[..10].to_vec();
         let mut two_d_embeddding = "x,y,c,o\n".to_string();
         let filename_to_id = &DOCUMENT_CHUNKS.get().unwrap().filename_to_id;
         two_d_embeddding.extend(
@@ -421,7 +468,7 @@ fn d3_plot_clicked(
 
         let mut docs = HashSet::<String>::new();
         let top_doc = top_10
-            .into_iter()
+            .iter()
             .flat_map(|p| {
                 if docs.contains(&p.chunk.title) {
                     None
@@ -434,7 +481,7 @@ fn d3_plot_clicked(
         let top_doc = top_doc.join("\n\n");
 
         {
-            let textarea = context.get_component(TEXTAREA).await;
+            let textarea = context.get_component(TOP_HIT_TEXTAREA).await;
             let mut guard = textarea.write().await;
             guard.set_value(TnComponentValue::String(top_doc));
 
@@ -442,7 +489,35 @@ fn d3_plot_clicked(
 
             let msg = TnSseTriggerMsg {
                 server_side_trigger_data: TnServerSideTriggerData {
-                    target: TEXTAREA.into(),
+                    target: TOP_HIT_TEXTAREA.into(),
+                    new_state: "ready".into(),
+                },
+            };
+            send_sse_msg_to_client(&sse_tx, msg).await;
+        }
+
+        let top_chunk = top_10
+        .into_iter()
+        .map(|p| {
+            let mut text = String::new();
+            text.extend(format!("=== CHUNK BGN, TITLE: {}\n", p.chunk.title).chars() );
+            text.push_str( &p.chunk.text);
+            text.push_str("\n=== CHUNK END \n");
+            text
+        })
+        .collect::<Vec<String>>();
+        let top_chunk = top_chunk.join("\n");
+
+        {
+            let textarea = context.get_component(QUERY_RESULT_TEXTAREA).await;
+            let mut guard = textarea.write().await;
+            guard.set_value(TnComponentValue::String(top_chunk));
+
+            let sse_tx = context.get_sse_tx().await;
+
+            let msg = TnSseTriggerMsg {
+                server_side_trigger_data: TnServerSideTriggerData {
+                    target: QUERY_RESULT_TEXTAREA.into(),
                     new_state: "ready".into(),
                 },
             };
@@ -454,14 +529,14 @@ fn d3_plot_clicked(
     Box::pin(action)
 }
 
-fn button_clicked(
+fn reset_button_clicked(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let action = async move {
         tracing::info!(target: "tron_app", "{:?}", event);
-        if event.e_trigger != BUTTON {
+        if event.e_trigger != RESET_BUTTON {
             None
         } else {
             {

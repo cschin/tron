@@ -1,16 +1,45 @@
+<title> RAG Map </title>
+<div class="container flex flex-row mx-auto justify-center">
+    <p class="flex-1 text-center mx-auto text-2xl">GPTOmics: RAG MAP </p>
+</div>
 <div class="container mx-auto px-4">
-    <div class="flex flex-row p-1">
-        <div class="flex flex-row p-1 flex-1">
-            {{d3_plot}}
-        </div>
-        <div class="flex flex-col p-1 flex-1">
-            <div class="flex flex-row p-1 flex-1/6">
-                {{button}}
+    <div class="flex flex-col">
+        <div class="flex flex-row w-full">
+            <div class="flex-1 p-1">
+                {{d3_plot}}
             </div>
-            <label> Related Documents </label>
-            <div class="flex flex-row p-1 h-5/6">
-                {{text_area}}
+            <div class="flex flex-col flex-1 p-1">
+                {{reset_button}}
+                <label> Related Documents </label>
+                <div class="flex-1 border-2 mb-1 border-gray-600 rounded-lg p-1">
+                    {{top_hit_textarea}}
+                </div>
+            </div>
+        </div>
+        <div class="flex flex-col w-full">
+            <label class="flex flex-row">Query</label>
+
+            <div class="flex flex-row w-full">
+                <div class="flex flex-col w-5/6 p-1 border-2 mb-1 border-gray-600 rounded-lg">
+                    {{query_text_input}}
+                </div>
+                <div class="flex-col w-1/6 p-1">
+                    <div class="p-1">
+                        {{query_button}}
+                    </div>
+                    <div class="p-1">
+                        {{context_query_button}}
+                    </div>
+                </div>
             </div>
         </div>
     </div>
+    <div class="flex flex-col p-1 w-full p-1">
+        <label> Retrieve / LLM Query Results </label>
+        <div class="flex-1 border-2 mb-1 border-gray-600 rounded-lg p-1">
+            {{query_result_textarea}}
+        </div>
+    </div>
+</div>
+
 </div>

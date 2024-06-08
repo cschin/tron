@@ -78,7 +78,7 @@ fn build_session_context() -> TnContext {
     let mut stream_textarea = TnStreamTextArea::<'static>::new(
         component_index,
         "stream_textarea".into(),
-        vec!["This is a stream-able textarea\n".to_string()],
+        vec!["This is a streamable textarea\n".to_string()].into(),
     );
 
     stream_textarea.set_attribute(

@@ -16,9 +16,15 @@
                 </div>
             </div>
         </div>
+    </div>
+    <div class="flex flex-col p-1 w-full p-1">
+        <label> Retrieval / LLM Output Stream </label>
+        <div class="flex-1 border-2 mb-1 border-gray-600 rounded-lg p-1 min-h-24">
+            {{query_stream_textarea}}
+        </div>
+
         <div class="flex flex-col w-full">
             <label class="flex flex-row">Query</label>
-
             <div class="flex flex-row w-full">
                 <div class="flex flex-col w-5/6 p-1 border-2 mb-1 border-gray-600 rounded-lg">
                     {{query_text_input}}
@@ -30,13 +36,15 @@
                     <div class="p-1">
                         {{context_query_button}}
                     </div>
+                    <div class="p-1">
+                        {{find_related_text_button}}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <div class="flex flex-col p-1 w-full p-1">
-        <label> Retrieve / LLM Query Results </label>
-        <div class="flex-1 border-2 mb-1 border-gray-600 rounded-lg p-1">
+
+        <label> Retrieval / LLM Chat </label>
+        <div class="flex-1 border-2 mb-1 border-gray-600 rounded-lg p-1 min-h-96">
             {{query_result_textarea}}
         </div>
     </div>

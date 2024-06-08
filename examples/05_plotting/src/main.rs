@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+mod llm_service;
+use llm_service::llm_service;
+
 use flate2::bufread::GzDecoder;
 use serde::Deserialize;
 use std::{
@@ -23,7 +26,7 @@ use axum::{
     Router,
 };
 //use serde::{Deserialize, Serialize};
-use tokio::sync::{mpsc::Sender, Mutex, OnceCell, RwLock};
+use tokio::sync::{mpsc::Sender, oneshot, Mutex, OnceCell, RwLock};
 
 use serde_json::{Number, Value};
 
@@ -31,8 +34,14 @@ use tracing::debug;
 use tron_app::{
     send_sse_msg_to_client,
     tron_components::{
-        self, button, d3_plot::SseD3PlotTriggerMsg, TnActionExecutionMethod, TnAsset, TnD3Plot,
-        TnHtmlResponse,
+        self, button,
+        d3_plot::SseD3PlotTriggerMsg,
+        text::{
+            append_and_send_stream_textarea_with_context, clean_stream_textarea_with_context,
+            clean_textarea_with_context, update_and_send_textarea_with_context,
+        },
+        TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnHtmlResponse, TnServiceRequestMsg,
+        TnStreamTextArea,
     },
     AppData, TnServerSideTriggerData, TnSseTriggerMsg,
 };
@@ -51,13 +60,19 @@ use std::{
     vec,
 };
 
+static TRON_APP: &str = "tron_app";
+
+static LLM_SERVICE: &str = "llm_service";
+
 static D3PLOT: &str = "d3_plot";
 static RESET_BUTTON: &str = "reset_button";
 static CONTEXT_QUERY_BUTTON: &str = "context_query_button";
 static QUERY_BUTTON: &str = "query_button";
 static QUERY_TEXT_INPUT: &str = "query_text_input";
 static TOP_HIT_TEXTAREA: &str = "top_hit_textarea";
+static QUERY_STREAM_TEXTAREA: &str = "query_stream_textarea";
 static QUERY_RESULT_TEXTAREA: &str = "query_result_textarea";
+static FIND_RELATED_BUTTON: &str = "find_related_text_button";
 
 #[derive(Deserialize, Debug)]
 struct DocumentChunk {
@@ -143,6 +158,7 @@ async fn main() {
     let app_config = tron_app::AppConfigure {
         http_only: true,
         api_router: Some(api_routes),
+        cognito_login: false,
         ..Default::default()
     };
     // set app state
@@ -192,7 +208,11 @@ fn build_context() -> TnContext {
     context.add_component(top_hit_textarea);
 
     component_index += 1;
-    let mut context_query_btn = TnButton::new(component_index, CONTEXT_QUERY_BUTTON.into(), "Query With The Hit".into());
+    let mut context_query_btn = TnButton::new(
+        component_index,
+        CONTEXT_QUERY_BUTTON.into(),
+        "Query With The Hits".into(),
+    );
     context_query_btn.set_attribute(
         "class".to_string(),
         "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
@@ -208,21 +228,49 @@ fn build_context() -> TnContext {
     context.add_component(query_btn);
 
     component_index += 1;
+    let mut query_btn = TnButton::new(component_index, FIND_RELATED_BUTTON.into(), "Find Related Text".into());
+    query_btn.set_attribute(
+        "class".to_string(),
+        "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
+    );
+    context.add_component(query_btn);
+
+    component_index += 1;
     let mut query_text_input = TnTextArea::new(component_index, QUERY_TEXT_INPUT.into(), "".into());
-    query_text_input.set_attribute("class".to_string(), "h-24 w-full".to_string());
+    query_text_input.set_attribute("class".to_string(), "min-h-32 w-full".to_string());
     query_text_input.set_attribute("style".to_string(), "resize:none".to_string());
+    query_text_input.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
+    query_text_input.set_attribute(
+        "hx-vals".into(),
+        r##"js:{event_data:get_input_event(event)}"##.into(),
+    ); //over-ride the default as we need the value of the input text
     query_text_input.remove_attribute("disabled".into());
     context.add_component(query_text_input);
 
-
     component_index += 1;
-    let mut query_result_textarea = TnTextArea::new(component_index, QUERY_RESULT_TEXTAREA.into(), "".into());
-    query_result_textarea.set_attribute("class".to_string(), "h-96 w-full".to_string());
-    query_result_textarea.set_attribute("style".to_string(), "resize:none".to_string());
+    let mut query_stream_textarea = TnStreamTextArea::new(
+        component_index,
+        QUERY_STREAM_TEXTAREA.into(),
+        vec!["".into()],
+    );
+    query_stream_textarea.set_attribute("class".to_string(), "min-h-24 w-full".to_string());
+    query_stream_textarea.set_attribute("style".to_string(), "resize:none".to_string());
+    query_stream_textarea.remove_attribute("disabled".into());
+    context.add_component(query_stream_textarea);
+
+    // add a chatbox
+    component_index += 1;
+    let mut query_result_textarea =
+        TnChatBox::<'static>::new(component_index, QUERY_RESULT_TEXTAREA.to_string(), vec![]);
+    query_result_textarea.set_attribute(
+        "class".to_string(),
+        "min-h-96 max-h-96 overflow-auto flex-1 p-2".to_string(),
+    );
+
     context.add_component(query_result_textarea);
 
-
-    { // fill in the plot stream data
+    {
+        // fill in the plot stream data
         let mut stream_data_guard = context.stream_data.blocking_write();
         stream_data_guard.insert(
             "plot_data".into(),
@@ -256,9 +304,23 @@ fn build_context() -> TnContext {
         stream_data_guard.insert("plot_data".into(), ("application/text".into(), data));
     }
 
-    TnContext {
+    let context = TnContext {
         base: Arc::new(RwLock::new(context)),
+    };
+    // add service
+    {
+        // service handling the LLM and TTS at once
+        let (llm_request_tx, llm_request_rx) = tokio::sync::mpsc::channel::<TnServiceRequestMsg>(1);
+        context.blocking_write().services.insert(
+            LLM_SERVICE.into(),
+            (llm_request_tx.clone(), Mutex::new(None)),
+        );
+        let llm_service = tokio::task::spawn(llm_service(context.clone(), llm_request_rx));
+
+        context.blocking_write().service_handles.push(llm_service);
     }
+
+    context
 }
 
 #[derive(Template)] // this will generate the code...
@@ -269,8 +331,10 @@ struct AppPageTemplate {
     context_query_button: String,
     query_button: String,
     top_hit_textarea: String,
+    query_stream_textarea: String,
     query_result_textarea: String,
     query_text_input: String,
+    find_related_text_button: String,
 }
 
 fn layout(context: TnContext) -> String {
@@ -279,9 +343,11 @@ fn layout(context: TnContext) -> String {
     let reset_button = context_guard.render_to_string(RESET_BUTTON);
     let top_hit_textarea = context_guard.render_to_string(TOP_HIT_TEXTAREA);
     let context_query_button = context_guard.render_to_string(CONTEXT_QUERY_BUTTON);
-    let query_result_textarea = context_guard.render_to_string(QUERY_RESULT_TEXTAREA); 
-    let query_button = context_guard.render_to_string(QUERY_BUTTON); 
-    let query_text_input = context_guard.render_to_string(QUERY_TEXT_INPUT); 
+    let query_stream_textarea = context_guard.first_render_to_string(QUERY_STREAM_TEXTAREA);
+    let query_result_textarea = context_guard.first_render_to_string(QUERY_RESULT_TEXTAREA);
+    let query_button = context_guard.render_to_string(QUERY_BUTTON);
+    let query_text_input = context_guard.render_to_string(QUERY_TEXT_INPUT);
+    let find_related_text_button = context_guard.render_to_string(FIND_RELATED_BUTTON);
 
     let html = AppPageTemplate {
         d3_plot,
@@ -289,8 +355,10 @@ fn layout(context: TnContext) -> String {
         top_hit_textarea,
         context_query_button,
         query_result_textarea,
-        query_button, 
+        query_stream_textarea,
+        query_button,
         query_text_input,
+        find_related_text_button,
     };
     html.render().unwrap()
 }
@@ -307,7 +375,27 @@ fn build_actions(context: TnContext) -> TnEventActions {
     let index = context.blocking_read().get_component_index(RESET_BUTTON);
     actions.insert(
         index,
-        (TnActionExecutionMethod::Await, Arc::new(reset_button_clicked)),
+        (
+            TnActionExecutionMethod::Await,
+            Arc::new(reset_button_clicked),
+        ),
+    );
+
+    let index = context.blocking_read().get_component_index(QUERY_BUTTON);
+    actions.insert(
+        index,
+        (
+            TnActionExecutionMethod::Await,
+            Arc::new(query_button_clicked),
+        ),
+    );
+
+    let index = context
+        .blocking_read()
+        .get_component_index(CONTEXT_QUERY_BUTTON);
+    actions.insert(
+        index,
+        (TnActionExecutionMethod::Await, Arc::new(query_with_hits)),
     );
 
     actions
@@ -479,49 +567,32 @@ fn d3_plot_clicked(
             })
             .collect::<Vec<String>>();
         let top_doc = top_doc.join("\n\n");
-
-        {
-            let textarea = context.get_component(TOP_HIT_TEXTAREA).await;
-            let mut guard = textarea.write().await;
-            guard.set_value(TnComponentValue::String(top_doc));
-
-            let sse_tx = context.get_sse_tx().await;
-
-            let msg = TnSseTriggerMsg {
-                server_side_trigger_data: TnServerSideTriggerData {
-                    target: TOP_HIT_TEXTAREA.into(),
-                    new_state: "ready".into(),
-                },
-            };
-            send_sse_msg_to_client(&sse_tx, msg).await;
-        }
+        update_and_send_textarea_with_context(context.clone(), TOP_HIT_TEXTAREA, &top_doc).await;
 
         let top_chunk = top_10
-        .into_iter()
-        .map(|p| {
-            let mut text = String::new();
-            text.extend(format!("=== CHUNK BGN, TITLE: {}\n", p.chunk.title).chars() );
-            text.push_str( &p.chunk.text);
-            text.push_str("\n=== CHUNK END \n");
-            text
-        })
-        .collect::<Vec<String>>();
+            .into_iter()
+            .map(|p| {
+                let mut text = String::new();
+                text.extend(format!("=== CHUNK BGN, TITLE: {}\n", p.chunk.title).chars());
+                text.push_str(&p.chunk.text);
+                text.push_str("\n=== CHUNK END \n");
+                text
+            })
+            .collect::<Vec<String>>();
         let top_chunk = top_chunk.join("\n");
 
+        //clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
+        append_and_send_stream_textarea_with_context(
+            context.clone(),
+            QUERY_STREAM_TEXTAREA,
+            &top_chunk,
+        )
+        .await;
+
         {
-            let textarea = context.get_component(QUERY_RESULT_TEXTAREA).await;
-            let mut guard = textarea.write().await;
-            guard.set_value(TnComponentValue::String(top_chunk));
-
-            let sse_tx = context.get_sse_tx().await;
-
-            let msg = TnSseTriggerMsg {
-                server_side_trigger_data: TnServerSideTriggerData {
-                    target: QUERY_RESULT_TEXTAREA.into(),
-                    new_state: "ready".into(),
-                },
-            };
-            send_sse_msg_to_client(&sse_tx, msg).await;
+            let context_guard = context.write().await;
+            let mut asset = context_guard.assets.write().await;
+            asset.insert("top_k_chunk".into(), TnAsset::String(top_chunk));
         }
 
         None
@@ -580,8 +651,101 @@ fn reset_button_clicked(
                 };
                 send_sse_msg_to_client(&sse_tx, msg).await;
             }
+
+            clean_textarea_with_context(context.clone(), TOP_HIT_TEXTAREA).await;
+
+            clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
+
             None
         }
+    };
+    Box::pin(action)
+}
+
+fn query_button_clicked(
+    context: TnContext,
+    event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+    let action = async move {
+        if event.e_trigger != QUERY_BUTTON {
+            return None;
+        };
+        let query_text = context.get_value_from_component(QUERY_TEXT_INPUT).await;
+        let query_text = if let TnComponentValue::String(s) = query_text {
+            s
+        } else {
+            unreachable!()
+        };
+
+        let llm_tx = context.get_service_tx(LLM_SERVICE).await;
+        let (tx, rx) = oneshot::channel::<String>();
+
+        let llm_req_msg = TnServiceRequestMsg {
+            request: "chat-complete".into(),
+            payload: TnAsset::String(query_text.clone()),
+            response: tx,
+        };
+        let _ = llm_tx.send(llm_req_msg).await;
+
+        if let Ok(out) = rx.await {
+            tracing::debug!(target: TRON_APP, "returned string: {}", out);
+        };
+
+        None
+    };
+    Box::pin(action)
+}
+
+fn query_with_hits(
+    context: TnContext,
+    event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+    let action = async move {
+        if event.e_trigger != CONTEXT_QUERY_BUTTON {
+            return None;
+        };
+
+        let query_text = context.get_value_from_component(QUERY_TEXT_INPUT).await;
+
+        let query_text = if let TnComponentValue::String(s) = query_text {
+            s
+        } else {
+            unreachable!()
+        };
+
+        {
+            let context_guard = context.read().await;
+            let asset = context_guard.assets.read().await;
+
+            let mut query_text = if query_text.len() > 5 {
+                query_text.clone()
+            } else {
+                "Please summarize ".to_string()
+            };
+
+            if let Some(TnAsset::String(s)) = asset.get("top_k_chunk") {
+                query_text.push_str("\n with the following chunks of text:\n");
+                query_text.push_str(s);
+            };
+
+            let llm_tx = context.get_service_tx(LLM_SERVICE).await;
+            let (tx, rx) = oneshot::channel::<String>();
+
+            let llm_req_msg = TnServiceRequestMsg {
+                request: "chat-complete".into(),
+                payload: TnAsset::String(query_text.clone()),
+                response: tx,
+            };
+            let _ = llm_tx.send(llm_req_msg).await;
+
+            if let Ok(out) = rx.await {
+                tracing::debug!(target: TRON_APP, "returned string: {}", out);
+            };
+        }
+
+        None
     };
     Box::pin(action)
 }

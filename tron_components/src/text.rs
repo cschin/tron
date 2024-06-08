@@ -207,7 +207,7 @@ pub async fn append_and_send_stream_textarea_with_context(
     tron_id: &str,
     new_str: &str,
 ) {
-    tracing::info!(target:"tron_app", "tron_id; {tron_id}, new_str: {new_str}");
+    tracing::debug!(target:"tron_app", "tron_id: {tron_id}, new_str: {new_str}");
     {
         let comp = context.get_component(tron_id).await;
         append_stream_textarea(comp, new_str).await;

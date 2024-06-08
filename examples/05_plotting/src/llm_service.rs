@@ -143,7 +143,6 @@ async fn openai_stream_service(
                             &s,
                         )
                         .await;
-                        tokio::time::sleep(std::time::Duration::from_millis(5)).await;
                     }
                 }
             }
@@ -152,8 +151,11 @@ async fn openai_stream_service(
             }
         }
     }
-    //let s = llm_response.join("");
-    //text::append_and_send_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA, &s).await;
+    text::finish_stream_textarea_with_context(
+        context.clone(),
+        QUERY_STREAM_TEXTAREA,
+    )
+    .await;
 
     let llm_response = llm_response.join("");
     let llm_response = llm_response.replace('\n', "<br>");

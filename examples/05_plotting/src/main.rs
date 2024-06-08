@@ -251,7 +251,7 @@ fn build_context() -> TnContext {
     let mut query_stream_textarea = TnStreamTextArea::new(
         component_index,
         QUERY_STREAM_TEXTAREA.into(),
-        vec!["".into()],
+        VecDeque::new(),
     );
     query_stream_textarea.set_attribute("class".to_string(), "min-h-24 w-full".to_string());
     query_stream_textarea.set_attribute("style".to_string(), "resize:none".to_string());
@@ -581,7 +581,7 @@ fn d3_plot_clicked(
             .collect::<Vec<String>>();
         let top_chunk = top_chunk.join("\n");
 
-        //clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
+        clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
         append_and_send_stream_textarea_with_context(
             context.clone(),
             QUERY_STREAM_TEXTAREA,

@@ -152,6 +152,7 @@ async fn main() {
     let api_routes: Router<()> = Router::new().route("/test", get(data));
 
     let app_config = tron_app::AppConfigure {
+        address: [0, 0, 0, 0],
         http_only: true,
         api_router: Some(api_routes),
         cognito_login: false,
@@ -653,6 +654,20 @@ fn reset_button_clicked(
             clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
 
             clean_chatbox_with_context(context.clone(), QUERY_RESULT_TEXTAREA).await;
+
+            let llm_tx = context.get_service_tx(LLM_SERVICE).await;
+            let (tx, rx) = oneshot::channel::<String>();
+    
+            let llm_req_msg = TnServiceRequestMsg {
+                request: "clear-history".into(),
+                payload: TnAsset::String("".into()),
+                response: tx,
+            };
+            let _ = llm_tx.send(llm_req_msg).await;
+    
+            if let Ok(out) = rx.await {
+                tracing::debug!(target: TRON_APP, "returned string: {}", out);
+            };
 
             None
         }

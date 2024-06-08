@@ -164,7 +164,7 @@ fn build_session_context() -> TnContext {
         // add a status box
         component_index += 1;
         let mut status_output =
-            TnStreamTextArea::<'static>::new(component_index, STATUS.to_string(), vec![]);
+            TnStreamTextArea::<'static>::new(component_index, STATUS.to_string(), VecDeque::new());
         status_output.set_attribute(
             "class".to_string(),
             "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),

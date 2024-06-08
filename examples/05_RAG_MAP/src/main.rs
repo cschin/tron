@@ -34,14 +34,10 @@ use tracing::debug;
 use tron_app::{
     send_sse_msg_to_client,
     tron_components::{
-        self, button,
-        d3_plot::SseD3PlotTriggerMsg,
-        text::{
+        self, button, chatbox::clean_chatbox_with_context, d3_plot::SseD3PlotTriggerMsg, text::{
             append_and_send_stream_textarea_with_context, clean_stream_textarea_with_context,
             clean_textarea_with_context, update_and_send_textarea_with_context,
-        },
-        TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnHtmlResponse, TnServiceRequestMsg,
-        TnStreamTextArea,
+        }, TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnHtmlResponse, TnServiceRequestMsg, TnStreamTextArea
     },
     AppData, TnServerSideTriggerData, TnSseTriggerMsg,
 };
@@ -655,6 +651,8 @@ fn reset_button_clicked(
             clean_textarea_with_context(context.clone(), TOP_HIT_TEXTAREA).await;
 
             clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
+
+            clean_chatbox_with_context(context.clone(), QUERY_RESULT_TEXTAREA).await;
 
             None
         }

@@ -140,10 +140,10 @@ pub struct TnStreamTextArea<'a: 'static> {
 ///
 /// A new instance of TnStreamTextArea.
 impl<'a: 'static> TnStreamTextArea<'a> {
-    pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<String>) -> Self {
+    pub fn new(idx: TnComponentIndex, tnid: String, value: VecDeque<String>) -> Self {
         let mut base =
             TnComponentBase::new("textarea".into(), idx, tnid, TnComponentType::StreamTextArea);
-        base.set_value(TnComponentValue::VecString(value));
+        base.set_value(TnComponentValue::VecDequeString(value));
 
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         base.set_attribute("type".into(), "text".into());
@@ -191,7 +191,7 @@ impl<'a: 'static> TnStreamTextArea<'a> {
     pub fn internal_render(&self) -> String {
         let empty = "".to_string();
         match self.value() {
-            TnComponentValue::VecString(s) => s.last().unwrap_or(&empty).clone(),
+            TnComponentValue::VecDequeString(s) => s.front().unwrap_or(&empty).clone(),
             _ => "".into(),
         }
     }
@@ -199,6 +199,11 @@ impl<'a: 'static> TnStreamTextArea<'a> {
     }
 
     pub fn internal_post_render(&mut self)  {
+        if let TnComponentValue::VecDequeString(v) = self.get_mut_value() {
+            v.pop_front();
+        } else {
+            unreachable!()
+        }
     }
 }
 
@@ -206,8 +211,8 @@ impl<'a: 'static> TnStreamTextArea<'a> {
 pub async fn append_stream_textarea(comp: TnComponent<'static>, new_str: &str) {
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::StreamTextArea);
-    if let TnComponentValue::VecString(v) = comp.get_mut_value() {
-        v.push(new_str.to_string());
+    if let TnComponentValue::VecDequeString(v) = comp.get_mut_value() {
+        v.push_back(new_str.to_string());
     }
 }
 
@@ -232,6 +237,36 @@ pub async fn append_and_send_stream_textarea_with_context(
     }
 }
 
+/// Appends a new string to the stream text area component and sends a server-sent event (SSE) message to the client.
+pub async fn finish_stream_textarea_with_context(
+    context: TnContext,
+    tron_id: &str,
+) {
+    tracing::debug!(target:"tron_app", "tron_id: {tron_id}");
+    {
+        let comp = context.get_component(tron_id).await;
+
+        {
+            let mut value = comp.write().await;
+            let value = value.get_mut_value();
+            if let TnComponentValue::VecDequeString(value) = value {
+                let rest = value.iter().cloned().collect::<Vec<String>>().join("");
+                value.clear();
+                value.push_back(rest);
+            }
+        }
+
+        let sse_tx = context.get_sse_tx().await;
+        let msg = TnSseTriggerMsg {
+            server_side_trigger_data: TnServerSideTriggerData {
+                target: tron_id.to_string(),
+                new_state: "ready".into(),
+            },
+        };
+        send_sse_msg_to_client(&sse_tx, msg).await;
+    }
+}
+
 /// Cleans the content of the stream text area component with the specified ID and sends a server-sent event (SSE) message to the client.
 pub async fn clean_stream_textarea_with_context(context: TnContext, tron_id: &str) {
     let sse_tx = context.get_sse_tx().await;
@@ -244,7 +279,7 @@ pub async fn clean_stream_textarea_with_context(context: TnContext, tron_id: &st
                 == TnComponentType::StreamTextArea
         );
         context
-            .set_value_for_component(tron_id, TnComponentValue::VecString(vec![]))
+            .set_value_for_component(tron_id, TnComponentValue::VecDequeString(vec![].into()))
             .await;
         let comp = context.get_component(tron_id).await;
         {

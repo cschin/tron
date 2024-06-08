@@ -549,7 +549,6 @@ async fn tron_entry(
             tokio::task::block_in_place(|| target.post_render())
         }
 
-
         let mut header_to_be_removed = Vec::<String>::new();
 
         let target_guard = component_guard.get_mut(&tron_index).unwrap();

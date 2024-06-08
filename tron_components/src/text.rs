@@ -52,6 +52,11 @@ impl<'a: 'static> TnTextArea<'a> {
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+    pub fn internal_pre_render(&mut self)  {
+    }
+
+    pub fn internal_post_render(&mut self)  {
+    }
 }
 
 /// Appends text to the value of a TextArea component.
@@ -190,6 +195,11 @@ impl<'a: 'static> TnStreamTextArea<'a> {
             _ => "".into(),
         }
     }
+    pub fn internal_pre_render(&mut self)  {
+    }
+
+    pub fn internal_post_render(&mut self)  {
+    }
 }
 
 /// Appends a new string to the stream text area component.
@@ -318,6 +328,12 @@ impl<'a: 'static> TnTextInput<'a> {
     /// Renders the initial representation of the text input component.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
+    }
+
+    pub fn internal_pre_render(&mut self)  {
+    }
+
+    pub fn internal_post_render(&mut self)  {
     }
 }
 

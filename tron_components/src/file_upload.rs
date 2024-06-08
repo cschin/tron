@@ -29,7 +29,10 @@ impl<'a: 'static> TnFileUpload<'a> {
         base.set_attribute("id".into(), tnid.clone());
         base.set_attribute("hx-swap".into(), "none".into());
         base.set_attribute("hx-trigger".into(), "finished".into());
-        base.set_attribute("hx-vals".into(), "js:{event_data:get_event_with_files(event)}".into());
+        base.set_attribute(
+            "hx-vals".into(),
+            "js:{event_data:get_event_with_files(event)}".into(),
+        );
         let script = ScriptTemplate { tron_id: tnid };
         let script = script.render().unwrap();
         base.script = Some(script);
@@ -76,7 +79,10 @@ where
             .collect::<Vec<_>>()
             .join(" ");
         let container_class = if self.attributes().contains_key("class") {
-            format!(r#"class="{}"#, self.attributes().get("class").unwrap().clone())
+            format!(
+                r#"class="{}"#,
+                self.attributes().get("class").unwrap().clone()
+            )
         } else {
             "".into()
         };
@@ -100,4 +106,8 @@ where
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+
+    pub fn internal_pre_render(&mut self) {}
+
+    pub fn internal_post_render(&mut self) {}
 }

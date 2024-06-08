@@ -18,17 +18,16 @@ pub struct TnAudioRecorder<'a: 'static> {
 }
 
 impl<'a: 'static> TnAudioRecorder<'a> {
-    
     /// Creates a new `TnAudioRecorder` component with the specified index, name, and value.
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `idx` - The unique index of the component.
     /// * `tnid` - The name of the component.
     /// * `value` - The initial value of the component.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// A new instance of `TnAudioRecorder`.
     pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
         let mut base =
@@ -83,6 +82,10 @@ where
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+
+    pub fn internal_pre_render(&mut self) {}
+
+    pub fn internal_post_render(&mut self) {}
 }
 
 /// Appends new audio data to the specified audio recorder component.

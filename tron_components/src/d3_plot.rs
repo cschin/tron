@@ -2,7 +2,6 @@ use super::*;
 use serde::Serialize;
 use tron_macro::*;
 
-
 #[derive(Serialize)]
 pub struct SseD3PlotTriggerMsg {
     pub server_side_trigger_data: TnServerSideTriggerData,
@@ -31,12 +30,7 @@ impl<'a: 'static> TnD3Plot<'a> {
     ///
     /// An external JavaScript file for the D3 scatter plot is included and linked to the component's script property.
     pub fn new(idx: TnComponentIndex, tnid: String, d3_plot_script: String) -> Self {
-        let mut base = TnComponentBase::new(
-            "div".into(),
-            idx,
-            tnid,
-            TnComponentType::D3Plot,
-        );
+        let mut base = TnComponentBase::new("div".into(), idx, tnid, TnComponentType::D3Plot);
         base.set_value(TnComponentValue::String(d3_plot_script));
         base.set_attribute("type".into(), "d3_simple_scatter_plot".into());
 
@@ -90,4 +84,8 @@ where
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+
+    pub fn internal_pre_render(&mut self) {}
+
+    pub fn internal_post_render(&mut self) {}
 }

@@ -82,6 +82,12 @@ impl<'a: 'static> TnRadioGroup<'a> {
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+
+    pub fn internal_pre_render(&mut self)  {
+    }
+
+    pub fn internal_post_render(&mut self)  {
+    }
 }
 
 /// Represents a radio item component within a radio group.
@@ -103,8 +109,12 @@ pub struct TnRadioItem<'a: 'static> {
 /// A new `TnRadioItem` instance.
 impl<'a: 'static> TnRadioItem<'a> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: bool) -> Self {
-        let mut base =
-            TnComponentBase::new("input".into(), idx, tnid.clone(), TnComponentType::RadioItem);
+        let mut base = TnComponentBase::new(
+            "input".into(),
+            idx,
+            tnid.clone(),
+            TnComponentType::RadioItem,
+        );
         base.set_value(TnComponentValue::RadioItem(value));
         base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
         base.set_attribute("hx-target".into(), format!("#{}-container", tnid));
@@ -133,8 +143,8 @@ impl<'a: 'static> Default for TnRadioItem<'a> {
 }
 
 impl<'a: 'static> TnRadioItem<'a> {
-     /// Renders the `TnRadioItem` component into HTML.
-     pub fn internal_render(&self) -> String {
+    /// Renders the `TnRadioItem` component into HTML.
+    pub fn internal_render(&self) -> String {
         let checked = if let &TnComponentValue::RadioItem(v) = self.value() {
             if v {
                 "checked"
@@ -184,6 +194,10 @@ impl<'a: 'static> TnRadioItem<'a> {
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+
+    pub fn internal_pre_render(&mut self) {}
+
+    pub fn internal_post_render(&mut self) {}
 }
 
 pub fn add_radio_group_to_context(

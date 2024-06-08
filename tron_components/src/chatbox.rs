@@ -148,6 +148,12 @@ impl<'a: 'static> TnChatBox<'a> {
         }
 
     }
+
+    pub fn internal_pre_render(&mut self)  {
+    }
+
+    pub fn internal_post_render(&mut self)  {
+    }
 }
 
 /// Appends a new tag-message pair to the chat box component's value.

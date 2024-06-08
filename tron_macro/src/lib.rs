@@ -122,6 +122,14 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.internal_render()
             }
 
+            fn pre_render(&mut self) {
+                self.internal_pre_render()
+            }
+
+            fn post_render(&mut self) {
+                self.internal_post_render()
+            }
+
             fn get_children(&self) -> &Vec<TnComponent<'a>>  {
                 self.base.get_children()
             }

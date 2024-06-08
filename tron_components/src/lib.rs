@@ -573,7 +573,9 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
 
     fn first_render(&self) -> String;
+    fn pre_render(&mut self);
     fn render(&self) -> String;
+    fn post_render(&mut self);
 
     fn get_children(&self) -> &Vec<TnComponent<'a>>;
     fn get_mut_children(&mut self) -> &mut Vec<TnComponent<'a>>;
@@ -833,7 +835,15 @@ where
         unimplemented!()
     }
 
+    fn pre_render(&mut self) {
+        unimplemented!()
+    }
+
     fn render(&self) -> String {
+        unimplemented!()
+    }
+
+    fn post_render(&mut self) {
         unimplemented!()
     }
 

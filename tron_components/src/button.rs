@@ -7,7 +7,7 @@ pub struct TnButton<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
- /// Creates a new button component with the specified idx, tnid, and value.
+/// Creates a new button component with the specified idx, tnid, and value.
 impl<'a: 'static> TnButton<'a> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
         let mut base = TnComponentBase::new("button".into(), idx, tnid, TnComponentType::Button);
@@ -52,4 +52,8 @@ where
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+
+    pub fn internal_pre_render(&mut self) {}
+
+    pub fn internal_post_render(&mut self) {}
 }

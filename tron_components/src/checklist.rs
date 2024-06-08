@@ -54,6 +54,10 @@ impl<'a: 'static> TnCheckList<'a> {
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+
+    pub fn internal_pre_render(&mut self) {}
+
+    pub fn internal_post_render(&mut self) {}
 }
 /// Represents a checkbox component.
 #[derive(ComponentBase)]
@@ -143,6 +147,10 @@ impl<'a: 'static> TnCheckBox<'a> {
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+
+    pub fn internal_pre_render(&mut self) {}
+
+    pub fn internal_post_render(&mut self) {}
 }
 
 /// Adds a checklist component to the context along with its child checkboxes.
@@ -164,12 +172,11 @@ pub fn add_checklist_to_context(
                 "container_attributes".into(),
                 TnAsset::VecString2(container_attributes.clone()),
             );
-            asset.insert(
-                "label".into(),
-                TnAsset::String(label),
-            );
+            asset.insert("label".into(), TnAsset::String(label));
             context.add_component(checkbox);
-            context.tnid_to_index.insert(format!("{child_trod_id}-container"), checkbox_index);
+            context
+                .tnid_to_index
+                .insert(format!("{child_trod_id}-container"), checkbox_index);
             checkbox_index
         })
         .collect::<Vec<_>>();
@@ -219,16 +226,14 @@ pub async fn checklist_update_value(comp: TnComponent<'static>) {
 }
 
 /// Retrieves the actions associated with the checkboxes within the checklist component.
-pub fn get_checklist_actions(
-    comp: TnComponent<'static>,
-) -> Vec<(TnComponentId, TnActionFn)> {
+pub fn get_checklist_actions(comp: TnComponent<'static>) -> Vec<(TnComponentId, TnActionFn)> {
     let comp_guard = comp.blocking_write();
     assert!(comp_guard.get_type() == TnComponentType::CheckList);
     let children = comp_guard.get_children().clone();
     let mut events: Vec<(TnComponentId, TnActionFn)> = Vec::default();
     for child in children {
         let child = child.blocking_read();
-     
+
         events.push((child.tron_id().clone(), toggle_checkbox))
     }
     events
@@ -267,11 +272,10 @@ pub fn toggle_checkbox(
             }
             checkbox.set_state(TnComponentState::Ready);
             let checkbox_html = tokio::task::block_in_place(|| checkbox.render());
-            Some( (HeaderMap::new(), Html::from(checkbox_html)) )
+            Some((HeaderMap::new(), Html::from(checkbox_html)))
         } else {
             None
         }
-       
     };
 
     Box::pin(f)

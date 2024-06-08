@@ -93,4 +93,9 @@ impl<'a: 'static> TnSelect<'a> {
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+    pub fn internal_pre_render(&mut self)  {
+    }
+
+    pub fn internal_post_render(&mut self)  {
+    }
 }

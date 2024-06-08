@@ -18,8 +18,6 @@ pub struct SseAudioPlayerTriggerMsg {
     pub audio_player_control: String,
 }
 
-
-
 /// Represents an audio player component in the application.
 ///
 /// This component provides functionality for playing audio content within the application.
@@ -109,6 +107,10 @@ where
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
+
+    pub fn internal_pre_render(&mut self) {}
+
+    pub fn internal_post_render(&mut self) {}
 }
 
 /// Asynchronously starts playing audio associated with a given component and sends an SSE message.
@@ -131,7 +133,7 @@ pub async fn start_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
         let mut comp = comp.write().await;
         assert!(comp.get_type() == TnComponentType::AudioPlayer);
         // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
-        comp.remove_header("HX-Reswap".into()); 
+        comp.remove_header("HX-Reswap".into());
         comp.set_state(TnComponentState::Updating);
     }
 
@@ -170,13 +172,13 @@ pub fn stop_audio_playing_action(
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
         if event.e_type != "ended" || event.e_state != "updating" {
-            return  None;
+            return None;
         }
         {
             let guard = context.get_component(&event.e_trigger.clone()).await;
             let mut player = guard.write().await;
             // we don't want to swap the element, or it will replay the audio. the "false" make the header persist until next play event
-            player.set_header("HX-Reswap".into(), ("none".into(), false)); 
+            player.set_header("HX-Reswap".into(), ("none".into(), false));
             player.set_state(TnComponentState::Ready);
         }
         {
@@ -190,21 +192,22 @@ pub fn stop_audio_playing_action(
             send_sse_msg_to_client(&sse_tx, msg).await;
         }
         let html = context.render_component(&event.h_target.unwrap()).await;
-        let mut header = HeaderMap::new(); 
-        header.insert(HeaderName::from_str("HX-Reswap").unwrap() ,HeaderValue::from_str("none").unwrap());
+        let mut header = HeaderMap::new();
+        header.insert(
+            HeaderName::from_str("HX-Reswap").unwrap(),
+            HeaderValue::from_str("none").unwrap(),
+        );
         Some((header, Html::from(html)))
- 
     };
     Box::pin(f)
 }
-
 
 pub async fn stop_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
     {
         let mut comp = comp.write().await;
         assert!(comp.get_type() == TnComponentType::AudioPlayer);
         // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
-        comp.remove_header("HX-Reswap".into()); 
+        comp.remove_header("HX-Reswap".into());
         comp.set_state(TnComponentState::Ready);
     }
 
@@ -214,7 +217,7 @@ pub async fn stop_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
             target: comp.tron_id().clone(),
             new_state: "ready".into(),
         },
-        audio_player_control: "stop".into()
+        audio_player_control: "stop".into(),
     };
     send_sse_msg_to_client(&sse_tx, msg).await;
 }

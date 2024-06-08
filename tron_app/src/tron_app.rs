@@ -126,7 +126,7 @@ impl Default for AppConfigure {
             cognito_login,
             log_level,
             session_expiry: None,
-            api_router: None
+            api_router: None,
         }
     }
 }
@@ -528,14 +528,31 @@ async fn tron_entry(
         };
 
         let mut component_guard = context.components.write().await;
-        let target_guard = component_guard.get_mut(&tron_index).unwrap();
-        let body = Body::new({
-            let target = target_guard.read().await;
-            tokio::task::block_in_place(|| target.render())
-        });
+
+        {
+            let target_guard = component_guard.get_mut(&tron_index).unwrap();
+            let mut target = target_guard.write().await;
+            tokio::task::block_in_place(|| target.pre_render())
+        }
+
+        let body = {
+            let target_guard = component_guard.get_mut(&tron_index).unwrap();
+            Body::new({
+                let target = target_guard.read().await;
+                tokio::task::block_in_place(|| target.render())
+            })
+        };
+
+        {
+            let target_guard = component_guard.get_mut(&tron_index).unwrap();
+            let mut target = target_guard.write().await;
+            tokio::task::block_in_place(|| target.post_render())
+        }
+
 
         let mut header_to_be_removed = Vec::<String>::new();
 
+        let target_guard = component_guard.get_mut(&tron_index).unwrap();
         target_guard
             .write()
             .await
@@ -603,7 +620,6 @@ async fn get_session_component_from_app_data(
     let components = context_guard.components.read().await;
     components.get(&tron_idx).unwrap().clone()
 }
-
 
 /// Handles the uploading of files for a specific session and component, saving the uploaded data.
 ///

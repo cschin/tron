@@ -3,6 +3,7 @@
 
 mod llm_service;
 use llm_service::llm_service;
+mod embedding_service;
 
 use flate2::bufread::GzDecoder;
 use serde::Deserialize;
@@ -34,10 +35,15 @@ use tracing::debug;
 use tron_app::{
     send_sse_msg_to_client,
     tron_components::{
-        self, button, chatbox::clean_chatbox_with_context, d3_plot::SseD3PlotTriggerMsg, text::{
+        self, button,
+        chatbox::clean_chatbox_with_context,
+        d3_plot::SseD3PlotTriggerMsg,
+        text::{
             append_and_send_stream_textarea_with_context, clean_stream_textarea_with_context,
             clean_textarea_with_context, update_and_send_textarea_with_context,
-        }, TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnHtmlResponse, TnServiceRequestMsg, TnStreamTextArea
+        },
+        TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnHtmlResponse, TnServiceRequestMsg,
+        TnStreamTextArea,
     },
     AppData, TnServerSideTriggerData, TnSseTriggerMsg,
 };
@@ -85,6 +91,8 @@ struct DocumentChunks {
     chunks: Vec<DocumentChunk>,
     filename_to_id: HashMap<String, u32>,
 }
+
+static EMBEDDING_SERVICE: OnceCell<embedding_service::EmbeddingService> = OnceCell::const_new();
 
 static DOCUMENT_CHUNKS: OnceCell<DocumentChunks> = OnceCell::const_new();
 
@@ -149,6 +157,16 @@ async fn main() {
     let _result = DOCUMENT_CHUNKS
         .get_or_init(|| async { DocumentChunks::from_file("data/all_embedding.jsonl.gz".into()) })
         .await;
+
+    let _result = EMBEDDING_SERVICE
+        .get_or_init(|| async {
+            println!("load embedding model");
+            let es = embedding_service::EmbeddingService::new(None);
+            println!("finish loading embedding model");
+            es
+        })
+        .await;
+
     let api_routes: Router<()> = Router::new().route("/test", get(data));
 
     let app_config = tron_app::AppConfigure {
@@ -225,12 +243,16 @@ fn build_context() -> TnContext {
     context.add_component(query_btn);
 
     component_index += 1;
-    let mut query_btn = TnButton::new(component_index, FIND_RELATED_BUTTON.into(), "Find Related Text".into());
-    query_btn.set_attribute(
+    let mut find_related_btn = TnButton::new(
+        component_index,
+        FIND_RELATED_BUTTON.into(),
+        "Find Related Text".into(),
+    );
+    find_related_btn.set_attribute(
         "class".to_string(),
         "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
     );
-    context.add_component(query_btn);
+    context.add_component(find_related_btn);
 
     component_index += 1;
     let mut query_text_input = TnTextArea::new(component_index, QUERY_TEXT_INPUT.into(), "".into());
@@ -378,6 +400,17 @@ fn build_actions(context: TnContext) -> TnEventActions {
         ),
     );
 
+    let index = context
+        .blocking_read()
+        .get_component_index(FIND_RELATED_BUTTON);
+    actions.insert(
+        index,
+        (
+            TnActionExecutionMethod::Await,
+            Arc::new(find_related_button_clicked),
+        ),
+    );
+
     let index = context.blocking_read().get_component_index(QUERY_BUTTON);
     actions.insert(
         index,
@@ -448,6 +481,130 @@ fn hex_color_rescale(hex_color: &str, rescale: f64) -> String {
     format!("#{:06x}", hex)
 }
 
+fn sort_points<'a>(ref_vec: &[f32]) -> Vec<TwoDPoint<'a>> {
+    tracing::info!(target:"tron_app", "ref_vec:{:?}", ref_vec);
+    let mut all_points = Vec::new();
+    DOCUMENT_CHUNKS
+        .get()
+        .unwrap()
+        .chunks
+        .iter()
+        .step_by(2)
+        .for_each(|c| {
+            let x = c.two_d_embedding.0 as f64;
+            let y = c.two_d_embedding.1 as f64;
+            //let d = OrderedFloat::from((evt_x - x).powi(2) + (evt_y - y).powi(2));
+            let d: f64 = (0..c.embedding_vec.len())
+                .map(|idx| (c.embedding_vec[idx] - ref_vec[idx]).powi(2))
+                .sum::<f32>() as f64;
+            let d = OrderedFloat::from(d);
+            let point = TwoDPoint {
+                d,
+                point: (x, y),
+                chunk: c,
+            };
+            all_points.push(point);
+        });
+    all_points.sort();
+    all_points.reverse();
+    all_points
+}
+
+fn get_plot_data(all_points_sorted: &[TwoDPoint]) -> String {
+    let mut color_scale = 1.0;
+    let mut d_color = 4.0 * color_scale / (all_points_sorted.len() as f64);
+
+    let mut two_d_embeddding = "x,y,c,o\n".to_string();
+    let filename_to_id = &DOCUMENT_CHUNKS.get().unwrap().filename_to_id;
+    two_d_embeddding.extend(
+        all_points_sorted
+            .iter()
+            .map(|p| {
+                let c = p.chunk;
+                let fid = filename_to_id.get(&c.filename).unwrap();
+
+                color_scale = if color_scale > 0.0 { color_scale } else { 0.0 };
+
+                color_scale -= d_color;
+                d_color *= 0.999995;
+                let color = CMAP[(fid % 97) as usize];
+
+                format!("{},{},{},{}\n", p.point.0, p.point.1, color, color_scale)
+            })
+            .collect::<Vec<String>>(),
+    );
+    two_d_embeddding
+}
+
+async fn update_plot_and_top_k<'a>(
+    context: TnContext,
+    all_points_sorted: Vec<TwoDPoint<'a>>,
+    top_k_points: Vec<TwoDPoint<'a>>,
+) {
+    let two_d_embeddding = get_plot_data(&all_points_sorted);
+
+    {
+        let two_d_embeddding = BytesMut::from_iter(two_d_embeddding.as_bytes());
+        let context_guard = context.write().await;
+        let mut stream_data_guard = context_guard.stream_data.write().await;
+        let data = stream_data_guard.get_mut("plot_data").unwrap();
+        data.1.clear();
+        tracing::info!(target: "tron_app", "length:{}", two_d_embeddding.len());
+        data.1.push_back(two_d_embeddding);
+        tracing::info!(target: "tron_app", "stream_data {:?}", data.1[0].len());
+    }
+    let sse_tx = context.get_sse_tx().await;
+    let msg = SseD3PlotTriggerMsg {
+        server_side_trigger_data: TnServerSideTriggerData {
+            target: D3PLOT.into(),
+            new_state: "ready".into(),
+        },
+        d3_plot: "re-plot".into(),
+    };
+    send_sse_msg_to_client(&sse_tx, msg).await;
+
+    let mut docs = HashSet::<String>::new();
+    let top_doc = top_k_points
+        .iter()
+        .flat_map(|p| {
+            if docs.contains(&p.chunk.title) {
+                None
+            } else {
+                docs.insert(p.chunk.title.clone());
+                Some(p.chunk.title.clone())
+            }
+        })
+        .collect::<Vec<String>>();
+    let top_doc = top_doc.join("\n\n");
+    update_and_send_textarea_with_context(context.clone(), TOP_HIT_TEXTAREA, &top_doc).await;
+
+    let top_chunk = top_k_points
+        .into_iter()
+        .map(|p| {
+            let mut text = String::new();
+            text.extend(format!("=== CHUNK BGN, TITLE: {}\n", p.chunk.title).chars());
+            text.push_str(&p.chunk.text);
+            text.push_str("\n=== CHUNK END \n");
+            text
+        })
+        .collect::<Vec<String>>();
+    let top_chunk = top_chunk.join("\n");
+
+    clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
+    append_and_send_stream_textarea_with_context(
+        context.clone(),
+        QUERY_STREAM_TEXTAREA,
+        &top_chunk,
+    )
+    .await;
+
+    {
+        let context_guard = context.write().await;
+        let mut asset = context_guard.assets.write().await;
+        asset.insert("top_k_chunk".into(), TnAsset::String(top_chunk));
+    }
+}
+
 fn d3_plot_clicked(
     context: TnContext,
     event: TnEvent,
@@ -481,116 +638,12 @@ fn d3_plot_clicked(
             });
         all_points.sort();
         all_points.reverse();
+
         let ref_eb_vec = all_points.first().unwrap().chunk.embedding_vec.clone();
-        let mut all_points_2 = Vec::new();
-        DOCUMENT_CHUNKS
-            .get()
-            .unwrap()
-            .chunks
-            .iter()
-            .step_by(2)
-            .for_each(|c| {
-                let x = c.two_d_embedding.0 as f64;
-                let y = c.two_d_embedding.1 as f64;
-                //let d = OrderedFloat::from((evt_x - x).powi(2) + (evt_y - y).powi(2));
-                let d: f64 = (0..c.embedding_vec.len())
-                    .map(|idx| (c.embedding_vec[idx] - ref_eb_vec[idx]).powi(2))
-                    .sum::<f32>() as f64;
-                let d = OrderedFloat::from(d);
-                let point = TwoDPoint {
-                    d,
-                    point: (x, y),
-                    chunk: c,
-                };
-                all_points_2.push(point);
-            });
+        let all_points_sorted = sort_points(&ref_eb_vec);
+        let top_10: Vec<TwoDPoint> = all_points_sorted[..10].into();
 
-        let mut color_scale = 1.0;
-        let mut d_color = 4.0 * color_scale / (all_points.len() as f64);
-
-        all_points_2.sort();
-        all_points_2.reverse();
-        let top_10 = all_points_2[..10].to_vec();
-        let mut two_d_embeddding = "x,y,c,o\n".to_string();
-        let filename_to_id = &DOCUMENT_CHUNKS.get().unwrap().filename_to_id;
-        two_d_embeddding.extend(
-            all_points_2
-                .into_iter()
-                .map(|p| {
-                    let c = p.chunk;
-                    let fid = filename_to_id.get(&c.filename).unwrap();
-
-                    color_scale = if color_scale > 0.0 { color_scale } else { 0.0 };
-
-                    color_scale -= d_color;
-                    d_color *= 0.999995;
-                    let color = CMAP[(fid % 97) as usize];
-
-                    format!("{},{},{},{}\n", p.point.0, p.point.1, color, color_scale)
-                })
-                .collect::<Vec<String>>(),
-        );
-
-        {
-            let two_d_embeddding = BytesMut::from_iter(two_d_embeddding.as_bytes());
-            let context_guard = context.write().await;
-            let mut stream_data_guard = context_guard.stream_data.write().await;
-            let data = stream_data_guard.get_mut("plot_data").unwrap();
-            data.1.clear();
-            tracing::info!(target: "tron_app", "length:{}", two_d_embeddding.len());
-            data.1.push_back(two_d_embeddding);
-            tracing::info!(target: "tron_app", "stream_data {:?}", data.1[0].len());
-        }
-        let sse_tx = context.get_sse_tx().await;
-        let msg = SseD3PlotTriggerMsg {
-            server_side_trigger_data: TnServerSideTriggerData {
-                target: D3PLOT.into(),
-                new_state: "ready".into(),
-            },
-            d3_plot: "re-plot".into(),
-        };
-        send_sse_msg_to_client(&sse_tx, msg).await;
-
-        let mut docs = HashSet::<String>::new();
-        let top_doc = top_10
-            .iter()
-            .flat_map(|p| {
-                if docs.contains(&p.chunk.title) {
-                    None
-                } else {
-                    docs.insert(p.chunk.title.clone());
-                    Some(p.chunk.title.clone())
-                }
-            })
-            .collect::<Vec<String>>();
-        let top_doc = top_doc.join("\n\n");
-        update_and_send_textarea_with_context(context.clone(), TOP_HIT_TEXTAREA, &top_doc).await;
-
-        let top_chunk = top_10
-            .into_iter()
-            .map(|p| {
-                let mut text = String::new();
-                text.extend(format!("=== CHUNK BGN, TITLE: {}\n", p.chunk.title).chars());
-                text.push_str(&p.chunk.text);
-                text.push_str("\n=== CHUNK END \n");
-                text
-            })
-            .collect::<Vec<String>>();
-        let top_chunk = top_chunk.join("\n");
-
-        clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
-        append_and_send_stream_textarea_with_context(
-            context.clone(),
-            QUERY_STREAM_TEXTAREA,
-            &top_chunk,
-        )
-        .await;
-
-        {
-            let context_guard = context.write().await;
-            let mut asset = context_guard.assets.write().await;
-            asset.insert("top_k_chunk".into(), TnAsset::String(top_chunk));
-        }
+        update_plot_and_top_k(context, all_points_sorted, top_10).await;
 
         None
     };
@@ -657,14 +710,14 @@ fn reset_button_clicked(
 
             let llm_tx = context.get_service_tx(LLM_SERVICE).await;
             let (tx, rx) = oneshot::channel::<String>();
-    
+
             let llm_req_msg = TnServiceRequestMsg {
                 request: "clear-history".into(),
                 payload: TnAsset::String("".into()),
                 response: tx,
             };
             let _ = llm_tx.send(llm_req_msg).await;
-    
+
             if let Ok(out) = rx.await {
                 tracing::debug!(target: TRON_APP, "returned string: {}", out);
             };
@@ -756,6 +809,69 @@ fn query_with_hits(
             if let Ok(out) = rx.await {
                 tracing::debug!(target: TRON_APP, "returned string: {}", out);
             };
+        }
+
+        None
+    };
+    Box::pin(action)
+}
+
+fn find_related_button_clicked(
+    context: TnContext,
+    event: TnEvent,
+    _payload: Value,
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+    let action = async move {
+
+        if event.e_trigger != FIND_RELATED_BUTTON {
+            return None;
+        };
+
+        let query_text = context.get_value_from_component(QUERY_TEXT_INPUT).await;
+
+        let query_text = if let TnComponentValue::String(s) = query_text {
+            s
+        } else {
+            unreachable!()
+        };
+
+        let query_text = {
+            if query_text.len() > 5 {
+                query_text.clone()
+            } else {
+                return None;
+            }
+        };
+
+        tracing::info!(target:"tron_app", "query_text: {}", query_text);
+
+        {
+            let tk_service = embedding_service::TextChunkingService::new(None, 128, 32, 4096);
+
+            let mut chunks = tk_service.text_to_chunks(&query_text);
+
+            tracing::info!(target:"tron_app", "chunks: {:?}", chunks);
+            EMBEDDING_SERVICE
+                .get()
+                .unwrap()
+                .get_embedding_for_chunks(&mut chunks)
+                .expect("Failed to get embeddings");
+            let mut ref_vec = Vec::<f32>::new();
+            let mut min_d = OrderedFloat::from(f64::MAX);
+            let mut best_sorted_points = Vec::<TwoDPoint>::new();
+            chunks.into_iter().for_each(|c| {
+                let ev = c.embedding_vec.unwrap().clone();
+                let sorted_points = sort_points(&ev);
+                let d = sorted_points.first().unwrap().d;
+                if d < min_d {
+                    ref_vec = ev;
+                    min_d = d;
+                    best_sorted_points = sorted_points;
+                }
+            });
+
+            let top_10 = best_sorted_points[..10].into();
+            update_plot_and_top_k(context, best_sorted_points, top_10).await;
         }
 
         None

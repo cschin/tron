@@ -186,7 +186,7 @@ pub async fn append_chatbox_value(
 /// - The chat box component's type is not `ChatBox`.
 /// - Unable to acquire a write lock for the chat box component.
 ///
-pub async fn clean_chatbox_with_context(context: TnContext, tron_id: &str) {
+pub async fn clean_chatbox_with_context(context: &TnContext, tron_id: &str) {
     let sse_tx = context.get_sse_tx().await;
     {
         // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML

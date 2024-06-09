@@ -39,7 +39,7 @@ use tron_app::{
         chatbox::clean_chatbox_with_context,
         d3_plot::SseD3PlotTriggerMsg,
         text::{
-            append_and_send_stream_textarea_with_context, clean_stream_textarea_with_context,
+            append_and_update_stream_textarea_with_context, clean_stream_textarea_with_context,
             clean_textarea_with_context, update_and_send_textarea_with_context,
         },
         TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnHtmlResponse, TnServiceRequestMsg,
@@ -267,11 +267,8 @@ fn build_context() -> TnContext {
     context.add_component(query_text_input);
 
     component_index += 1;
-    let mut query_stream_textarea = TnStreamTextArea::new(
-        component_index,
-        QUERY_STREAM_TEXTAREA.into(),
-        VecDeque::new(),
-    );
+    let mut query_stream_textarea =
+        TnStreamTextArea::new(component_index, QUERY_STREAM_TEXTAREA.into(), Vec::new());
     query_stream_textarea.set_attribute("class".to_string(), "min-h-24 w-full".to_string());
     query_stream_textarea.set_attribute("style".to_string(), "resize:none".to_string());
     query_stream_textarea.remove_attribute("disabled".into());
@@ -585,7 +582,7 @@ async fn update_plot_and_top_k<'a>(
         })
         .collect::<Vec<String>>();
     let top_doc = top_doc.join("\n\n");
-    update_and_send_textarea_with_context(context.clone(), TOP_HIT_TEXTAREA, &top_doc).await;
+    update_and_send_textarea_with_context(&context, TOP_HIT_TEXTAREA, &top_doc).await;
 
     let top_chunk = top_k_points
         .into_iter()
@@ -599,13 +596,9 @@ async fn update_plot_and_top_k<'a>(
         .collect::<Vec<String>>();
     let top_chunk = top_chunk.join("\n");
 
-    clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
-    append_and_send_stream_textarea_with_context(
-        context.clone(),
-        QUERY_STREAM_TEXTAREA,
-        &top_chunk,
-    )
-    .await;
+    clean_stream_textarea_with_context(&context, QUERY_STREAM_TEXTAREA).await;
+    append_and_update_stream_textarea_with_context(&context, QUERY_STREAM_TEXTAREA, &top_chunk)
+        .await;
 
     {
         let context_guard = context.write().await;
@@ -711,11 +704,11 @@ fn reset_button_clicked(
                 send_sse_msg_to_client(&sse_tx, msg).await;
             }
 
-            clean_textarea_with_context(context.clone(), TOP_HIT_TEXTAREA).await;
+            clean_textarea_with_context(&context, TOP_HIT_TEXTAREA).await;
 
-            clean_stream_textarea_with_context(context.clone(), QUERY_STREAM_TEXTAREA).await;
+            clean_stream_textarea_with_context(&context, QUERY_STREAM_TEXTAREA).await;
 
-            clean_chatbox_with_context(context.clone(), QUERY_RESULT_TEXTAREA).await;
+            clean_chatbox_with_context(&context, QUERY_RESULT_TEXTAREA).await;
 
             let llm_tx = context.get_service_tx(LLM_SERVICE).await;
             let (tx, rx) = oneshot::channel::<String>();

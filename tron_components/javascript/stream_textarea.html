@@ -1,0 +1,16 @@
+<script>
+    window.process_special_events["stream_textarea_control"] = (target, state, event_data) => {
+
+        if ("stream_textarea_control" in event_data && event_data["stream_textarea_control"] == "append_text") {
+            let elm = document.getElementById(target);
+            elm.innerHTML = elm.innerHTML + event_data["payload"];
+            elm.scrollTop = elm.scrollHeight;
+        };
+
+        if ("stream_textarea_control" in event_data && event_data["stream_textarea_control"] == "update_text") {
+            let elm = document.getElementById(target);
+            elm.innerHTML = "";
+        };
+
+    }
+</script>

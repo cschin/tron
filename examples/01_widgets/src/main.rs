@@ -11,10 +11,12 @@ use tokio::sync::RwLock;
 use serde_json::Value;
 
 use tracing::debug;
-use tron_app::tron_components::{self, TnFileUpload};
+use tron_app::tron_components::{
+    self, text::append_and_update_stream_textarea_with_context, TnFileUpload,
+};
 use tron_components::{
     checklist, radio_group,
-    text::{self, append_stream_textarea, append_textarea_value},
+    text::{self, append_textarea_value},
     TnActionExecutionMethod, TnActionFn, TnButton, TnComponentBaseTrait, TnComponentState,
     TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse,
     TnRangeSlider, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput,
@@ -78,7 +80,7 @@ fn build_session_context() -> TnContext {
     let mut stream_textarea = TnStreamTextArea::<'static>::new(
         component_index,
         "stream_textarea".into(),
-        vec!["This is a streamable textarea\n".to_string()].into(),
+        vec!["This is a streamable textarea\n".to_string()],
     );
 
     stream_textarea.set_attribute(
@@ -385,7 +387,7 @@ fn test_event_actions(
 
         debug!("Event: {:?}", event.clone());
         loop {
-            {
+            let v = {
                 let context_guard = context.write().await;
                 let v;
                 {
@@ -407,21 +409,14 @@ fn test_event_actions(
                 }
 
                 {
-                    let id = context_guard.get_component_index("stream_textarea");
-                    let mut components_guard = context_guard.components.write().await;
-                    let stream_textarea = components_guard.get_mut(&id).unwrap().clone();
-                    let new_str = format!("{} -- {:02};\n", event.e_trigger, v);
-                    append_stream_textarea(stream_textarea, &new_str).await;
-                };
-
-                {
                     let id = context_guard.get_component_index("textarea");
                     let mut components_guard = context_guard.components.write().await;
                     let textarea = components_guard.get_mut(&id).unwrap().clone();
                     let new_str = format!("{} -- {:02};", event.e_trigger, v);
                     append_textarea_value(textarea, &new_str, Some("\n")).await;
                 };
-            }
+                v
+            };
 
             let msg = format!(
                 r##"{{"server_side_trigger_data": {{ "target":"{}", "new_state":"updating" }} }}"##,
@@ -432,17 +427,20 @@ fn test_event_actions(
             }
 
             let msg =
-            r##"{"server_side_trigger_data": { "target":"stream_textarea", "new_state":"ready" } }"##
-                .to_string();
-            if sse_tx.send(msg).await.is_err() {
-                debug!("tx dropped");
-            }
-
-            let msg =
                 r##"{"server_side_trigger_data": { "target":"textarea", "new_state":"ready" } }"##
                     .to_string();
             if sse_tx.send(msg).await.is_err() {
                 debug!("tx dropped");
+            }
+
+            {
+                let new_str = format!("{} -- {:02};\n", event.e_trigger, v);
+                append_and_update_stream_textarea_with_context(
+                    &context,
+                    "stream_textarea",
+                    &new_str,
+                )
+                .await;
             }
 
             i += 1;
@@ -502,34 +500,12 @@ fn clean_stream_textarea(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
-        //text::clean_stream_textarea_with_context(context.clone(), "stream_textarea").await;
         tracing::info!(target: "tron_app", "event: {:?}", event);
-        match event.e_type.as_str() {
-            "click" => {
-                if let Some(target) = event.h_target {
-                    context
-                        .set_value_for_component(&target, TnComponentValue::VecString(vec![]))
-                        .await;
-                    let html = "".to_string();
-                    let mut header = HeaderMap::new();
-                    header.insert(
-                        HeaderName::from_str("hx-reswap").unwrap(),
-                        HeaderValue::from_str("innerHTML").unwrap(),
-                    );
-                    Some((header, Html::from(html)))
-                } else {
-                    None
-                }
-            }
-            "clean_stream_textarea" => {
-                if let Some(target) = event.h_target {
-                    let html = context.render_component(&target).await;
-                    Some((HeaderMap::new(), Html::from(html)))
-                } else {
-                    None
-                }
-            }
-            _ => None,
+        if let Some(target) = event.h_target {
+            text::clean_stream_textarea_with_context(&context, &target).await;
+            None
+        } else {
+            None
         }
     };
     Box::pin(f())
@@ -541,7 +517,7 @@ fn clean_textarea(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
-        text::clean_textarea_with_context(context.clone(), "textarea").await;
+        text::clean_textarea_with_context(&context, "textarea").await;
         context.set_ready_for(&event.e_trigger).await;
         let html = context.render_component(&event.e_trigger).await;
         Some((HeaderMap::new(), Html::from(html)))
@@ -611,18 +587,11 @@ fn slider_value_update(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
-        let stream_textarea = context.get_component("stream_textarea").await;
         let slider = context.get_component(&event.e_trigger).await;
         if let TnComponentValue::String(s) = slider.read().await.value() {
             let new_str = format!("{} -- Value {};\n", event.e_trigger, s);
-            append_stream_textarea(stream_textarea, &new_str).await;
-            let msg =
-        r##"{"server_side_trigger_data": { "target":"stream_textarea", "new_state":"ready" } }"##
-            .to_string();
-            let sse_tx = context.get_sse_tx().await;
-            if sse_tx.send(msg).await.is_err() {
-                debug!("tx dropped");
-            }
+            append_and_update_stream_textarea_with_context(&context, "stream_textarea", &new_str)
+                .await;
         }
         let html: String = context.render_component("slider").await;
         Some((HeaderMap::new(), Html::from(html)))
@@ -675,7 +644,9 @@ fn handle_file_upload(
                         let size = v[1].as_u64();
                         let t = v[2].as_str();
                         match (filename, size, t) {
-                            (Some(filename), Some(size), Some(t)) => Some(format!("<p>{filename}:{size}:{t}</p>")),
+                            (Some(filename), Some(size), Some(t)) => {
+                                Some(format!("<p>{filename}:{size}:{t}</p>"))
+                            }
                             _ => None,
                         }
                     } else {
@@ -685,7 +656,8 @@ fn handle_file_upload(
                 .collect::<Vec<_>>()
         } else {
             vec![]
-        }.join("\n");
+        }
+        .join("\n");
 
         tracing::debug!(target: "tron_app", "file_list: {:?}", file_list);
         let mut header = HeaderMap::new();

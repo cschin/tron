@@ -12,7 +12,7 @@ use thiserror::Error;
 use tokio::sync::{mpsc::Sender, Mutex};
 use tokio_tungstenite::tungstenite::{self, Message};
 use tron_app::tron_components::{
-    audio_player::start_audio, text::append_and_send_stream_textarea_with_context, TnAsset,
+    audio_player::start_audio, text::append_and_update_stream_textarea_with_context, TnAsset,
     TnComponentState, TnComponentValue, TnContext, TnServiceRequestMsg,
 };
 use url::Url;
@@ -295,8 +295,8 @@ pub async fn tts_service(
         tracing::debug!( target:TRON_APP, "response: {:?}", response);
 
         let duration = time.elapsed().unwrap();
-        append_and_send_stream_textarea_with_context(
-            context.clone(),
+        append_and_update_stream_textarea_with_context(
+            &context,
             STATUS,
             &format!("TTS request request done: {duration:?}\n"),
         )

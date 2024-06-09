@@ -28,8 +28,7 @@ use tracing::{debug, info};
 use tron_app::tron_components;
 use tron_app::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
 use tron_components::audio_recorder::SseAudioRecorderTriggerMsg;
-use tron_components::{text::append_and_send_stream_textarea_with_context, *};
-
+use tron_components::{text::append_and_update_stream_textarea_with_context, *};
 
 #[global_allocator]
 static GLOBAL: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
@@ -151,8 +150,11 @@ fn build_session_context() -> TnContext {
     {
         // add a textarea showing partial stream content
         component_index += 1;
-        let mut llm_stream_output =
-            TnTextArea::<'static>::new(component_index, LLM_STREAM_OUTPUT.to_string(), "".into());
+        let mut llm_stream_output = TnStreamTextArea::<'static>::new(
+            component_index,
+            LLM_STREAM_OUTPUT.to_string(),
+            Vec::new(),
+        );
         llm_stream_output.set_attribute(
             "class".to_string(),
             "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19".to_string(),
@@ -164,7 +166,7 @@ fn build_session_context() -> TnContext {
         // add a status box
         component_index += 1;
         let mut status_output =
-            TnStreamTextArea::<'static>::new(component_index, STATUS.to_string(), VecDeque::new());
+            TnStreamTextArea::<'static>::new(component_index, STATUS.to_string(), Vec::new());
         status_output.set_attribute(
             "class".to_string(),
             "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),
@@ -280,15 +282,20 @@ fn build_session_context() -> TnContext {
             transcript_response_tx,
         ));
 
-        context.blocking_write().service_handles.push(transcript_service);
+        context
+            .blocking_write()
+            .service_handles
+            .push(transcript_service);
 
         // service processing the output from deepgram
-        let  transcript_post_processing_service = tokio::task::spawn(transcript_post_processing_service(
-            context.clone(),
-            transcript_response_rx,
-        ));
+        let transcript_post_processing_service = tokio::task::spawn(
+            transcript_post_processing_service(context.clone(), transcript_response_rx),
+        );
 
-        context.blocking_write().service_handles.push(transcript_post_processing_service);
+        context
+            .blocking_write()
+            .service_handles
+            .push(transcript_post_processing_service);
 
         // service handling the LLM and TTS at once
         let (llm_request_tx, llm_request_rx) = tokio::sync::mpsc::channel::<TnServiceRequestMsg>(1);
@@ -298,7 +305,10 @@ fn build_session_context() -> TnContext {
         );
         let simulate_dialog = tokio::task::spawn(simulate_dialog(context.clone(), llm_request_rx));
 
-        context.blocking_write().service_handles.push(simulate_dialog);
+        context
+            .blocking_write()
+            .service_handles
+            .push(simulate_dialog);
 
         let (tts_tx, tts_rx) = tokio::sync::mpsc::channel::<TnServiceRequestMsg>(32);
         context
@@ -535,7 +545,7 @@ fn reset_conversation(
             let _ = rx.try_recv();
         }
 
-        chatbox::clean_chatbox_with_context(context.clone(), TRANSCRIPT_OUTPUT).await;
+        chatbox::clean_chatbox_with_context(&context, TRANSCRIPT_OUTPUT).await;
         context.set_ready_for(RESET_BUTTON).await;
 
         let html = context.render_component(&event.h_target.unwrap()).await;
@@ -782,8 +792,8 @@ fn audio_input_stream_processing(
                 let now = now % 1_000_000;
                 if now < 100_000 {
                     // sample 1/10 of the data
-                    append_and_send_stream_textarea_with_context(
-                        context.clone(),
+                    append_and_update_stream_textarea_with_context(
+                        &context,
                         STATUS,
                         &format!("recording audio, chunk length: {chunk_len}\n"),
                     )
@@ -930,7 +940,6 @@ async fn transcript_service(
                                 .await;
                             }
                             context.set_ready_for(TRANSCRIPT_OUTPUT).await;
-
                         } else {
                             let _ = tx
                                 .send(TnServiceResponseMsg {
@@ -992,8 +1001,8 @@ async fn transcript_post_processing_service(
             "transcript_final" => {
                 if let TnAsset::String(transcript) = response.payload {
                     {
-                        append_and_send_stream_textarea_with_context(
-                            context.clone(),
+                        append_and_update_stream_textarea_with_context(
+                            &context,
                             STATUS,
                             &format!("ASR output: {transcript}\n"),
                         )
@@ -1039,8 +1048,8 @@ async fn transcript_post_processing_service(
                             v.push(transcript.clone());
                         }
 
-                        append_and_send_stream_textarea_with_context(
-                            context.clone(),
+                        append_and_update_stream_textarea_with_context(
+                            &context,
                             STATUS,
                             &format!("trx fragment: {transcript}\n"),
                         )

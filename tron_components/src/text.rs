@@ -1,6 +1,7 @@
 use super::*;
+use serde::Serialize;
 use tron_macro::*;
-use tron_utils::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
+use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
 
 /// Represents a TextArea component.
 #[derive(ComponentBase)]
@@ -47,16 +48,14 @@ impl<'a: 'static> TnTextArea<'a> {
             self.base.tag
         )
     }
-    
+
     /// Renders the TextArea component for the first time.
     pub fn internal_first_render(&self) -> String {
         self.internal_render()
     }
-    pub fn internal_pre_render(&mut self)  {
-    }
+    pub fn internal_pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self)  {
-    }
+    pub fn internal_post_render(&mut self) {}
 }
 
 /// Appends text to the value of a TextArea component.
@@ -91,7 +90,7 @@ pub async fn append_textarea_value_with_context(
 
 /// Appends text to the value of a TextArea component with a given context.
 pub async fn update_and_send_textarea_with_context(
-    context: TnContext,
+    context: &TnContext,
     tron_id: &str,
     new_str: &str,
 ) {
@@ -117,15 +116,21 @@ pub async fn update_and_send_textarea_with_context(
 }
 
 /// Cleans the value of a TextArea component within a given context.
-pub async fn clean_textarea_with_context(context: TnContext, tron_id: &str) {
+pub async fn clean_textarea_with_context(context: &TnContext, tron_id: &str) {
     update_and_send_textarea_with_context(context, tron_id, "").await;
 }
-
 
 /// Represents a TextArea component with streaming updates.
 #[derive(ComponentBase)]
 pub struct TnStreamTextArea<'a: 'static> {
     base: TnComponentBase<'a>,
+}
+
+#[derive(Serialize)]
+pub struct SseStreamTextAreaTriggerMsg {
+    pub server_side_trigger_data: TnServerSideTriggerData,
+    pub stream_textarea_control: String,
+    pub payload: String,
 }
 
 /// Creates a new instance of TnStreamTextArea.
@@ -140,19 +145,23 @@ pub struct TnStreamTextArea<'a: 'static> {
 ///
 /// A new instance of TnStreamTextArea.
 impl<'a: 'static> TnStreamTextArea<'a> {
-    pub fn new(idx: TnComponentIndex, tnid: String, value: VecDeque<String>) -> Self {
-        let mut base =
-            TnComponentBase::new("textarea".into(), idx, tnid, TnComponentType::StreamTextArea);
-        base.set_value(TnComponentValue::VecDequeString(value));
-
-        base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        base.set_attribute("type".into(), "text".into());
-        //base.set_attribute("disabled".into(), "".into());
-        base.set_attribute(
-            "hx-swap".into(),
-            "beforeend scroll:bottom focus-scroll:true ".into(),
+    pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<String>) -> Self {
+        let mut base = TnComponentBase::new(
+            "textarea".into(),
+            idx,
+            tnid,
+            TnComponentType::StreamTextArea,
         );
-
+        base.set_value(TnComponentValue::VecString(value));
+        // stream textarea is totally passive!!
+        base.remove_attribute("hx-trigger".into());
+        base.remove_attribute("hx-swap".into());
+        base.remove_attribute("hx-post".into());
+        base.remove_attribute("hx-target".into());
+        base.remove_attribute("hx-vals".into());
+        base.set_attribute("type".into(), "text".into());
+        base.script = Some(include_str!("../javascript/stream_textarea.html").into());
+        base.set_attribute("disabled".into(), "".into());
         Self { base }
     }
 }
@@ -175,6 +184,11 @@ impl<'a: 'static> Default for TnStreamTextArea<'a> {
 impl<'a: 'static> TnStreamTextArea<'a> {
     /// Implements internal rendering functions for TnStreamTextArea.
     pub fn internal_first_render(&self) -> String {
+        self.internal_render()
+    }
+
+    /// Renders the stream text area, showing only the last appended string.
+    pub fn internal_render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -186,117 +200,84 @@ impl<'a: 'static> TnStreamTextArea<'a> {
             self.base.tag
         )
     }
+    pub fn internal_pre_render(&mut self) {}
 
-    /// Renders the stream text area, showing only the last appended string.
-    pub fn internal_render(&self) -> String {
-        let empty = "".to_string();
-        match self.value() {
-            TnComponentValue::VecDequeString(s) => s.front().unwrap_or(&empty).clone(),
-            _ => "".into(),
-        }
-    }
-    pub fn internal_pre_render(&mut self)  {
-    }
-
-    pub fn internal_post_render(&mut self)  {
-        if let TnComponentValue::VecDequeString(v) = self.get_mut_value() {
-            v.pop_front();
-        } else {
-            unreachable!()
-        }
-    }
+    pub fn internal_post_render(&mut self) {}
 }
 
-/// Appends a new string to the stream text area component.
+/// Appends a new string to the stream text area component but not rendering it.
 pub async fn append_stream_textarea(comp: TnComponent<'static>, new_str: &str) {
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::StreamTextArea);
-    if let TnComponentValue::VecDequeString(v) = comp.get_mut_value() {
-        v.push_back(new_str.to_string());
+    if let TnComponentValue::VecString(v) = comp.get_mut_value() {
+        v.push(new_str.to_string());
     }
 }
 
 /// Appends a new string to the stream text area component and sends a server-sent event (SSE) message to the client.
-pub async fn append_and_send_stream_textarea_with_context(
-    context: TnContext,
+pub async fn append_and_update_stream_textarea_with_context(
+    context: &TnContext,
     tron_id: &str,
     new_str: &str,
 ) {
     tracing::debug!(target:"tron_app", "tron_id: {tron_id}, new_str: {new_str}");
-    {
-        let comp = context.get_component(tron_id).await;
-        append_stream_textarea(comp, new_str).await;
-        let sse_tx = context.get_sse_tx().await;
-        let msg = TnSseTriggerMsg {
-            server_side_trigger_data: TnServerSideTriggerData {
-                target: tron_id.to_string(),
-                new_state: "ready".into(),
-            },
-        };
-        send_sse_msg_to_client(&sse_tx, msg).await;
-    }
+    let component = context.get_component(tron_id).await;
+    append_stream_textarea(component, new_str).await;
+    update_all_stream_textarea_with_context(context, tron_id).await;
 }
 
 /// Appends a new string to the stream text area component and sends a server-sent event (SSE) message to the client.
-pub async fn finish_stream_textarea_with_context(
-    context: TnContext,
-    tron_id: &str,
-) {
+pub async fn update_all_stream_textarea_with_context(context: &TnContext, tron_id: &str) {
     tracing::debug!(target:"tron_app", "tron_id: {tron_id}");
     {
         let comp = context.get_component(tron_id).await;
 
-        {
+        let rest = {
             let mut value = comp.write().await;
             let value = value.get_mut_value();
-            if let TnComponentValue::VecDequeString(value) = value {
-                let rest = value.iter().cloned().collect::<Vec<String>>().join("");
+            if let TnComponentValue::VecString(value) = value {
+                let rest = value.join("");
                 value.clear();
-                value.push_back(rest);
+                rest
+            } else {
+                "".into()
             }
-        }
+        };
 
         let sse_tx = context.get_sse_tx().await;
-        let msg = TnSseTriggerMsg {
+
+        let msg = SseStreamTextAreaTriggerMsg {
             server_side_trigger_data: TnServerSideTriggerData {
                 target: tron_id.to_string(),
                 new_state: "ready".into(),
             },
+            stream_textarea_control: "append_text".into(),
+            payload: rest,
         };
         send_sse_msg_to_client(&sse_tx, msg).await;
     }
 }
 
 /// Cleans the content of the stream text area component with the specified ID and sends a server-sent event (SSE) message to the client.
-pub async fn clean_stream_textarea_with_context(context: TnContext, tron_id: &str) {
+pub async fn clean_stream_textarea_with_context(context: &TnContext, tron_id: &str) {
+    assert!(
+        context.get_component(tron_id).await.read().await.get_type()
+            == TnComponentType::StreamTextArea
+    );
+    context
+        .set_value_for_component(tron_id, TnComponentValue::VecDequeString(vec![].into()))
+        .await;
     let sse_tx = context.get_sse_tx().await;
-    {
-        // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML
-        // once the server side trigger for an update, the content will be empty
-        // the hx-reswap will be removed when there is new text in append_chatbox_value()
-        assert!(
-            context.get_component(tron_id).await.read().await.get_type()
-                == TnComponentType::StreamTextArea
-        );
-        context
-            .set_value_for_component(tron_id, TnComponentValue::VecDequeString(vec![].into()))
-            .await;
-        let comp = context.get_component(tron_id).await;
-        {
-            let mut guard = comp.write().await;
-            guard.set_state(TnComponentState::Ready);
-            guard.set_header("hx-reswap".into(), ("innerHTML".into(), true));
 
-            let msg = TnSseTriggerMsg {
-                server_side_trigger_data: TnServerSideTriggerData {
-                    target: tron_id.into(),
-                    new_state: "ready".into(),
-                },
-            };
-
-            send_sse_msg_to_client(&sse_tx, msg).await;
-        }
-    }
+    let msg = SseStreamTextAreaTriggerMsg {
+        server_side_trigger_data: TnServerSideTriggerData {
+            target: tron_id.to_string(),
+            new_state: "ready".into(),
+        },
+        stream_textarea_control: "update_text".into(),
+        payload: "".into(),
+    };
+    send_sse_msg_to_client(&sse_tx, msg).await;
 }
 
 /// Represents a text input component.
@@ -365,11 +346,9 @@ impl<'a: 'static> TnTextInput<'a> {
         self.internal_render()
     }
 
-    pub fn internal_pre_render(&mut self)  {
-    }
+    pub fn internal_pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self)  {
-    }
+    pub fn internal_post_render(&mut self) {}
 }
 
 /// Cleans the text input component with the given context and Tron ID.

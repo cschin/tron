@@ -19,7 +19,7 @@ use tron_components::audio_player::stop_audio;
 
 use crate::{LLM_STREAM_OUTPUT, PLAYER, STATUS, TRANSCRIPT_OUTPUT, TRON_APP};
 use tron_components::{chatbox, text, TnAsset, TnContext, TnServiceRequestMsg};
-use tron_components::{text::append_and_send_stream_textarea_with_context, TnComponentValue};
+use tron_components::{text::append_and_update_stream_textarea_with_context, TnComponentValue};
 
 static SENTENCE_END_TOKEN: &str = "<br/>";
 //static SENTENCE_END_TOKEN: &str = " "; // end on "word boundary"
@@ -116,11 +116,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
 
             if !interrupted {
                 let history_len = history.read().await.len();
-                let start = if history_len > 6 {
-                    history_len - 6
-                } else {
-                    0
-                };
+                let start = if history_len > 6 { history_len - 6 } else { 0 };
                 let guard = history.read().await;
                 let history = guard.iter().skip(start).take(6);
                 messages.extend(
@@ -175,14 +171,12 @@ async fn openai_stream_service(
     };
 
     let client = Client::new();
-    { history.write().await.push(("user".into(), query.clone())); }
+    {
+        history.write().await.push(("user".into(), query.clone()));
+    }
 
-    append_and_send_stream_textarea_with_context(
-        context.clone(),
-        STATUS,
-        "LLM service request start\n",
-    )
-    .await;
+    append_and_update_stream_textarea_with_context(&context, STATUS, "LLM service request start\n")
+        .await;
 
     let request = CreateChatCompletionRequestArgs::default()
         .max_tokens(512u16)
@@ -211,6 +205,12 @@ async fn openai_stream_service(
                 if let Some(choice) = response.choices.first() {
                     if let Some(ref content) = choice.delta.content {
                         tracing::debug!(target: TRON_APP, "LLM delta content: {}", content);
+                        text::append_and_update_stream_textarea_with_context(
+                            &context,
+                            LLM_STREAM_OUTPUT,
+                            content,
+                        )
+                        .await;
                         llm_response.push(content.clone());
                         let s = llm_response.join("");
                         let sentence_end = s.rfind(SENTENCE_END_TOKEN);
@@ -239,20 +239,20 @@ async fn openai_stream_service(
                             }
                         }
 
-                        let s = s.chars().collect::<Vec<_>>();
-                        let last_100 = s.len() % 100;
+                        // let s = s.chars().collect::<Vec<_>>();
+                        // let last_100 = s.len() % 100;
 
-                        let s = if last_100 > 0 {
-                            s[s.len() - last_100..].iter().cloned().collect::<String>()
-                        } else {
-                            "".into()
-                        };
-                        text::update_and_send_textarea_with_context(
-                            context.clone(),
-                            LLM_STREAM_OUTPUT,
-                            &s,
-                        )
-                        .await;
+                        // let s = if last_100 > 0 {
+                        //     s[s.len() - last_100..].iter().cloned().collect::<String>()
+                        // } else {
+                        //     "".into()
+                        // };
+                        // text::update_and_send_textarea_with_context(
+                        //     &context,
+                        //     LLM_STREAM_OUTPUT,
+                        //     &s,
+                        // )
+                        // .await;
                     }
                 }
             }
@@ -261,25 +261,30 @@ async fn openai_stream_service(
             }
         }
     }
-    let s = llm_response.join("");
-    if last_end < s.len() - 1 {
-        llm_response_sentences.push(s[last_end..].to_string());
+    // let s = llm_response.join("");
+    // if last_end < s.len() - 1 {
+    //     llm_response_sentences.push(s[last_end..].to_string());
 
-        make_tts_request("llm_message".into(), s[last_end..].to_string()).await;
-    };
-    let s = s.chars().collect::<Vec<_>>();
-    let last_100 = s.len() % 100;
-    let s = if last_100 > 0 {
-        s[s.len() - last_100..].iter().cloned().collect::<String>()
-    } else {
-        "".into()
-    };
+    //     make_tts_request("llm_message".into(), s[last_end..].to_string()).await;
+    // };
+    // let s = s.chars().collect::<Vec<_>>();
+    // let last_100 = s.len() % 100;
+    // let s = if last_100 > 0 {
+    //     s[s.len() - last_100..].iter().cloned().collect::<String>()
+    // } else {
+    //     "".into()
+    // };
 
-    text::update_and_send_textarea_with_context(context.clone(), LLM_STREAM_OUTPUT, &s).await;
+    // text::update_and_send_textarea_with_context(&context, LLM_STREAM_OUTPUT, &s).await;
 
     let llm_response = llm_response.join("");
     tracing::info!(target: TRON_APP, "LLM response: {}", llm_response);
-    { history.write().await.push(("bot".into(), llm_response.clone())); }
+    {
+        history
+            .write()
+            .await
+            .push(("bot".into(), llm_response.clone()));
+    }
 
     {
         let transcript_area = context.get_component(TRANSCRIPT_OUTPUT).await;
@@ -292,5 +297,5 @@ async fn openai_stream_service(
     }
     context.set_ready_for(TRANSCRIPT_OUTPUT).await;
 
-    text::update_and_send_textarea_with_context(context.clone(), LLM_STREAM_OUTPUT, "").await;
+    text::clean_stream_textarea_with_context(&context, LLM_STREAM_OUTPUT).await;
 }

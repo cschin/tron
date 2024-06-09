@@ -18,13 +18,12 @@ use tron_app::tron_components;
 
 use crate::{QUERY_RESULT_TEXTAREA, QUERY_STREAM_TEXTAREA, TOP_HIT_TEXTAREA, TRON_APP};
 use tron_components::{
-    chatbox, text, text::append_and_send_stream_textarea_with_context, TnAsset, TnComponentValue,
+    chatbox, text, text::append_and_update_stream_textarea_with_context, TnAsset, TnComponentValue,
     TnContext, TnServiceRequestMsg,
 };
 
 pub async fn llm_service(context: TnContext, mut rx: Receiver<TnServiceRequestMsg>) {
     let history = Arc::new(RwLock::new(Vec::<(String, String)>::new()));
-    let mut handle: Option<JoinHandle<()>> = None;
     while let Some(r) = rx.recv().await {
         let context = context.clone();
         if r.request == "clear-history" {
@@ -78,7 +77,7 @@ pub async fn llm_service(context: TnContext, mut rx: Receiver<TnServiceRequestMs
 
             tracing::debug!(target: TRON_APP, "query: {:?}", query);
             tracing::debug!(target: TRON_APP, "sending messages: {:?}", messages);
-            handle = Some(tokio::spawn(openai_stream_service(
+            let _handle = Some(tokio::spawn(openai_stream_service(
                 context.clone(),
                 query,
                 messages,
@@ -135,10 +134,10 @@ async fn openai_stream_service(
                         tracing::debug!(target: TRON_APP, "LLM delta content: {}", content);
                         llm_response.push(content.clone());
                         let s = content.clone();
-                        let s = s.replace(' ', "&nbsp;");
+                        // let s = s.replace(' ', "&nbsp;");
 
-                        text::append_and_send_stream_textarea_with_context(
-                            context.clone(),
+                        text::append_and_update_stream_textarea_with_context(
+                            &context,
                             QUERY_STREAM_TEXTAREA,
                             &s,
                         )
@@ -151,8 +150,8 @@ async fn openai_stream_service(
             }
         }
     }
-    text::finish_stream_textarea_with_context(
-        context.clone(),
+    text::update_all_stream_textarea_with_context(
+        &context,
         QUERY_STREAM_TEXTAREA,
     )
     .await;

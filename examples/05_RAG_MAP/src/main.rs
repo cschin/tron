@@ -12,6 +12,7 @@ use std::{
     collections::HashSet,
     fs::File,
     hash::{DefaultHasher, Hash, Hasher},
+    str::FromStr,
 };
 use tower_sessions::Session;
 
@@ -20,10 +21,11 @@ use bytes::{BufMut, Bytes, BytesMut};
 use futures_util::Future;
 
 use axum::{
-    extract::Json,
-    http::HeaderMap,
+    body::Body,
+    extract::{Json, Path, State},
+    http::{header, HeaderMap, StatusCode},
     response::{Html, IntoResponse},
-    routing::get,
+    routing::{get, post},
     Router,
 };
 //use serde::{Deserialize, Serialize};
@@ -38,12 +40,13 @@ use tron_app::{
         self, button,
         chatbox::clean_chatbox_with_context,
         d3_plot::SseD3PlotTriggerMsg,
+        div::{clean_div_with_context, update_and_send_div_with_context},
         text::{
             append_and_update_stream_textarea_with_context, clean_stream_textarea_with_context,
             clean_textarea_with_context, update_and_send_textarea_with_context,
         },
-        TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnHtmlResponse, TnServiceRequestMsg,
-        TnStreamTextArea,
+        TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnDiv, TnHtmlResponse,
+        TnServiceRequestMsg, TnStreamTextArea,
     },
     AppData, TnServerSideTriggerData, TnSseTriggerMsg,
 };
@@ -71,7 +74,7 @@ static RESET_BUTTON: &str = "reset_button";
 static CONTEXT_QUERY_BUTTON: &str = "context_query_button";
 static QUERY_BUTTON: &str = "query_button";
 static QUERY_TEXT_INPUT: &str = "query_text_input";
-static TOP_HIT_TEXTAREA: &str = "top_hit_textarea";
+static TOP_HIT_DIV: &str = "top_hit_textarea";
 static QUERY_STREAM_TEXTAREA: &str = "query_stream_textarea";
 static QUERY_RESULT_TEXTAREA: &str = "query_result_textarea";
 static FIND_RELATED_BUTTON: &str = "find_related_text_button";
@@ -167,7 +170,7 @@ async fn main() {
         })
         .await;
 
-    let api_routes: Router<()> = Router::new().route("/test", get(data));
+    let api_routes = Router::<Arc<AppData>>::new().route("/file_checked/:fid", post(api_test));
 
     let app_config = tron_app::AppConfigure {
         address: [0, 0, 0, 0],
@@ -217,10 +220,24 @@ fn build_context() -> TnContext {
     context.add_component(reset_btn);
 
     component_index += 1;
-    let mut top_hit_textarea = TnTextArea::new(component_index, TOP_HIT_TEXTAREA.into(), "".into());
-    top_hit_textarea.set_attribute("class".to_string(), "w-full h-full".to_string());
-    top_hit_textarea.set_attribute("style".to_string(), "resize:none".to_string());
-    context.add_component(top_hit_textarea);
+    let mut top_hit_div = TnDiv::new(component_index, TOP_HIT_DIV.into(), "".into());
+    top_hit_div.set_attribute(
+        "class".to_string(),
+        "flex flex-col w-full h-full".to_string(),
+    );
+    top_hit_div.set_attribute(
+        "style".to_string(),
+        "resize:none; overflow: scroll;".to_string(),
+    );
+    context.add_component(top_hit_div);
+
+    {
+        let mut asset = context.assets.blocking_write();
+        asset.insert(
+            "check_fids".into(),
+            TnAsset::HashSetU32(HashSet::<u32>::new()),
+        );
+    }
 
     component_index += 1;
     let mut context_query_btn = TnButton::new(
@@ -271,7 +288,7 @@ fn build_context() -> TnContext {
         TnStreamTextArea::new(component_index, QUERY_STREAM_TEXTAREA.into(), Vec::new());
     query_stream_textarea.set_attribute("class".to_string(), "min-h-24 w-full".to_string());
     query_stream_textarea.set_attribute("style".to_string(), "resize:none".to_string());
-    query_stream_textarea.remove_attribute("disabled".into());
+    //query_stream_textarea.remove_attribute("disabled".into());
     context.add_component(query_stream_textarea);
 
     // add a chatbox
@@ -346,7 +363,7 @@ struct AppPageTemplate {
     reset_button: String,
     context_query_button: String,
     query_button: String,
-    top_hit_textarea: String,
+    top_hit_div: String,
     query_stream_textarea: String,
     query_result_textarea: String,
     query_text_input: String,
@@ -357,7 +374,7 @@ fn layout(context: TnContext) -> String {
     let context_guard = context.blocking_read();
     let d3_plot = context_guard.render_to_string(D3PLOT);
     let reset_button = context_guard.render_to_string(RESET_BUTTON);
-    let top_hit_textarea = context_guard.render_to_string(TOP_HIT_TEXTAREA);
+    let top_hit_div = context_guard.render_to_string(TOP_HIT_DIV);
     let context_query_button = context_guard.render_to_string(CONTEXT_QUERY_BUTTON);
     let query_stream_textarea = context_guard.first_render_to_string(QUERY_STREAM_TEXTAREA);
     let query_result_textarea = context_guard.first_render_to_string(QUERY_RESULT_TEXTAREA);
@@ -368,7 +385,7 @@ fn layout(context: TnContext) -> String {
     let html = AppPageTemplate {
         d3_plot,
         reset_button,
-        top_hit_textarea,
+        top_hit_div,
         context_query_button,
         query_result_textarea,
         query_stream_textarea,
@@ -577,12 +594,18 @@ async fn update_plot_and_top_k<'a>(
                 None
             } else {
                 docs.insert(p.chunk.title.clone());
-                Some(p.chunk.title.clone())
+                let fid = DOCUMENT_CHUNKS.get().unwrap().filename_to_id.get(&p.chunk.filename).unwrap();
+                let color = CMAP[(fid % 97) as usize];
+                //onchange="console.log(event.target.checked)"
+                let item = format!(r#"<div class="py-1" >
+                <input type="checkbox" id="fid_{fid}" hx-post="/api/file_checked/{fid}" hx-swap="none" hx-vals="js:{{event_data:event.target.checked}}">
+                <label for="fid_{fid}" class="px-1" style="color: {color}">{}</label></div>"#, p.chunk.title);
+                Some(item)
             }
         })
         .collect::<Vec<String>>();
     let top_doc = top_doc.join("\n\n");
-    update_and_send_textarea_with_context(&context, TOP_HIT_TEXTAREA, &top_doc).await;
+    update_and_send_div_with_context(&context, TOP_HIT_DIV, &top_doc).await;
 
     let top_chunk = top_k_points
         .into_iter()
@@ -645,6 +668,17 @@ fn d3_plot_clicked(
         let all_points_sorted = sort_points(&ref_eb_vec);
         let top_10: Vec<TwoDPoint> = all_points_sorted[..10].into();
 
+        {
+            let guard = context.read().await;
+            let mut asset = guard.assets.write().await;
+            let fids = asset.get_mut("check_fids").unwrap();
+            if let TnAsset::HashSetU32(fids) = fids {
+                fids.clear();
+            } else {
+                unreachable!()
+            }
+        };
+
         update_plot_and_top_k(context, all_points_sorted, top_10).await;
 
         None
@@ -704,7 +738,7 @@ fn reset_button_clicked(
                 send_sse_msg_to_client(&sse_tx, msg).await;
             }
 
-            clean_textarea_with_context(&context, TOP_HIT_TEXTAREA).await;
+            clean_div_with_context(&context, TOP_HIT_DIV).await;
 
             clean_stream_textarea_with_context(&context, QUERY_STREAM_TEXTAREA).await;
 
@@ -722,6 +756,17 @@ fn reset_button_clicked(
 
             if let Ok(out) = rx.await {
                 tracing::debug!(target: TRON_APP, "returned string: {}", out);
+            };
+
+            {
+                let guard = context.read().await;
+                let mut asset = guard.assets.write().await;
+                let fids = asset.get_mut("check_fids").unwrap();
+                if let TnAsset::HashSetU32(fids) = fids {
+                    fids.clear();
+                } else {
+                    unreachable!()
+                }
             };
 
             None
@@ -875,6 +920,16 @@ fn find_related_button_clicked(
             // top_10.iter().for_each(
             //     |p| tracing::info!(target: "tron_app", "top10 chunkid: {:?}", p.chunk.token_ids ),
             // );
+            {
+                let guard = context.read().await;
+                let mut asset = guard.assets.write().await;
+                let fids = asset.get_mut("check_fids").unwrap();
+                if let TnAsset::HashSetU32(fids) = fids {
+                    fids.clear();
+                } else {
+                    unreachable!()
+                }
+            };
 
             update_plot_and_top_k(context, best_sorted_points, top_10).await;
         }
@@ -884,7 +939,113 @@ fn find_related_button_clicked(
     Box::pin(action)
 }
 
-async fn data() -> impl IntoResponse {
-    let len = DOCUMENT_CHUNKS.get().unwrap().chunks.len();
-    Html::from(format!("test: {}", len)).into_response()
+fn get_plot_data_highlight_fids(all_points_sorted: &[TwoDPoint], fids: HashSet<u32>) -> String {
+    let mut color_scale = 1.0;
+    let mut d_color = 4.0 * color_scale / (all_points_sorted.len() as f64);
+
+    let mut two_d_embeddding = "x,y,c,o\n".to_string();
+    let filename_to_id = &DOCUMENT_CHUNKS.get().unwrap().filename_to_id;
+    two_d_embeddding.extend(
+        all_points_sorted
+            .iter()
+            .map(|p| {
+                let c = p.chunk;
+                let fid = filename_to_id.get(&c.filename).unwrap();
+
+                color_scale = if color_scale > 0.0 { color_scale } else { 0.0 };
+
+                color_scale -= d_color;
+                d_color *= 0.999995;
+                let color = CMAP[(fid % 97) as usize];
+                color_scale = if fids.contains(fid) { 1.0 } else { 0.05 };
+                format!("{},{},{},{}\n", p.point.0, p.point.1, color, color_scale)
+            })
+            .collect::<Vec<String>>(),
+    );
+    two_d_embeddding
+}
+
+async fn api_test(
+    State(app_data): State<Arc<AppData>>,
+    session: Session,
+    Path(fid): Path<u32>,
+    Json(payload): Json<Value>,
+) -> impl IntoResponse {
+    let mut response_headers = HeaderMap::new();
+    response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
+
+    let session_id = if let Some(session_id) = session.id() {
+        session_id
+    } else {
+        return (StatusCode::FORBIDDEN, response_headers, Body::default());
+    };
+
+    let context_guard = app_data.context.read().await;
+    let context = context_guard.get(&session_id).unwrap().clone();
+
+    tracing::info!(target: "tron_app", "path: {}", fid);
+    tracing::info!(target: "tron_app", "payload: {}", payload["event_data"]);
+
+    let checked: bool = payload["event_data"].as_bool().unwrap();
+    tracing::info!(target: "tron_app", "checked: {}", checked);
+    let mut all_points = Vec::new();
+    DOCUMENT_CHUNKS
+        .get()
+        .unwrap()
+        .chunks
+        .iter()
+        .step_by(2)
+        .for_each(|c| {
+            let x = c.two_d_embedding.0 as f64;
+            let y = c.two_d_embedding.1 as f64;
+            let point = TwoDPoint {
+                d: OrderedFloat::from(1.0),
+                point: (x, y),
+                chunk: c,
+            };
+            all_points.push(point);
+        });
+
+    let fids = {
+        let guard = context.read().await;
+        let mut asset = guard.assets.write().await;
+        let fids = asset.get_mut("check_fids").unwrap();
+        if let TnAsset::HashSetU32(fids) = fids {
+            if checked {
+                fids.insert(fid);
+            } else {
+                fids.remove(&fid);
+            }
+            fids.clone()
+        } else {
+            unreachable!()
+        }
+    };
+
+    let two_d_embeddding = get_plot_data_highlight_fids(&all_points, fids);
+
+    {
+        let two_d_embeddding = BytesMut::from_iter(two_d_embeddding.as_bytes());
+        let context_guard = context.write().await;
+        let mut stream_data_guard = context_guard.stream_data.write().await;
+        let data = stream_data_guard.get_mut("plot_data").unwrap();
+        data.1.clear();
+        tracing::info!(target: "tron_app", "length:{}", two_d_embeddding.len());
+        data.1.push_back(two_d_embeddding);
+        tracing::info!(target: "tron_app", "stream_data {:?}", data.1[0].len());
+    }
+    {
+        let sse_tx = context.get_sse_tx().await;
+        let msg = SseD3PlotTriggerMsg {
+            server_side_trigger_data: TnServerSideTriggerData {
+                target: D3PLOT.into(),
+                new_state: "ready".into(),
+            },
+            d3_plot: "re-plot".into(),
+        };
+        send_sse_msg_to_client(&sse_tx, msg).await;
+    }
+
+    (StatusCode::OK, response_headers, Body::default())
+    //Html::from(format!("test")).into_response()
 }

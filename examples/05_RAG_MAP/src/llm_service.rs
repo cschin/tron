@@ -16,7 +16,7 @@ use tokio::{
 };
 use tron_app::tron_components;
 
-use crate::{QUERY_RESULT_TEXTAREA, QUERY_STREAM_TEXTAREA, TOP_HIT_TEXTAREA, TRON_APP};
+use crate::{QUERY_RESULT_TEXTAREA, QUERY_STREAM_TEXTAREA, TOP_HIT_DIV, TRON_APP};
 use tron_components::{
     chatbox, text, text::append_and_update_stream_textarea_with_context, TnAsset, TnComponentValue,
     TnContext, TnServiceRequestMsg,
@@ -93,7 +93,6 @@ async fn openai_stream_service(
     messages: Vec<ChatCompletionRequestMessage>,
     history: Arc<RwLock<Vec<(String, String)>>>,
 ) {
-    
     let client = Client::new();
     {
         history.write().await.push(("user".into(), query.clone()));
@@ -150,11 +149,7 @@ async fn openai_stream_service(
             }
         }
     }
-    text::update_all_stream_textarea_with_context(
-        &context,
-        QUERY_STREAM_TEXTAREA,
-    )
-    .await;
+    text::update_all_stream_textarea_with_context(&context, QUERY_STREAM_TEXTAREA).await;
 
     let llm_response = llm_response.join("");
     let llm_response = llm_response.replace('\n', "<br>");

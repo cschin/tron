@@ -239,20 +239,6 @@ async fn openai_stream_service(
                             }
                         }
 
-                        // let s = s.chars().collect::<Vec<_>>();
-                        // let last_100 = s.len() % 100;
-
-                        // let s = if last_100 > 0 {
-                        //     s[s.len() - last_100..].iter().cloned().collect::<String>()
-                        // } else {
-                        //     "".into()
-                        // };
-                        // text::update_and_send_textarea_with_context(
-                        //     &context,
-                        //     LLM_STREAM_OUTPUT,
-                        //     &s,
-                        // )
-                        // .await;
                     }
                 }
             }
@@ -261,21 +247,7 @@ async fn openai_stream_service(
             }
         }
     }
-    // let s = llm_response.join("");
-    // if last_end < s.len() - 1 {
-    //     llm_response_sentences.push(s[last_end..].to_string());
 
-    //     make_tts_request("llm_message".into(), s[last_end..].to_string()).await;
-    // };
-    // let s = s.chars().collect::<Vec<_>>();
-    // let last_100 = s.len() % 100;
-    // let s = if last_100 > 0 {
-    //     s[s.len() - last_100..].iter().cloned().collect::<String>()
-    // } else {
-    //     "".into()
-    // };
-
-    // text::update_and_send_textarea_with_context(&context, LLM_STREAM_OUTPUT, &s).await;
 
     let llm_response = llm_response.join("");
     tracing::info!(target: TRON_APP, "LLM response: {}", llm_response);

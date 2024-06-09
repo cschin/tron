@@ -129,10 +129,13 @@ impl TextChunkingService {
                             next_segment_bgn = segment_start + segment.chars().count();
                             break;
                         };
-                        
                     } else {
-                        let text_bgn = offsets[chunk_bgn].0;
-                        next_segment_bgn = segment_start + segment[..text_bgn].chars().count();
+                        if chunk_bgn < offsets.len() {
+                            let text_bgn = offsets[chunk_bgn].0;
+                            next_segment_bgn = segment_start + segment[..text_bgn].chars().count();
+                        } else {
+                            next_segment_bgn = segment_start + segment.chars().count();
+                        }
                         break;
                     };
                 }
@@ -214,7 +217,7 @@ impl EmbeddingService {
 
         let model = make_model().expect("fail to build the model");
 
-        let normalize_embeddings = true;
+        let normalize_embeddings = false;
 
         Self {
             model,
@@ -225,25 +228,36 @@ impl EmbeddingService {
     pub fn get_embedding_for_chunks(&self, chunks: &mut [EmbeddingChunk]) -> anyhow::Result<()> {
         let device = &self.model.device;
 
-        let token_ids = chunks
+        let embeddings = chunks
             .iter()
             .map(|c| {
-                let tokens = c.token_ids.as_ref().unwrap();
+                let tokens = c
+                    .token_ids
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .filter(|&t| *t != 0)
+                    .cloned()
+                    .collect::<Vec<_>>();
                 //assert!(tokens.len() == 256);
-                Tensor::new(tokens.as_slice(), device)
+                tracing::info!(target: "tron_app", "tokens {:?}", tokens);
+                let token_ids = vec![Tensor::new(tokens.as_slice(), device).unwrap()];
+                let token_ids = Tensor::stack(&token_ids, 0).unwrap();
+                let embeddings = self.model.forward(&token_ids).unwrap();
+                let (_n_sentence, n_tokens, _hidden_size) = embeddings.dims3().unwrap();
+                let embeddings = (embeddings.sum(1).unwrap() / (n_tokens as f64)).unwrap();
+                let embeddings = if self.normalize_embeddings {
+                    normalize_l2(&embeddings).unwrap()
+                } else {
+                    embeddings
+                };
+                let embeddings = embeddings.to_vec2::<f32>().unwrap();
+                embeddings.first().unwrap().clone()
             })
-            .collect::<candle_core::Result<Vec<_>>>()?;
-        let token_ids = Tensor::stack(&token_ids, 0)?;
-        let embeddings = self.model.forward(&token_ids)?;
-        let (_n_sentence, n_tokens, _hidden_size) = embeddings.dims3()?;
-        let embeddings = (embeddings.sum(1)? / (n_tokens as f64))?;
-        let embeddings = if self.normalize_embeddings {
-            normalize_l2(&embeddings)?
-        } else {
-            embeddings
-        };
+            .collect::<Vec<_>>();
+        //let token_ids = Tensor::stack(&token_ids, 0)?;
+        //let embeddings = self.model.forward(&token_ids)?;
 
-        let embeddings = embeddings.to_vec2::<f32>().map_err(E::msg)?;
         (0..chunks.len()).for_each(|i| {
             let v = embeddings.get(i).unwrap().to_vec();
             // assert!(v.len() == 256);

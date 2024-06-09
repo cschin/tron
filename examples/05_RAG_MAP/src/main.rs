@@ -482,7 +482,7 @@ fn hex_color_rescale(hex_color: &str, rescale: f64) -> String {
 }
 
 fn sort_points<'a>(ref_vec: &[f32]) -> Vec<TwoDPoint<'a>> {
-    tracing::info!(target:"tron_app", "ref_vec:{:?}", ref_vec);
+    //tracing::info!(target:"tron_app", "ref_vec:{:?}", ref_vec);
     let mut all_points = Vec::new();
     DOCUMENT_CHUNKS
         .get()
@@ -493,10 +493,19 @@ fn sort_points<'a>(ref_vec: &[f32]) -> Vec<TwoDPoint<'a>> {
         .for_each(|c| {
             let x = c.two_d_embedding.0 as f64;
             let y = c.two_d_embedding.1 as f64;
-            //let d = OrderedFloat::from((evt_x - x).powi(2) + (evt_y - y).powi(2));
-            let d: f64 = (0..c.embedding_vec.len())
-                .map(|idx| (c.embedding_vec[idx] - ref_vec[idx]).powi(2))
+            let x_len: f64 = (0..c.embedding_vec.len())
+                .map(|idx| c.embedding_vec[idx].powi(2))
                 .sum::<f32>() as f64;
+            let y_len: f64 = (0..ref_vec.len())
+                .map(|idx| ref_vec[idx].powi(2))
+                .sum::<f32>() as f64;
+            //let d = OrderedFloat::from((evt_x - x).powi(2) + (evt_y - y).powi(2));
+            let mut d: f64 = (0..c.embedding_vec.len())
+                .map(|idx| (c.embedding_vec[idx] * ref_vec[idx]))
+                .sum::<f32>() as f64;
+            d /= x_len.powf(0.5);
+            d /= y_len.powf(0.5);
+            d = 1.0 - d;
             let d = OrderedFloat::from(d);
             let point = TwoDPoint {
                 d,
@@ -822,7 +831,6 @@ fn find_related_button_clicked(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let action = async move {
-
         if event.e_trigger != FIND_RELATED_BUTTON {
             return None;
         };
@@ -846,11 +854,11 @@ fn find_related_button_clicked(
         tracing::info!(target:"tron_app", "query_text: {}", query_text);
 
         {
-            let tk_service = embedding_service::TextChunkingService::new(None, 128, 32, 4096);
+            let tk_service = embedding_service::TextChunkingService::new(None, 128, 0, 4096);
 
             let mut chunks = tk_service.text_to_chunks(&query_text);
 
-            tracing::info!(target:"tron_app", "chunks: {:?}", chunks);
+            //tracing::info!(target:"tron_app", "chunks: {:?}", chunks);
             EMBEDDING_SERVICE
                 .get()
                 .unwrap()
@@ -870,7 +878,11 @@ fn find_related_button_clicked(
                 }
             });
 
-            let top_10 = best_sorted_points[..10].into();
+            let top_10: Vec<TwoDPoint> = best_sorted_points[..10].into();
+            // top_10.iter().for_each(
+            //     |p| tracing::info!(target: "tron_app", "top10 chunkid: {:?}", p.chunk.token_ids ),
+            // );
+
             update_plot_and_top_k(context, best_sorted_points, top_10).await;
         }
 

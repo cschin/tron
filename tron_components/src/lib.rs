@@ -4,6 +4,7 @@ pub mod button;
 pub mod chatbox;
 pub mod checklist;
 pub mod d3_plot;
+pub mod div;
 pub mod file_upload;
 pub mod radio_group;
 pub mod range_slider;
@@ -16,15 +17,16 @@ pub use button::TnButton;
 pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
 pub use d3_plot::TnD3Plot;
+pub use div::TnDiv;
 pub use file_upload::TnFileUpload;
 pub use radio_group::{TnRadioGroup, TnRadioItem};
 pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
-use serde_json::Value;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
 
+use serde_json::Value;
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     pin::Pin,
     sync::{Arc, Weak},
 };
@@ -97,6 +99,7 @@ pub enum TnAsset {
     VecString2(Vec<(String, String)>),
     HashMapString(HashMap<String, String>),
     HashMapVecU8(HashMap<String, Vec<u8>>),
+    HashSetU32(HashSet<u32>),
     String(String),
     Bytes(BytesMut),
     U32(u32),
@@ -141,6 +144,7 @@ pub enum TnComponentType {
     SimpleScatterPlot,
     D3Plot,
     FileUpload,
+    Div,
     UserDefined(String),
 }
 

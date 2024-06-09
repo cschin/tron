@@ -93,7 +93,7 @@ pub struct AppConfigure {
     pub http_only: bool,
     pub log_level: Option<&'static str>,
     pub session_expiry: Option<time::Duration>,
-    pub api_router: Option<Router>,
+    pub api_router: Option<Router<Arc<AppData>>>,
 }
 
 /// Implements the default trait for creating a default instance of `AppConfigure`.
@@ -196,7 +196,6 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
             get(tron_stream).post(tron_stream),
         )
         .route("/upload/:tron_id", post(upload))
-        .with_state(app_share_data.clone())
         .layer(DefaultBodyLimit::max(64 * 1024 * 1024));
 
     let routes = if let Some(api_router) = config.api_router {
@@ -210,8 +209,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         .route("/login", get(login_handler))
         .route("/logout", get(logout_handler))
         .route("/logged_out", get(logged_out))
-        .route("/cognito_callback", get(cognito_callback))
-        .with_state(app_share_data.clone());
+        .route("/cognito_callback", get(cognito_callback));
 
     let app_routes = if config.cognito_login {
         Router::new().merge(routes).merge(auth_routes)
@@ -235,6 +233,8 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
             .layer(CorsLayer::very_permissive())
             .layer(session_layer)
     };
+
+    let app = app.with_state(app_share_data.clone());
 
     tokio::task::spawn(clean_up_session(app_share_data.clone()));
 

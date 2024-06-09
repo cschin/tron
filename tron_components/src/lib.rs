@@ -4,11 +4,11 @@ pub mod button;
 pub mod chatbox;
 pub mod checklist;
 pub mod d3_plot;
+pub mod file_upload;
 pub mod radio_group;
 pub mod range_slider;
 pub mod select;
 pub mod text;
-pub mod file_upload;
 
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
@@ -16,12 +16,12 @@ pub use button::TnButton;
 pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
 pub use d3_plot::TnD3Plot;
+pub use file_upload::TnFileUpload;
 pub use radio_group::{TnRadioGroup, TnRadioItem};
 pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
 use serde_json::Value;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
-pub use file_upload::TnFileUpload;
 
 use std::{
     collections::{HashMap, VecDeque},

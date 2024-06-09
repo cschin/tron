@@ -264,9 +264,14 @@ pub async fn clean_stream_textarea_with_context(context: &TnContext, tron_id: &s
         context.get_component(tron_id).await.read().await.get_type()
             == TnComponentType::StreamTextArea
     );
-    context
-        .set_value_for_component(tron_id, TnComponentValue::VecDequeString(vec![].into()))
-        .await;
+
+    let component = context.get_component(tron_id).await;
+    let mut guard = component.write().await;
+    let value =  guard.get_mut_value();
+    if let TnComponentValue::VecString(value) = value {
+        value.clear();
+    }
+
     let sse_tx = context.get_sse_tx().await;
 
     let msg = SseStreamTextAreaTriggerMsg {

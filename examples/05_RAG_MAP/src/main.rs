@@ -503,7 +503,6 @@ fn sort_points<'a>(ref_vec: &[f32]) -> Vec<TwoDPoint<'a>> {
         .unwrap()
         .chunks
         .iter()
-        .step_by(2)
         .for_each(|c| {
             let x = c.two_d_embedding.0 as f64;
             let y = c.two_d_embedding.1 as f64;
@@ -535,7 +534,7 @@ fn sort_points<'a>(ref_vec: &[f32]) -> Vec<TwoDPoint<'a>> {
 
 fn get_plot_data(all_points_sorted: &[TwoDPoint]) -> String {
     let mut color_scale = 1.0;
-    let mut d_color = 4.0 * color_scale / (all_points_sorted.len() as f64);
+    let mut d_color = 8.0 * color_scale / (all_points_sorted.len() as f64);
 
     let mut two_d_embeddding = "x,y,c,o\n".to_string();
     let filename_to_id = &DOCUMENT_CHUNKS.get().unwrap().filename_to_id;
@@ -649,7 +648,6 @@ fn d3_plot_clicked(
             .unwrap()
             .chunks
             .iter()
-            .step_by(2)
             .for_each(|c| {
                 let x = c.two_d_embedding.0 as f64;
                 let y = c.two_d_embedding.1 as f64;
@@ -941,7 +939,7 @@ fn find_related_button_clicked(
 
 fn get_plot_data_highlight_fids(all_points_sorted: &[TwoDPoint], fids: HashSet<u32>) -> String {
     let mut color_scale = 1.0;
-    let mut d_color = 4.0 * color_scale / (all_points_sorted.len() as f64);
+    let mut d_color = 8.0 * color_scale / (all_points_sorted.len() as f64);
 
     let mut two_d_embeddding = "x,y,c,o\n".to_string();
     let filename_to_id = &DOCUMENT_CHUNKS.get().unwrap().filename_to_id;
@@ -994,7 +992,6 @@ async fn api_test(
         .unwrap()
         .chunks
         .iter()
-        .step_by(2)
         .for_each(|c| {
             let x = c.two_d_embedding.0 as f64;
             let y = c.two_d_embedding.1 as f64;

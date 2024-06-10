@@ -20,8 +20,8 @@
           .attr("r", 1.5)
           .style("fill", function (d) { return d.c; })
           .style("fill-opacity", function (d) { return d.o; })
-          
-        // 
+
+        // slower
         // let dots = d3.select("#d3_plot>svg>g").select("#dots").selectAll("circle").data(data).join(
         //   function (enter) {
         //   },
@@ -127,7 +127,8 @@
         .attr("id", "dots")
         .selectAll("circle")
         .data(data)
-        .join("circle")
+        .enter()
+        .append("circle")
         .attr("cx", function (d) { return x(d.x); })
         .attr("cy", function (d) { return y(d.y); })
         .attr("r", 1.5)

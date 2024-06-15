@@ -2,7 +2,7 @@
 name = "app_template"
 version.workspace = true
 authors.workspace = true
-descriptionn.workspace = true
+description.workspace = true
 edition.workspace = true
 
 [dependencies]

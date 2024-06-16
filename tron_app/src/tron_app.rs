@@ -94,6 +94,7 @@ pub struct AppConfigure {
     pub log_level: Option<&'static str>,
     pub session_expiry: Option<time::Duration>,
     pub api_router: Option<Router<Arc<AppData>>>,
+    pub static_html_path: &'static str,
 }
 
 /// Implements the default trait for creating a default instance of `AppConfigure`.
@@ -119,6 +120,7 @@ impl Default for AppConfigure {
         let cognito_login = false;
         let log_level = Some("server=info,tower_http=info,tron_app=info");
         let http_only = false;
+        let static_html_path = "static";
         Self {
             address,
             ports,
@@ -127,6 +129,7 @@ impl Default for AppConfigure {
             log_level,
             session_expiry: None,
             api_router: None,
+            static_html_path,
         }
     }
 }
@@ -179,7 +182,8 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         .with_secure(false)
         .with_expiry(Expiry::OnInactivity(expiry_duration));
 
-    let serve_dir = ServeDir::new("static").not_found_service(ServeFile::new("static/index.html"));
+    let serve_dir = ServeDir::new(config.static_html_path)
+        .not_found_service(ServeFile::new("static/index.html"));
 
     let ports = config.ports;
 

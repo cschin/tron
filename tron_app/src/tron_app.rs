@@ -221,24 +221,21 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         routes
     };
 
-    let app = if config.cognito_login {
-        app_routes
-            .nest_service("/static", serve_dir.clone())
-            .fallback_service(serve_dir)
-            .layer(TraceLayer::new_for_http())
-            .layer(CorsLayer::very_permissive())
-            .layer(middleware::from_fn(check_token))
-            .layer(session_layer)
+    let app_routes = app_routes
+        .nest_service("/static", serve_dir.clone())
+        .fallback_service(serve_dir)
+        .layer(TraceLayer::new_for_http())
+        .layer(CorsLayer::very_permissive());
+
+    let app_routes = if config.cognito_login {
+        app_routes.layer(middleware::from_fn(check_token))
     } else {
         app_routes
-            .nest_service("/static", serve_dir.clone())
-            .fallback_service(serve_dir)
-            .layer(TraceLayer::new_for_http())
-            .layer(CorsLayer::very_permissive())
-            .layer(session_layer)
     };
 
-    let app = app.with_state(app_share_data.clone());
+    let app_routes = app_routes
+        .layer(session_layer)
+        .with_state(app_share_data.clone());
 
     tokio::task::spawn(clean_up_session(app_share_data.clone()));
 
@@ -247,7 +244,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     if config.http_only {
         tracing::info!(target:"tron_app", "Starting server at {}", addr);
         axum_server::bind(addr)
-            .serve(app.into_make_service())
+            .serve(app_routes.into_make_service())
             .await
             .unwrap();
     } else {
@@ -266,7 +263,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
 
         tracing::info!(target:"tron_app", "Starting server at {}", addr);
         axum_server::bind_rustls(addr, tls_config)
-            .serve(app.into_make_service())
+            .serve(app_routes.into_make_service())
             .await
             .unwrap();
     }

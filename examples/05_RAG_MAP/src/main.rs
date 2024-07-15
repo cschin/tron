@@ -372,7 +372,7 @@ struct AppPageTemplate {
 
 fn layout(context: TnContext) -> String {
     let context_guard = context.blocking_read();
-    let d3_plot = context_guard.render_to_string(D3PLOT);
+    let d3_plot = context_guard.first_render_to_string(D3PLOT);
     let reset_button = context_guard.render_to_string(RESET_BUTTON);
     let top_hit_div = context_guard.render_to_string(TOP_HIT_DIV);
     let context_query_button = context_guard.render_to_string(CONTEXT_QUERY_BUTTON);

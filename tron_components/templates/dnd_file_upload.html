@@ -1,0 +1,35 @@
+<!-- fix: if we have more than one component defined, then we will load this multiple time -->
+<script id="dropzone_lib" async src="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone-min.js"></script>
+
+<link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
+<script>
+  
+    htmx.on('#{{tron_id}}_form', 'htmx:afterRequest', function(evt) {
+      if (evt.detail.successful) {
+        htmx.trigger("#{{tron_id}}", "finished", {});
+      }
+    });
+
+    function get_event_with_files_dnd(event) {
+      if (event == null || event.type == "load") { // htxm may evaluate "load" event that does not has "getAttribute" 
+        return
+      } else {
+        console.log(document.getElementById("{{tron_id}}_input").files);
+        const files = document.getElementById("{{tron_id}}_input").files; 
+        var file_list = [];
+        for (let idx = 0; idx < files.length; idx++)  { 
+          file_list.push( [files[idx].name, files[idx].size, files[idx].type] ); 
+        };
+        return {
+          "tn_event":
+          {
+            "e_trigger": event.currentTarget.id,
+            "e_type": event.type,
+            "e_state": event.currentTarget.getAttribute('state'),
+            "e_target": event.currentTarget.getAttribute('hx-target')
+          },
+          "e_file_list": file_list
+        };
+      };
+    };
+</script>

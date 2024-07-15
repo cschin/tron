@@ -18,7 +18,7 @@ pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
 pub use d3_plot::TnD3Plot;
 pub use div::TnDiv;
-pub use file_upload::TnFileUpload;
+pub use file_upload::{TnFileUpload, TnDnDFileUpload};
 pub use radio_group::{TnRadioGroup, TnRadioItem};
 pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
@@ -860,7 +860,7 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static>
 #[derive(Eq, PartialEq, Hash, Clone, Debug, Deserialize, Default)]
 pub struct TnEvent {
     pub e_trigger: String,
-    pub e_type: String,  // maybe use Enum
+    pub e_type: String,  // maybe use Enum in the future
     pub e_state: String, // should use the Component::State enum
     #[allow(dead_code)]
     #[serde(default)]

@@ -9,12 +9,10 @@
 <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/json-enc.js"></script>
 <script src="https://unpkg.com/htmx.org@1.9.11/dist/ext/multi-swap.js"></script>
 <script>
-  window.process_special_events = { "empty": () => { } }
+  window.process_special_events = { "empty": () => { } };
+  window.tron_assets = {};
 </script>
 
-<body>
-  <div hx-get="/load_page" hx-swap="outerHTML" hx-trigger="load">Loading Page</div>
-</body>
 
 <script>
   window.addEventListener("load", (event) => {
@@ -47,7 +45,7 @@
   })
 
   window.addEventListener("beforeunload", (event) => {
-    console.log("page is fully loaded");
+    console.log("close event source before unloaded");
     eventSource.close();
   })
 
@@ -105,4 +103,9 @@
   };
 
 </script>
+
+<body>
+  <div hx-get="/load_page" hx-swap="outerHTML" hx-trigger="load">Loading Page</div>
+</body>
+
 </html>

@@ -85,13 +85,23 @@ impl TnFileUpload<'static>
             "".into()
         };
         format!(
-            r#"<div {container_class}><{} {}></{}><label>{}</label><form id='{tron_id}_form' hx-encoding='multipart/form-data' hx-post='/upload/{}' hx-swap="none" hx-val="js:{{event_data:get_event(event)}}">
+            r##"<div {container_class}><{} {}></{}><label>{}</label><form id='{tron_id}_form' hx-encoding='multipart/form-data' hx-post='/upload/{}' hx-swap="none" hx-val="js:{{event_data:get_event(event)}}">
                 <input id="{tron_id}_input" type='file' name='{tron_id}_form' multiple>
                 <button {button_attributes}>
                     Click to Upload
                 </button>
                 <progress id='{tron_id}_progress' value='0' max='100'></progress>
-            </form></div>"#,
+            </form></div>
+            <script>
+            htmx.on('#{tron_id}_form', 'htmx:xhr:progress', function(evt) {{
+                htmx.find('#{tron_id}_progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
+            }});
+
+            htmx.on('#{tron_id}_form', 'htmx:afterRequest', function(evt) {{
+            if (evt.detail.successful) {{
+                htmx.trigger("#{tron_id}", "finished", {{}});
+            }}
+            }});</script>"##,
             self.base.tag,
             self.generate_attr_string(),
             self.base.tag,
@@ -183,7 +193,7 @@ impl TnDnDFileUpload<'static>
             "".into()
         };
         format!(
-            r#"<div {container_class}><{} {}></{}><label>{}</label>
+            r##"<div {container_class}><{} {}></{}><label>{}</label>
             <form class="dropzone"
                   id="{tron_id}_form"
                   hx-encoding='multipart/form-data' hx-post='/upload/{}'>
@@ -192,6 +202,11 @@ impl TnDnDFileUpload<'static>
                     Clear
             </button>
             <script>
+                htmx.on('#{tron_id}_form', 'htmx:afterRequest', function(evt) {{
+                    if (evt.detail.successful) {{
+                        htmx.trigger("#{tron_id}", "finished", {{}});
+                    }};
+                }});
                 document.querySelector('#dropzone_lib').addEventListener('load', 
                     function () {{
                         let theDropzone = new Dropzone('#{tron_id}_form', {{paramName:'{tron_id}_form',  url: "/upload/{}"}});
@@ -201,7 +216,7 @@ impl TnDnDFileUpload<'static>
                     function () {{ 
                         window.tron_assets["dropzones"]["{tron_id}_form"].removeAllFiles(); 
                 }});
-            </script>"#,
+            </script>"##,
             self.base.tag,
             self.generate_attr_string(),
             self.base.tag,

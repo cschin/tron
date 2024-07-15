@@ -191,14 +191,15 @@ impl TnDnDFileUpload<'static>
             <button {button_attributes} id="{tron_id}_clear_btn">
                     Clear
             </button>
-            <script>document.querySelector('#dropzone_lib').addEventListener('load', 
+            <script>
+                document.querySelector('#dropzone_lib').addEventListener('load', 
                     function () {{
                         let theDropzone = new Dropzone('#{tron_id}_form', {{paramName:'{tron_id}_form',  url: "/upload/{}"}});
                         window.tron_assets["dropzones"] = {{"{tron_id}_form":theDropzone}};
                 }});
                 document.querySelector('#{tron_id}_clear_btn').addEventListener('click', 
                     function () {{ 
-                    window.tron_assets["dropzones"]["{tron_id}_form"].removeAllFiles(); 
+                        window.tron_assets["dropzones"]["{tron_id}_form"].removeAllFiles(); 
                 }});
             </script>"#,
             self.base.tag,

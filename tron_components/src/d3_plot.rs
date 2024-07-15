@@ -69,10 +69,8 @@ impl TnD3Plot<'static>
         } else {
             unreachable!()
         };
-        let tron_id = self.tron_id();
         format!(
-            r##"<{} {}></{}><script id="d3_lib" async src="https://d3js.org/d3.v6.js"></script>{d3_plot_script} 
-            <script>document.querySelector('#d3_lib').addEventListener('load', function () {{d3_plot("{tron_id}");}});</script>"##,
+            r##"<{} {}></{}>{d3_plot_script}"##,
             self.base.tag,
             self.generate_attr_string(),
             self.base.tag
@@ -80,7 +78,19 @@ impl TnD3Plot<'static>
     }
     /// Renders the `TnRangeSlider` component for the first time.
     pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+        let d3_plot_script = if let TnComponentValue::String(s) = self.value() {
+            s.clone()
+        } else {
+            unreachable!()
+        };
+        let tron_id = self.tron_id();
+        format!(
+            r##"<{} {}></{}>{d3_plot_script} 
+            <script>document.querySelector('#d3_lib').addEventListener('load', function () {{d3_plot("{tron_id}");}});</script>"##,
+            self.base.tag,
+            self.generate_attr_string(),
+            self.base.tag
+        )
     }
 
     pub fn internal_pre_render(&mut self) {}

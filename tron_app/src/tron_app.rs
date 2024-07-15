@@ -372,7 +372,7 @@ async fn load_page(
     })
     .join("\n");
 
-    let html = [layout, script].join("\n");
+    let html = [script, layout].join("\n");
     Ok(Html::from(html))
 }
 
@@ -688,7 +688,7 @@ async fn upload(
         };
         let file_name = field.file_name().unwrap().to_string();
         let data = field.bytes().await.unwrap();
-        println!("Length of `{}` is {} bytes", file_name, data.len());
+        tracing::info!(target: "tron_app", "Uploaded, Length of `{}` is {} bytes", file_name, data.len());
         let e = field_data.entry(file_name).or_default();
         e.extend_from_slice(&data);
     }

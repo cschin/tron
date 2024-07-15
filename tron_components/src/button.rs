@@ -8,7 +8,7 @@ pub struct TnButton<'a: 'static> {
 }
 
 /// Creates a new button component with the specified idx, tnid, and value.
-impl<'a: 'static> TnButton<'a> {
+impl TnButton<'static> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
         let mut base = TnComponentBase::new("button".into(), idx, tnid, TnComponentType::Button);
         base.set_value(TnComponentValue::String(value));
@@ -18,7 +18,7 @@ impl<'a: 'static> TnButton<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnButton<'a> {
+impl Default for TnButton<'static> {
     /// Creates a default instance of `TnButton`.
     fn default() -> Self {
         Self {
@@ -30,9 +30,7 @@ impl<'a: 'static> Default for TnButton<'a> {
     }
 }
 
-impl<'a: 'static> TnButton<'a>
-where
-    'a: 'static,
+impl TnButton<'static>
 {
     /// Generates the internal HTML representation of the button component.
     pub fn internal_render(&self) -> String {

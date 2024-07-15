@@ -17,7 +17,7 @@ pub struct TnAudioRecorder<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnAudioRecorder<'a> {
+impl TnAudioRecorder<'static> {
     /// Creates a new `TnAudioRecorder` component with the specified index, name, and value.
     ///
     /// # Arguments
@@ -48,7 +48,7 @@ impl<'a: 'static> TnAudioRecorder<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnAudioRecorder<'a> {
+impl Default for TnAudioRecorder<'static> {
     /// Creates a default instance of `TnAudioRecorder`.
     fn default() -> Self {
         Self {
@@ -60,9 +60,7 @@ impl<'a: 'static> Default for TnAudioRecorder<'a> {
     }
 }
 
-impl<'a: 'static> TnAudioRecorder<'a>
-where
-    'a: 'static,
+impl TnAudioRecorder<'static>
 {
     /// Generates the internal HTML representation of the audio recorder component.
     pub fn internal_render(&self) -> String {

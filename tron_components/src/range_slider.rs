@@ -7,7 +7,7 @@ pub struct TnRangeSlider<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnRangeSlider<'a> {
+impl TnRangeSlider<'static> {
     /// Creates a new instance of `TnRangeSlider`.
     ///
     /// # Arguments
@@ -39,7 +39,7 @@ impl<'a: 'static> TnRangeSlider<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnRangeSlider<'a> {
+impl Default for TnRangeSlider<'static> {
     /// Returns the default instance of `TnRangeSlider`.
     ///
     /// The default value is set to "range", representing a default range value.
@@ -53,9 +53,7 @@ impl<'a: 'static> Default for TnRangeSlider<'a> {
     }
 }
 
-impl<'a: 'static> TnRangeSlider<'a>
-where
-    'a: 'static,
+impl TnRangeSlider<'static>
 {
     /// Renders the `TnRangeSlider` component.
     pub fn internal_render(&self) -> String {

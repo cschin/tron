@@ -8,7 +8,7 @@ pub struct TnRadioGroup<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnRadioGroup<'a> {
+impl TnRadioGroup<'static> {
     /// Creates a new instance of `TnRadioGroup`.
     ///
     /// # Arguments
@@ -60,13 +60,13 @@ impl<'a: 'static> Default for TnRadioGroup<'a> {
 }
 
 /// Implements methods for rendering `TnRadioGroup`.
-impl<'a: 'static> TnRadioGroup<'a> {
+impl TnRadioGroup<'static> {
     /// Renders the internal structure of the `TnRadioGroup`.
     pub fn internal_render(&self) -> String {
         let children_render_results = self
             .get_children()
             .iter()
-            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>| c.blocking_read().render())
+            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>| c.blocking_read().render())
             .collect::<Vec<String>>()
             .join(" ");
         format!(
@@ -107,7 +107,7 @@ pub struct TnRadioItem<'a: 'static> {
 /// # Returns
 ///
 /// A new `TnRadioItem` instance.
-impl<'a: 'static> TnRadioItem<'a> {
+impl TnRadioItem<'static> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: bool) -> Self {
         let mut base = TnComponentBase::new(
             "input".into(),
@@ -130,7 +130,7 @@ impl<'a: 'static> TnRadioItem<'a> {
 }
 
 /// Implements the default trait for `TnRadioItem`.
-impl<'a: 'static> Default for TnRadioItem<'a> {
+impl Default for TnRadioItem<'static> {
     /// Creates a default `TnRadioItem` instance.
     fn default() -> Self {
         Self {
@@ -142,7 +142,7 @@ impl<'a: 'static> Default for TnRadioItem<'a> {
     }
 }
 
-impl<'a: 'static> TnRadioItem<'a> {
+impl TnRadioItem<'static> {
     /// Renders the `TnRadioItem` component into HTML.
     pub fn internal_render(&self) -> String {
         let checked = if let &TnComponentValue::RadioItem(v) = self.value() {

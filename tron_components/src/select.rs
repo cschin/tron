@@ -7,7 +7,7 @@ pub struct TnSelect<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnSelect<'a> {
+impl TnSelect<'static> {
     /// Creates a new select component.
     ///
     /// # Arguments
@@ -42,7 +42,7 @@ impl<'a: 'static> TnSelect<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnSelect<'a> {
+impl Default for TnSelect<'static> {
     /// Returns a default TnSelect component.
     fn default() -> Self {
         Self {
@@ -54,7 +54,7 @@ impl<'a: 'static> Default for TnSelect<'a> {
     }
 }
 
-impl<'a: 'static> TnSelect<'a> {
+impl TnSelect<'static> {
     /// Renders the TnSelect component.
     pub fn internal_render(&self) -> String {
         let options = {

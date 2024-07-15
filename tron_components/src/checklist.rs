@@ -8,7 +8,7 @@ pub struct TnCheckList<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnCheckList<'a> {
+impl TnCheckList<'static> {
     /// Creates a new checklist component with the specified ID, name, and values.
     pub fn new(id: TnComponentIndex, name: String, value: HashMap<String, bool>) -> Self {
         let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
@@ -20,7 +20,7 @@ impl<'a: 'static> TnCheckList<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnCheckList<'a> {
+impl Default for TnCheckList<'static> {
     /// Creates a default checklist component with an empty value.
     fn default() -> Self {
         Self {
@@ -32,13 +32,13 @@ impl<'a: 'static> Default for TnCheckList<'a> {
     }
 }
 
-impl<'a: 'static> TnCheckList<'a> {
+impl TnCheckList<'static> {
     /// Renders the checklist component including its children.
     pub fn internal_render(&self) -> String {
         let children_render_results = self
             .get_children()
             .iter()
-            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>| c.blocking_read().render())
+            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>| c.blocking_read().render())
             .collect::<Vec<String>>()
             .join(" ");
         format!(
@@ -65,7 +65,7 @@ pub struct TnCheckBox<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnCheckBox<'a> {
+impl TnCheckBox<'static> {
     /// Creates a new checkbox component.
     pub fn new(id: TnComponentIndex, name: String, value: bool) -> Self {
         let mut base =
@@ -84,7 +84,7 @@ impl<'a: 'static> TnCheckBox<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnCheckBox<'a> {
+impl Default for TnCheckBox<'static> {
     /// Creates a default checkbox component.
     fn default() -> Self {
         Self {
@@ -96,7 +96,7 @@ impl<'a: 'static> Default for TnCheckBox<'a> {
     }
 }
 
-impl<'a: 'static> TnCheckBox<'a> {
+impl TnCheckBox<'static> {
     /// Renders the checkbox component internally.
     pub fn internal_render(&self) -> String {
         let checked = if let &TnComponentValue::CheckItem(v) = self.value() {

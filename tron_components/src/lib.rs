@@ -306,7 +306,7 @@ pub struct TnContextBase<'a: 'static> {
 
 /// Provides the implementation for `TnContextBase`, a context management structure for handling
 /// UI components and their interaction in an application.
-impl<'a: 'static> TnContextBase<'a> {
+impl TnContextBase<'static> {
     /// Constructs a new instance of `TnContextBase` with default settings.
     /// Initializes all internal storages (components, assets, streams, services, and SSE channels) as empty.
 
@@ -325,7 +325,7 @@ impl<'a: 'static> TnContextBase<'a> {
     /// Adds a new component to the context.
     /// Registers the component with a unique `tron_id` and an `id`, and updates the mapping.
 
-    pub fn add_component(&mut self, new_component: impl TnComponentBaseTrait<'a> + 'static) {
+    pub fn add_component(&mut self, new_component: impl TnComponentBaseTrait<'static> + 'static) {
         let tron_id = new_component.tron_id().clone();
         let id = new_component.id();
         let mut component_guard = self.components.blocking_write();
@@ -542,9 +542,7 @@ impl TnContext {
 }
 
 /// Implements the default trait for creating a default instance of `TnContextBase<'a>`.
-impl<'a: 'static> Default for TnContextBase<'a>
-where
-    'a: 'static,
+impl Default for TnContextBase<'static>
 {
     fn default() -> Self {
         Self::new()
@@ -597,7 +595,7 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 /// This trait defines methods for accessing and manipulating various properties of a Tron component,
 /// such as its ID, type, attributes, headers, value, state, assets, children, parent, and script.
 /// Implementors of this trait must provide concrete implementations for these methods.
-impl<'a: 'static> TnComponentBase<'a> {
+impl TnComponentBase<'static> {
     pub fn new(
         tag: String,
         index: TnComponentIndex,
@@ -658,8 +656,8 @@ impl<'a: 'static> TnComponentBase<'a> {
 ///
 /// This is useful for initializing components with a unique ID and default settings.
 
-impl<'a: 'static> Default for TnComponentBase<'a> {
-    fn default() -> TnComponentBase<'a> {
+impl Default for TnComponentBase<'static> {
+    fn default() -> TnComponentBase<'static> {
         let mut rng = thread_rng();
         let id: u32 = rng.gen();
         let tron_id = format!("{:x}", id);
@@ -710,9 +708,7 @@ impl<'a: 'static> Default for TnComponentBase<'a> {
 /// - `first_render()`: First render logic (unimplemented).
 /// - `render()`: Render logic (unimplemented).
 /// - `get_script()`: Returns an optional clone of the component's script.
-impl<'a: 'static> TnComponentBaseTrait<'a> for TnComponentBase<'a>
-where
-    'a: 'static,
+impl TnComponentBaseTrait<'static> for TnComponentBase<'static>
 {
     fn id(&self) -> u32 {
         self.id
@@ -816,23 +812,23 @@ where
         }
     }
 
-    fn get_children(&self) -> &Vec<TnComponent<'a>> {
+    fn get_children(&self) -> &Vec<TnComponent<'static>> {
         &self.children
     }
 
-    fn get_mut_children(&mut self) -> &mut Vec<TnComponent<'a>> {
+    fn get_mut_children(&mut self) -> &mut Vec<TnComponent<'static>> {
         &mut self.children
     }
 
-    fn add_child(&mut self, child: TnComponent<'a>) {
+    fn add_child(&mut self, child: TnComponent<'static>) {
         self.children.push(child);
     }
 
-    fn add_parent(&mut self, parent: TnComponent<'a>) {
+    fn add_parent(&mut self, parent: TnComponent<'static>) {
         self.parent = Arc::downgrade(&parent);
     }
 
-    fn get_parent(&self) -> TnComponent<'a> {
+    fn get_parent(&self) -> TnComponent<'static> {
         Weak::upgrade(&self.parent).unwrap()
     }
 

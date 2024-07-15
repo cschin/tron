@@ -13,7 +13,7 @@ pub struct TnD3Plot<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnD3Plot<'a> {
+impl TnD3Plot<'static> {
     /// Creates a new `TnComponent` instance specifically for a D3 simple scatter plot visualization.
     ///
     /// # Arguments
@@ -48,7 +48,7 @@ impl<'a: 'static> TnD3Plot<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnD3Plot<'a> {
+impl Default for TnD3Plot<'static> {
     /// Returns the default instance of `TnScatterPlot`.
     fn default() -> Self {
         Self {
@@ -60,9 +60,7 @@ impl<'a: 'static> Default for TnD3Plot<'a> {
     }
 }
 
-impl<'a: 'static> TnD3Plot<'a>
-where
-    'a: 'static,
+impl TnD3Plot<'static>
 {
     /// Renders the `TnScatterPlot` component.
     pub fn internal_render(&self) -> String {

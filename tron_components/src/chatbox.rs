@@ -19,7 +19,7 @@ pub struct TnChatBox<'a: 'static> {
 /// # Returns
 ///
 /// A new instance of `TnChatBox`.
-impl<'a: 'static> TnChatBox<'a> {
+impl TnChatBox<'static> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<(String, String)>) -> Self {
         let mut base =
             TnComponentBase::new("div".into(), idx, tnid, TnComponentType::ChatBox);
@@ -51,7 +51,7 @@ impl<'a: 'static> TnChatBox<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnChatBox<'a> {
+impl Default for TnChatBox<'static> {
     /// Creates a default instance of `TnChatBox` with an empty message list.
     fn default() -> Self {
         Self {
@@ -63,7 +63,7 @@ impl<'a: 'static> Default for TnChatBox<'a> {
     }
 }
 
-impl<'a: 'static> TnChatBox<'a> {
+impl TnChatBox<'static> {
     /// Renders the chat box component for the first time.
     pub fn internal_first_render(&self) -> String {
         let class = if let TnAsset::HashMapString(class) =

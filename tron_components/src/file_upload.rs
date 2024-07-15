@@ -15,7 +15,7 @@ struct ScriptTemplate {
     tron_id: String,
 }
 
-impl<'a: 'static> TnFileUpload<'a> {
+impl TnFileUpload<'static> {
     pub fn new(
         idx: TnComponentIndex,
         tnid: String,
@@ -45,7 +45,7 @@ impl<'a: 'static> TnFileUpload<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnFileUpload<'a> {
+impl Default for TnFileUpload<'static> {
     /// Returns the default instance of `TnScatterPlot`.
     fn default() -> Self {
         Self {
@@ -59,9 +59,7 @@ impl<'a: 'static> Default for TnFileUpload<'a> {
     }
 }
 
-impl<'a: 'static> TnFileUpload<'a>
-where
-    'a: 'static,
+impl TnFileUpload<'static>
 {
     /// Renders the `TnScatterPlot` component.
     pub fn internal_render(&self) -> String {

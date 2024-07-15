@@ -8,7 +8,7 @@ pub struct TnDiv<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnDiv<'a> {
+impl TnDiv<'static> {
     /// Creates a new TextArea component with the specified ID, name, and value.
     pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::Div);
@@ -21,7 +21,7 @@ impl<'a: 'static> TnDiv<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnDiv<'a> {
+impl Default for TnDiv<'static> {
     /// Creates a default TextArea component with an empty value.
     fn default() -> Self {
         Self {
@@ -33,7 +33,7 @@ impl<'a: 'static> Default for TnDiv<'a> {
     }
 }
 
-impl<'a: 'static> TnDiv<'a> {
+impl TnDiv<'static> {
     /// Renders the TextArea component.
     pub fn internal_render(&self) -> String {
         format!(

@@ -9,7 +9,7 @@ pub struct TnTextArea<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnTextArea<'a> {
+impl TnTextArea<'static> {
     /// Creates a new TextArea component with the specified ID, name, and value.
     pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("textarea".into(), id, name, TnComponentType::TextArea);
@@ -22,7 +22,7 @@ impl<'a: 'static> TnTextArea<'a> {
     }
 }
 
-impl<'a: 'static> Default for TnTextArea<'a> {
+impl Default for TnTextArea<'static> {
     /// Creates a default TextArea component with an empty value.
     fn default() -> Self {
         Self {
@@ -34,7 +34,7 @@ impl<'a: 'static> Default for TnTextArea<'a> {
     }
 }
 
-impl<'a: 'static> TnTextArea<'a> {
+impl TnTextArea<'static> {
     /// Renders the TextArea component.
     pub fn internal_render(&self) -> String {
         format!(
@@ -144,7 +144,7 @@ pub struct SseStreamTextAreaTriggerMsg {
 /// # Returns
 ///
 /// A new instance of TnStreamTextArea.
-impl<'a: 'static> TnStreamTextArea<'a> {
+impl TnStreamTextArea<'static> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<String>) -> Self {
         let mut base = TnComponentBase::new(
             "textarea".into(),
@@ -170,7 +170,7 @@ impl<'a: 'static> TnStreamTextArea<'a> {
 /// Implements the default trait for TnStreamTextArea.
 ///
 /// This sets the default value for TnStreamTextArea as an empty vector.
-impl<'a: 'static> Default for TnStreamTextArea<'a> {
+impl Default for TnStreamTextArea<'static> {
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -303,7 +303,7 @@ pub struct TnTextInput<'a: 'static> {
 /// # Returns
 ///
 /// A new `TnTextInput` instance.
-impl<'a: 'static> TnTextInput<'a> {
+impl TnTextInput<'static> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
         let mut base = TnComponentBase::new("input".into(), idx, tnid, TnComponentType::TextInput);
         base.set_value(TnComponentValue::String(value.to_string()));
@@ -334,7 +334,7 @@ impl<'a: 'static> Default for TnTextInput<'a> {
     }
 }
 
-impl<'a: 'static> TnTextInput<'a> {
+impl TnTextInput<'static> {
     /// Renders the internal representation of the text input component.
     pub fn internal_render(&self) -> String {
         format!(

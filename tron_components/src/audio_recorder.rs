@@ -59,8 +59,7 @@ impl Default for TnAudioRecorder<'static> {
     }
 }
 
-impl TnAudioRecorder<'static>
-{
+impl TnAudioRecorder<'static> {
     /// Generates the internal HTML representation of the audio recorder component.
     pub fn internal_render(&self) -> String {
         format!(

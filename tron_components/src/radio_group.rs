@@ -65,7 +65,9 @@ impl TnRadioGroup<'static> {
         let children_render_results = self
             .get_children()
             .iter()
-            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>| c.blocking_read().render())
+            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>| {
+                c.blocking_read().render()
+            })
             .collect::<Vec<String>>()
             .join(" ");
         format!(
@@ -82,11 +84,9 @@ impl TnRadioGroup<'static> {
         self.internal_render()
     }
 
-    pub fn internal_pre_render(&mut self)  {
-    }
+    pub fn internal_pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self)  {
-    }
+    pub fn internal_post_render(&mut self) {}
 }
 
 /// Represents a radio item component within a radio group.

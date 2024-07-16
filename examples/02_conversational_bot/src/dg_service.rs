@@ -113,9 +113,9 @@ pub async fn deepgram_transcript_service(
     while let Some(result) = dg_response.next().await {
         match result {
             Ok(r) => {
-                if transcript_tx.send(r).await.is_err() { 
+                if transcript_tx.send(r).await.is_err() {
                     tracing::info!(target: TRON_APP, "in deepgram_transcript_service, break");
-                    break
+                    break;
                 }
             }
             Err(e) => {
@@ -289,9 +289,11 @@ pub async fn tts_service(
             .send()
             .await;
 
-        if response.is_err() { continue };
+        if response.is_err() {
+            continue;
+        };
         let mut response = response.unwrap();
-            
+
         tracing::debug!( target:TRON_APP, "response: {:?}", response);
 
         let duration = time.elapsed().unwrap();

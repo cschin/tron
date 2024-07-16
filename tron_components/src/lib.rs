@@ -18,7 +18,7 @@ pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
 pub use d3_plot::TnD3Plot;
 pub use div::TnDiv;
-pub use file_upload::{TnFileUpload, TnDnDFileUpload};
+pub use file_upload::{TnDnDFileUpload, TnFileUpload};
 pub use radio_group::{TnRadioGroup, TnRadioItem};
 pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
@@ -340,31 +340,30 @@ impl TnContextBase<'static> {
         match ct {
             TnComponentType::AudioPlayer => {
                 *e = include_str!("../javascript/audio_player.html").to_string();
-            },
+            }
             TnComponentType::AudioRecorder => {
-                *e = include_str!("../javascript/audio_recorder.html").to_string(); 
-            },
+                *e = include_str!("../javascript/audio_recorder.html").to_string();
+            }
             TnComponentType::CheckList => {
-                *e = include_str!("../javascript/checklist.html").to_string(); 
-            },
+                *e = include_str!("../javascript/checklist.html").to_string();
+            }
             TnComponentType::D3Plot => {
-                *e = include_str!("../javascript/d3_plot.html").to_string(); 
-            },
+                *e = include_str!("../javascript/d3_plot.html").to_string();
+            }
             TnComponentType::DnDFileUpload => {
                 *e = include_str!("../javascript/dnd_file_upload.html").to_string();
-            },
+            }
             TnComponentType::FileUpload => {
                 *e = include_str!("../javascript/file_upload.html").to_string();
-            },
+            }
             TnComponentType::RadioGroup => {
-                *e = include_str!("../javascript/radio_group.html").to_string(); 
-            },
+                *e = include_str!("../javascript/radio_group.html").to_string();
+            }
             TnComponentType::StreamTextArea => {
-                *e = include_str!("../javascript/stream_textarea.html").to_string(); 
-            },
-            _ => ()
+                *e = include_str!("../javascript/stream_textarea.html").to_string();
+            }
+            _ => (),
         };
-
     }
 
     /// Retrieves the component index using its `tron_id`.
@@ -576,8 +575,7 @@ impl TnContext {
 }
 
 /// Implements the default trait for creating a default instance of `TnContextBase<'a>`.
-impl Default for TnContextBase<'static>
-{
+impl Default for TnContextBase<'static> {
     fn default() -> Self {
         Self::new()
     }
@@ -742,8 +740,7 @@ impl Default for TnComponentBase<'static> {
 /// - `first_render()`: First render logic (unimplemented).
 /// - `render()`: Render logic (unimplemented).
 /// - `get_script()`: Returns an optional clone of the component's script.
-impl TnComponentBaseTrait<'static> for TnComponentBase<'static>
-{
+impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
     fn id(&self) -> u32 {
         self.id
     }

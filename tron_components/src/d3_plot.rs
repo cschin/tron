@@ -42,7 +42,6 @@ impl TnD3Plot<'static> {
             r##"js:{event_data:get_event_with_coordinate(event)}"##.into(),
         );
 
-
         Self { base }
     }
 }
@@ -59,8 +58,7 @@ impl Default for TnD3Plot<'static> {
     }
 }
 
-impl TnD3Plot<'static>
-{
+impl TnD3Plot<'static> {
     /// Renders the `TnScatterPlot` component.
     pub fn internal_render(&self) -> String {
         let d3_plot_script = if let TnComponentValue::String(s) = self.value() {

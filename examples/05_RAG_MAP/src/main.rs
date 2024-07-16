@@ -498,35 +498,30 @@ fn hex_color_rescale(hex_color: &str, rescale: f64) -> String {
 fn sort_points<'a>(ref_vec: &[f32]) -> Vec<TwoDPoint<'a>> {
     //tracing::info!(target:"tron_app", "ref_vec:{:?}", ref_vec);
     let mut all_points = Vec::new();
-    DOCUMENT_CHUNKS
-        .get()
-        .unwrap()
-        .chunks
-        .iter()
-        .for_each(|c| {
-            let x = c.two_d_embedding.0 as f64;
-            let y = c.two_d_embedding.1 as f64;
-            let x_len: f64 = (0..c.embedding_vec.len())
-                .map(|idx| c.embedding_vec[idx].powi(2))
-                .sum::<f32>() as f64;
-            let y_len: f64 = (0..ref_vec.len())
-                .map(|idx| ref_vec[idx].powi(2))
-                .sum::<f32>() as f64;
-            //let d = OrderedFloat::from((evt_x - x).powi(2) + (evt_y - y).powi(2));
-            let mut d: f64 = (0..c.embedding_vec.len())
-                .map(|idx| (c.embedding_vec[idx] * ref_vec[idx]))
-                .sum::<f32>() as f64;
-            d /= x_len.powf(0.5);
-            d /= y_len.powf(0.5);
-            d = 1.0 - d;
-            let d = OrderedFloat::from(d);
-            let point = TwoDPoint {
-                d,
-                point: (x, y),
-                chunk: c,
-            };
-            all_points.push(point);
-        });
+    DOCUMENT_CHUNKS.get().unwrap().chunks.iter().for_each(|c| {
+        let x = c.two_d_embedding.0 as f64;
+        let y = c.two_d_embedding.1 as f64;
+        let x_len: f64 = (0..c.embedding_vec.len())
+            .map(|idx| c.embedding_vec[idx].powi(2))
+            .sum::<f32>() as f64;
+        let y_len: f64 = (0..ref_vec.len())
+            .map(|idx| ref_vec[idx].powi(2))
+            .sum::<f32>() as f64;
+        //let d = OrderedFloat::from((evt_x - x).powi(2) + (evt_y - y).powi(2));
+        let mut d: f64 = (0..c.embedding_vec.len())
+            .map(|idx| (c.embedding_vec[idx] * ref_vec[idx]))
+            .sum::<f32>() as f64;
+        d /= x_len.powf(0.5);
+        d /= y_len.powf(0.5);
+        d = 1.0 - d;
+        let d = OrderedFloat::from(d);
+        let point = TwoDPoint {
+            d,
+            point: (x, y),
+            chunk: c,
+        };
+        all_points.push(point);
+    });
     all_points.sort();
     all_points.reverse();
     all_points
@@ -643,22 +638,17 @@ fn d3_plot_clicked(
         tracing::info!(target: "tron_app", "e_x {:?}", evt_x);
         tracing::info!(target: "tron_app", "e_y {:?}", evt_y);
         //let filename_to_id = &DOCUMENT_CHUNKS.get().unwrap().filename_to_id;
-        DOCUMENT_CHUNKS
-            .get()
-            .unwrap()
-            .chunks
-            .iter()
-            .for_each(|c| {
-                let x = c.two_d_embedding.0 as f64;
-                let y = c.two_d_embedding.1 as f64;
-                let d = OrderedFloat::from((evt_x - x).powi(2) + (evt_y - y).powi(2));
-                let point = TwoDPoint {
-                    d,
-                    point: (x, y),
-                    chunk: c,
-                };
-                all_points.push(point);
-            });
+        DOCUMENT_CHUNKS.get().unwrap().chunks.iter().for_each(|c| {
+            let x = c.two_d_embedding.0 as f64;
+            let y = c.two_d_embedding.1 as f64;
+            let d = OrderedFloat::from((evt_x - x).powi(2) + (evt_y - y).powi(2));
+            let point = TwoDPoint {
+                d,
+                point: (x, y),
+                chunk: c,
+            };
+            all_points.push(point);
+        });
         all_points.sort();
         all_points.reverse();
 
@@ -987,21 +977,16 @@ async fn api_test(
     let checked: bool = payload["event_data"].as_bool().unwrap();
     tracing::info!(target: "tron_app", "checked: {}", checked);
     let mut all_points = Vec::new();
-    DOCUMENT_CHUNKS
-        .get()
-        .unwrap()
-        .chunks
-        .iter()
-        .for_each(|c| {
-            let x = c.two_d_embedding.0 as f64;
-            let y = c.two_d_embedding.1 as f64;
-            let point = TwoDPoint {
-                d: OrderedFloat::from(1.0),
-                point: (x, y),
-                chunk: c,
-            };
-            all_points.push(point);
-        });
+    DOCUMENT_CHUNKS.get().unwrap().chunks.iter().for_each(|c| {
+        let x = c.two_d_embedding.0 as f64;
+        let y = c.two_d_embedding.1 as f64;
+        let point = TwoDPoint {
+            d: OrderedFloat::from(1.0),
+            point: (x, y),
+            chunk: c,
+        };
+        all_points.push(point);
+    });
 
     let fids = {
         let guard = context.read().await;

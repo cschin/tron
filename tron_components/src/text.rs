@@ -267,7 +267,7 @@ pub async fn clean_stream_textarea_with_context(context: &TnContext, tron_id: &s
 
     let component = context.get_component(tron_id).await;
     let mut guard = component.write().await;
-    let value =  guard.get_mut_value();
+    let value = guard.get_mut_value();
     if let TnComponentValue::VecString(value) = value {
         value.clear();
     }

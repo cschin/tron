@@ -100,7 +100,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             fn set_state(&mut self, new_state: TnComponentState) {
                 self.base.set_state(new_state);
             }
-            
+
             fn create_assets(&mut self) {
                 self.base.create_assets();
             }

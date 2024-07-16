@@ -238,7 +238,6 @@ async fn openai_stream_service(
                                 }
                             }
                         }
-
                     }
                 }
             }
@@ -247,7 +246,6 @@ async fn openai_stream_service(
             }
         }
     }
-
 
     let llm_response = llm_response.join("");
     tracing::info!(target: TRON_APP, "LLM response: {}", llm_response);

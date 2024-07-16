@@ -27,7 +27,6 @@ impl TnFileUpload<'static> {
             "js:{event_data:get_event_with_files(event)}".into(),
         );
 
-
         Self {
             base,
             title,
@@ -50,8 +49,7 @@ impl Default for TnFileUpload<'static> {
     }
 }
 
-impl TnFileUpload<'static>
-{
+impl TnFileUpload<'static> {
     /// Renders the `TnScatterPlot` component.
     pub fn internal_render(&self) -> String {
         let tron_id = self.tron_id();
@@ -111,15 +109,14 @@ impl TnFileUpload<'static>
     pub fn internal_post_render(&mut self) {}
 }
 
-// Drag and Drop 
+// Drag and Drop
 
 #[derive(ComponentBase)]
 pub struct TnDnDFileUpload<'a: 'static> {
     base: TnComponentBase<'a>,
     title: String,
-    button_attributes: HashMap<String, String>, 
+    button_attributes: HashMap<String, String>,
 }
-
 
 impl TnDnDFileUpload<'static> {
     pub fn new(
@@ -128,8 +125,12 @@ impl TnDnDFileUpload<'static> {
         title: String,
         button_attributes: HashMap<String, String>,
     ) -> Self {
-        let mut base =
-            TnComponentBase::new("div".into(), idx, tnid.clone(), TnComponentType::DnDFileUpload);
+        let mut base = TnComponentBase::new(
+            "div".into(),
+            idx,
+            tnid.clone(),
+            TnComponentType::DnDFileUpload,
+        );
         base.set_value(TnComponentValue::None);
         base.set_attribute("type".into(), "file_dnd_upload".into());
         base.set_attribute("id".into(), tnid.clone());
@@ -143,15 +144,12 @@ impl TnDnDFileUpload<'static> {
         Self {
             base,
             title,
-            button_attributes
+            button_attributes,
         }
     }
 }
 
-
-
-impl TnDnDFileUpload<'static>
-{
+impl TnDnDFileUpload<'static> {
     /// Renders the `TnScatterPlot` component.
     pub fn internal_render(&self) -> String {
         let tron_id = self.tron_id();

@@ -1,6 +1,6 @@
 use super::*;
 use tron_macro::*;
-use tron_utils::{send_sse_msg_to_client, TnSseTriggerMsg, TnServerSideTriggerData};
+use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
 
 /// A component representing a chat box.
 #[derive(ComponentBase)]
@@ -21,8 +21,7 @@ pub struct TnChatBox<'a: 'static> {
 /// A new instance of `TnChatBox`.
 impl TnChatBox<'static> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<(String, String)>) -> Self {
-        let mut base =
-            TnComponentBase::new("div".into(), idx, tnid, TnComponentType::ChatBox);
+        let mut base = TnComponentBase::new("div".into(), idx, tnid, TnComponentType::ChatBox);
         base.set_value(TnComponentValue::VecString2(value));
 
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
@@ -30,23 +29,24 @@ impl TnChatBox<'static> {
             "hx-swap".into(),
             "beforeend scroll:bottom focus-scroll:true ".into(),
         );
-        base.set_attribute(
-            "class".into(),
-            "flex-col".into(),
-        );
+        base.set_attribute("class".into(), "flex-col".into());
         base.asset = Some(HashMap::default());
         let class = HashMap::from_iter(vec![
             // ("user".to_string(), "max-w-fill flex flex-row justify-end p-1 > bg-green-100 rounded-lg p-2 mb-1 text-right".to_string()),
             // ("bot".to_string(), "max-w-fill flex flex-row justify-start p-1 > bg-blue-100 rounded-lg p-2 mb-1 text-left".to_string()),
-            ("user".to_string(), "chat chat-end > bg-green-900 chat-bubble".to_string()),
-            ("bot".to_string(), "chat chat-start > bg-blue-900 chat-bubble".to_string()),
+            (
+                "user".to_string(),
+                "chat chat-end > bg-green-900 chat-bubble".to_string(),
+            ),
+            (
+                "bot".to_string(),
+                "chat chat-start > bg-blue-900 chat-bubble".to_string(),
+            ),
         ]);
         let assets: &mut HashMap<String, TnAsset> = base.asset.as_mut().unwrap();
         assets.insert("class".into(), TnAsset::HashMapString(class));
 
-        Self {
-            base,
-        }
+        Self { base }
     }
 }
 
@@ -98,7 +98,7 @@ impl TnChatBox<'static> {
         } else {
             "".to_string()
         };
-        
+
         // Format the complete HTML for the chat box
         format!(
             r##"<{} {}>{}</{}>"##,
@@ -110,7 +110,7 @@ impl TnChatBox<'static> {
     }
 
     /// Renders the chat box component.
-    pub fn internal_render(&self) -> String { 
+    pub fn internal_render(&self) -> String {
         // Retrieve the class attribute from the component's assets
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
@@ -136,8 +136,8 @@ impl TnChatBox<'static> {
             if let Some(class_str) = class_str {
                 let class_str = class_str.clone();
                 let mut class_strs = class_str.split('>');
-                let class_parent = class_strs.next().unwrap(); 
-                let class_str = class_strs.next().unwrap(); 
+                let class_parent = class_strs.next().unwrap();
+                let class_str = class_strs.next().unwrap();
                 format!(r#"<div class="{class_parent}"><div class="{class_str}">{msg}</div></div>"#)
             } else {
                 format!(r#"<div><div>{msg}</div></div>"#)
@@ -145,20 +145,17 @@ impl TnChatBox<'static> {
         } else {
             "".to_string()
         }
-
     }
 
-    pub fn internal_pre_render(&mut self)  {
-    }
+    pub fn internal_pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self)  {
-    }
+    pub fn internal_post_render(&mut self) {}
 }
 
 /// Appends a new tag-message pair to the chat box component's value.
 pub async fn append_chatbox_value(
     comp: Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>,
-    tag_msg: (String, String)
+    tag_msg: (String, String),
 ) {
     let mut comp = comp.write().await;
     assert!(comp.get_type() == TnComponentType::ChatBox);
@@ -169,9 +166,9 @@ pub async fn append_chatbox_value(
 
 /// Cleans the chat box component's transcript and triggers an update.
 ///
-/// This function removes the transcript content of the chat box component identified by `tron_id` 
+/// This function removes the transcript content of the chat box component identified by `tron_id`
 /// within the given `context`. It then triggers a server-side update by setting the component's state
-/// to `Ready` and sending a server-side trigger message via Server-Sent Events (SSE). 
+/// to `Ready` and sending a server-side trigger message via Server-Sent Events (SSE).
 /// Once the update is triggered, the content of the chat box will be empty.
 ///
 /// # Arguments
@@ -191,7 +188,10 @@ pub async fn clean_chatbox_with_context(context: &TnContext, tron_id: &str) {
         // remove the transcript in the chatbox component, and sent the hx-reswap to innerHTML
         // once the server side trigger for an update, the content will be empty
         // the hx-reswap will be removed when there is new text in append_chatbox_value()
-        assert!(context.get_component(tron_id).await.read().await.get_type() == TnComponentType::ChatBox); 
+        assert!(
+            context.get_component(tron_id).await.read().await.get_type()
+                == TnComponentType::ChatBox
+        );
 
         context
             .set_value_for_component(tron_id, TnComponentValue::VecString2(vec![]))
@@ -214,4 +214,3 @@ pub async fn clean_chatbox_with_context(context: &TnContext, tron_id: &str) {
         }
     }
 }
-

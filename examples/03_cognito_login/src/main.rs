@@ -11,7 +11,7 @@ use tokio::sync::{mpsc::Sender, RwLock};
 use serde_json::Value;
 
 use tracing::debug;
-use tron_app::tron_components as tron_components;
+use tron_app::tron_components;
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
     TnContext, TnContextBase, TnEvent, TnEventActions, TnTextArea,
@@ -41,15 +41,19 @@ fn build_context() -> TnContext {
     let context = Arc::new(RwLock::new(TnContextBase::default()));
     let context_guard = context.blocking_write();
     let logout_html = include_str!("../templates/logout.html");
-    context_guard.assets.blocking_write().insert("logout_page".into(), tron_components::TnAsset::String(logout_html.into()));
+    context_guard.assets.blocking_write().insert(
+        "logout_page".into(),
+        tron_components::TnAsset::String(logout_html.into()),
+    );
 
-    TnContext { base: context.clone() }
+    TnContext {
+        base: context.clone(),
+    }
 }
 
 #[derive(Template)] // this will generate the code...
 #[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
-struct AppPageTemplate {
-}
+struct AppPageTemplate {}
 
 fn layout(_context: TnContext) -> String {
     let html = AppPageTemplate {};

@@ -88,11 +88,7 @@ pub async fn append_in_div_with_context(
 }
 
 /// Appends text to the value of a TextArea component with a given context.
-pub async fn update_and_send_div_with_context(
-    context: &TnContext,
-    tron_id: &str,
-    new_str: &str,
-) {
+pub async fn update_and_send_div_with_context(context: &TnContext, tron_id: &str, new_str: &str) {
     {
         let comp = context.get_component(tron_id).await;
         {

@@ -2,3 +2,4 @@
 *.lock
 /self_signed_certs
 /data
+env

@@ -23,7 +23,7 @@ impl TnRangeSlider<'static> {
     /// A new instance of `TnRangeSlider`.
     pub fn new(idx: TnComponentIndex, tnid: String, value: f32, min: f32, max: f32) -> Self {
         let mut base = TnComponentBase::new("input".into(), idx, tnid, TnComponentType::Slider);
-        base.set_value(TnComponentValue::String(format!("{}",value)));
+        base.set_value(TnComponentValue::String(format!("{}", value)));
         base.set_attribute("type".into(), "range".into());
         base.set_attribute("min".into(), format!("{}", min));
         base.set_attribute("max".into(), format!("{}", max));
@@ -33,7 +33,6 @@ impl TnRangeSlider<'static> {
         );
         base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
         base.set_attribute("hx-swap".into(), "none".into());
-
 
         Self { base }
     }
@@ -53,8 +52,7 @@ impl Default for TnRangeSlider<'static> {
     }
 }
 
-impl TnRangeSlider<'static>
-{
+impl TnRangeSlider<'static> {
     /// Renders the `TnRangeSlider` component.
     pub fn internal_render(&self) -> String {
         format!(
@@ -72,9 +70,7 @@ impl TnRangeSlider<'static>
         self.internal_render()
     }
 
-    pub fn internal_pre_render(&mut self)  {
-    }
+    pub fn internal_pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self)  {
-    }
+    pub fn internal_post_render(&mut self) {}
 }

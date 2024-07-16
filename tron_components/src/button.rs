@@ -30,8 +30,7 @@ impl Default for TnButton<'static> {
     }
 }
 
-impl TnButton<'static>
-{
+impl TnButton<'static> {
     /// Generates the internal HTML representation of the button component.
     pub fn internal_render(&self) -> String {
         format!(

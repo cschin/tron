@@ -270,11 +270,10 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     }
 }
 
-
 #[derive(Template)] // this will generate the code...
 #[template(path = "index.html", escape = "none")]
 struct IndexPageTemplate {
-    script: String
+    script: String,
 }
 
 /// Handles requests to the index route.
@@ -297,8 +296,6 @@ async fn index(
     State(app_data): State<Arc<AppData>>,
     _: Request,
 ) -> impl IntoResponse {
-
-    
     if session.is_empty().await {
         // the line below is necessary to make sure the session is set
         session
@@ -311,22 +308,18 @@ async fn index(
         tracing::info!(target:"tron_app", "setting session");
         let mut session_expiry = app_data.session_expiry.write().await;
         session_expiry.insert(session.id().unwrap(), session.expiry_date());
-        
+
         let script = {
             let new_context = tokio::task::block_in_place(|| (*app_data.build_context)());
             let guard = new_context.read().await;
             let script = tokio::task::block_in_place(move || {
-                guard.scripts.values()
-                    .cloned()
-                    .collect::<Vec<String>>()
+                guard.scripts.values().cloned().collect::<Vec<String>>()
             })
             .join("\n");
             script
         };
 
-        let html = IndexPageTemplate {
-            script
-        };
+        let html = IndexPageTemplate { script };
         let html = html.render().unwrap();
 
         Html::from(html).into_response()

@@ -37,7 +37,9 @@ impl TnCheckList<'static> {
         let children_render_results = self
             .get_children()
             .iter()
-            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>| c.blocking_read().render())
+            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>| {
+                c.blocking_read().render()
+            })
             .collect::<Vec<String>>()
             .join(" ");
         format!(

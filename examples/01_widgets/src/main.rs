@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_app::tron_components::{
-    self, text::append_and_update_stream_textarea_with_context, TnDnDFileUpload, TnFileUpload
+    self, text::append_and_update_stream_textarea_with_context, TnDnDFileUpload, TnFileUpload,
 };
 use tron_components::{
     checklist, radio_group,
@@ -256,7 +256,7 @@ fn build_session_context() -> TnContext {
             component_index,
             "dnd_file_upload".into(),
             "Drop A File".into(),
-            button_attributes
+            button_attributes,
         );
 
         context.add_component(dnd_file_upload);
@@ -812,7 +812,7 @@ fn layout(context: TnContext) -> String {
         clean_textinput,
         slider,
         file_upload,
-        dnd_file_upload
+        dnd_file_upload,
     };
     html.render().unwrap()
 }

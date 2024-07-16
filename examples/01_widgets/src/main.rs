@@ -12,7 +12,7 @@ use serde_json::Value;
 
 use tracing::debug;
 use tron_app::tron_components::{
-    self, text::append_and_update_stream_textarea_with_context, TnFileUpload,
+    self, text::append_and_update_stream_textarea_with_context, TnDnDFileUpload, TnFileUpload
 };
 use tron_components::{
     checklist, radio_group,
@@ -243,6 +243,25 @@ fn build_session_context() -> TnContext {
         context.add_component(file_upload);
     }
 
+    {
+        component_index += 1;
+        let button_attributes = vec![(
+            "class".into(),
+            "btn btn-sm btn-outline btn-primary flex-1".into(),
+        )]
+        .into_iter()
+        .collect::<HashMap<String, String>>();
+
+        let dnd_file_upload = TnDnDFileUpload::new(
+            component_index,
+            "dnd_file_upload".into(),
+            "Drop A File".into(),
+            button_attributes
+        );
+
+        context.add_component(dnd_file_upload);
+    }
+
     TnContext {
         base: Arc::new(RwLock::new(context)),
     }
@@ -323,6 +342,12 @@ fn build_session_actions(context: TnContext) -> TnEventActions {
 
     actions.push((
         "file_upload".into(),
+        TnActionExecutionMethod::Await,
+        handle_file_upload,
+    ));
+
+    actions.push((
+        "dnd_file_upload".into(),
         TnActionExecutionMethod::Await,
         handle_file_upload,
     ));
@@ -631,6 +656,7 @@ fn handle_file_upload(
     payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
+        // process the "finished" event
         tracing::info!(target: "tron_app", "event payload: {:?}", payload["event_data"]["e_file_list"]);
         let file_list = payload["event_data"]["e_file_list"].as_array();
 
@@ -664,23 +690,23 @@ fn handle_file_upload(
         let tron_id = event.e_trigger;
         let html = format!(
             r##"
-    <div id="file_uploaded_container">
-        <dialog id="file_uploaded" class="modal">
-            <div class="modal-box">
-                <form method="dialog">
-                    <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="htmx.find('#{tron_id}_progress').setAttribute('value',  0)">✕</button>
-                </form>
-                <h3 class="font-bold text-lg">File Uploaded</h3>
-                <p class="py-2"> {file_list} </p>
-                <p class="py-4">Press ESC key or click on ✕ button to close</p>
-            </div>
-        </dialog>
-        <script> 
-            htmx.on('#file_uploaded_container', 'htmx:afterSettle', function(evt) {{
-                document.getElementById('file_uploaded').showModal();
-         }}); 
-         </script>
-    </div>"##
+            <div id="file_uploaded_container">
+                <dialog id="file_uploaded" class="modal">
+                    <div class="modal-box">
+                        <form method="dialog">
+                            <button class="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onclick="htmx.find('#{tron_id}_progress').setAttribute('value',  0)">✕</button>
+                        </form>
+                        <h3 class="font-bold text-lg">File Uploaded</h3>
+                        <p class="py-2"> {file_list} </p>
+                        <p class="py-4">Press ESC key or click on ✕ button to close</p>
+                    </div>
+                </dialog>
+                <script> 
+                    htmx.on('#file_uploaded_container', 'htmx:afterSettle', function(evt) {{
+                        document.getElementById('file_uploaded').showModal();
+                }}); 
+                </script>
+            </div>"##
         );
         header.insert(
             HeaderName::from_str("hx-reswap").unwrap(),
@@ -717,7 +743,7 @@ fn handle_file_upload(
 /// - `clean_textinput`: A `String` containing the HTML for the button to clean the text input.
 /// - `slider`: A `String` containing the HTML for the slider.
 #[derive(Template)] // this will generate the code...
-#[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
+#[template(path = "app_page.html", escape = "none")] // using the template in this path, relative  to the `templates` dir in the crate root
 struct AppPageTemplate {
     buttons: Vec<String>,
     textarea: String,
@@ -731,6 +757,7 @@ struct AppPageTemplate {
     clean_textinput: String,
     slider: String,
     file_upload: String,
+    dnd_file_upload: String,
 }
 
 /// Generates the HTML layout for the application's main page.
@@ -770,6 +797,7 @@ fn layout(context: TnContext) -> String {
     let clean_textinput = context_guard.render_to_string("clean_textinput");
     let slider = context_guard.render_to_string("slider");
     let file_upload = context_guard.render_to_string("file_upload");
+    let dnd_file_upload = context_guard.render_to_string("dnd_file_upload");
 
     let html = AppPageTemplate {
         buttons,
@@ -784,6 +812,7 @@ fn layout(context: TnContext) -> String {
         clean_textinput,
         slider,
         file_upload,
+        dnd_file_upload
     };
     html.render().unwrap()
 }

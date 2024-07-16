@@ -4,10 +4,11 @@
 <link href="https://unpkg.com/dropzone@6.0.0-beta.1/dist/dropzone.css" rel="stylesheet" type="text/css" />
 <script> //for drop zone
     function get_event_with_files_dnd(event) {
+      console.log("in get_event_with_files_dnd")
       if (event == null || event.type == "load") { // htxm may evaluate "load" event that does not has "getAttribute" 
         return
       } else {
-        const files = document.getElementById(event.target.id + "_input").files; 
+        const files = window.tron_assets["dropzones"][event.target.id + "_form"].files;
         var file_list = [];
         for (let idx = 0; idx < files.length; idx++)  { 
           file_list.push( [files[idx].name, files[idx].size, files[idx].type] ); 

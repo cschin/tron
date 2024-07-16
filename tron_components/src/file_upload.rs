@@ -182,14 +182,13 @@ impl TnDnDFileUpload<'static> {
             <button {button_attributes} id="{tron_id}_clear_btn">
                     Clear
             </button>
+            </div>
             <script>
-                htmx.on('#{tron_id}_form', 'htmx:afterRequest', function(evt) {{
-                    if (evt.detail.successful) {{
-                        htmx.trigger("#{tron_id}", "finished", {{}});
-                    }};
-                }});
                 let theDropzone = new Dropzone('#{tron_id}_form', {{paramName:'{tron_id}_form',  url: "/upload/{}"}});
                 window.tron_assets["dropzones"] = {{"{tron_id}_form":theDropzone}};
+                theDropzone.on("complete", function(file) {{
+                    htmx.trigger("#{tron_id}", "finished", {{}});
+                }});
                 document.querySelector('#{tron_id}_clear_btn').addEventListener('click', 
                     function () {{ 
                         window.tron_assets["dropzones"]["{tron_id}_form"].removeAllFiles(); 

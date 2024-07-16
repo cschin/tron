@@ -22,7 +22,7 @@ impl TnDiv<'static> {
 }
 
 impl Default for TnDiv<'static> {
-    /// Creates a default TextArea component with an empty value.
+    /// Creates a default component with an empty value.
     fn default() -> Self {
         Self {
             base: TnComponentBase {
@@ -34,7 +34,7 @@ impl Default for TnDiv<'static> {
 }
 
 impl TnDiv<'static> {
-    /// Renders the TextArea component.
+    /// Renders the Div component.
     pub fn internal_render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,

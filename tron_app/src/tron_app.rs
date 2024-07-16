@@ -35,6 +35,8 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use tokio_stream::{wrappers::ReceiverStream, Stream, StreamExt};
 
+pub static TRON_APP: &str = "tron_app";
+
 /// Represents HTTP and HTTPS ports.
 ///
 /// This struct encapsulates the HTTP and HTTPS ports used in a network configuration.
@@ -696,7 +698,7 @@ async fn upload(
         };
         let file_name = field.file_name().unwrap().to_string();
         let data = field.bytes().await.unwrap();
-        tracing::info!(target: "tron_app", "Uploaded, Length of `{}` is {} bytes", file_name, data.len());
+        tracing::info!(target: TRON_APP, "Uploaded, Length of `{}` is {} bytes", file_name, data.len());
         let e = field_data.entry(file_name).or_default();
         e.extend_from_slice(&data);
     }

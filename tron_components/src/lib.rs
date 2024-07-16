@@ -125,7 +125,7 @@ pub enum TnAsset {
 /// - `RadioGroup`: A group of radio buttons.
 /// - `RadioItem`: A single radio button.
 /// - `UserDefined(String)`: A user-defined component specified by a string identifier.
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash)]
 pub enum TnComponentType {
     Base,
     AudioPlayer,
@@ -141,9 +141,9 @@ pub enum TnComponentType {
     Slider,
     RadioGroup,
     RadioItem,
-    SimpleScatterPlot,
     D3Plot,
     FileUpload,
+    DnDFileUpload,
     Div,
     UserDefined(String),
 }
@@ -199,7 +199,7 @@ pub struct TnComponentBase<'a: 'static> {
     pub state: TnComponentState,
     pub children: Vec<TnComponent<'a>>,
     pub parent: Weak<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>,
-    pub script: Option<String>,
+    // pub script: Option<String>,
 }
 
 /// Represents a service request message structure used for inter-service communication.
@@ -296,6 +296,7 @@ pub type TnService = (
 /// - `services`: A hash map that maps service names (`TnServiceName`) to their corresponding service handlers (`TnService`).
 pub struct TnContextBase<'a: 'static> {
     pub components: TnComponentMap<'a>, // component ID mapped to Component structs
+    pub scripts: HashMap<TnComponentType, String>,
     pub stream_data: TnStreamMap,
     pub assets: TnContextAssets,
     pub sse_channel: TnSseChannel,
@@ -313,6 +314,7 @@ impl TnContextBase<'static> {
     pub fn new() -> Self {
         TnContextBase {
             components: Arc::new(RwLock::new(HashMap::default())),
+            scripts: HashMap::new(),
             service_handles: Vec::new(),
             assets: Arc::new(RwLock::new(HashMap::default())),
             tnid_to_index: HashMap::default(),
@@ -328,9 +330,41 @@ impl TnContextBase<'static> {
     pub fn add_component(&mut self, new_component: impl TnComponentBaseTrait<'static> + 'static) {
         let tron_id = new_component.tron_id().clone();
         let id = new_component.id();
+        let ct = new_component.get_type();
+
         let mut component_guard = self.components.blocking_write();
         component_guard.insert(id, Arc::new(RwLock::new(Box::new(new_component))));
         self.tnid_to_index.insert(tron_id, id);
+
+        let e = self.scripts.entry(ct.clone()).or_default();
+        match ct {
+            TnComponentType::AudioPlayer => {
+                *e = include_str!("../javascript/audio_player.html").to_string();
+            },
+            TnComponentType::AudioRecorder => {
+                *e = include_str!("../javascript/audio_recorder.html").to_string(); 
+            },
+            TnComponentType::CheckList => {
+                *e = include_str!("../javascript/checklist.html").to_string(); 
+            },
+            TnComponentType::D3Plot => {
+                *e = include_str!("../javascript/d3_plot.html").to_string(); 
+            },
+            TnComponentType::DnDFileUpload => {
+                *e = include_str!("../javascript/dnd_file_upload.html").to_string();
+            },
+            TnComponentType::FileUpload => {
+                *e = include_str!("../javascript/file_upload.html").to_string();
+            },
+            TnComponentType::RadioGroup => {
+                *e = include_str!("../javascript/radio_group.html").to_string(); 
+            },
+            TnComponentType::StreamTextArea => {
+                *e = include_str!("../javascript/stream_textarea.html").to_string(); 
+            },
+            _ => ()
+        };
+
     }
 
     /// Retrieves the component index using its `tron_id`.
@@ -587,7 +621,7 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn add_parent(&mut self, parent: TnComponent<'a>);
     fn get_parent(&self) -> TnComponent<'a>;
 
-    fn get_script(&self) -> Option<String>;
+    // fn get_script(&self) -> Option<String>;
 }
 
 /// Trait representing the base functionalities of a Tron component.
@@ -673,7 +707,7 @@ impl Default for TnComponentBase<'static> {
             state: TnComponentState::Ready,
             children: Vec::default(),
             parent: Weak::default(),
-            script: Option::default(),
+            //script: Option::default(),
         }
     }
 }
@@ -848,9 +882,9 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static>
         unimplemented!()
     }
 
-    fn get_script(&self) -> Option<String> {
-        self.script.clone()
-    }
+    // fn get_script(&self) -> Option<String> {
+    //     self.script.clone()
+    // }
 }
 
 /// Represents a Tron event.

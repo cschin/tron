@@ -1,5 +1,4 @@
 use super::*;
-use askama::Template;
 use tron_macro::*;
 
 #[derive(ComponentBase)]
@@ -7,12 +6,6 @@ pub struct TnFileUpload<'a: 'static> {
     base: TnComponentBase<'a>,
     title: String,
     button_attributes: HashMap<String, String>,
-}
-
-#[derive(Template)] // this will generate the code...
-#[template(path = "file_upload.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
-struct ScriptTemplate {
-    tron_id: String,
 }
 
 impl TnFileUpload<'static> {
@@ -33,9 +26,7 @@ impl TnFileUpload<'static> {
             "hx-vals".into(),
             "js:{event_data:get_event_with_files(event)}".into(),
         );
-        let script = ScriptTemplate { tron_id: tnid };
-        let script = script.render().unwrap();
-        base.script = Some(script);
+
 
         Self {
             base,
@@ -93,14 +84,14 @@ impl TnFileUpload<'static>
                 <progress id='{tron_id}_progress' value='0' max='100'></progress>
             </form></div>
             <script>
-            htmx.on('#{tron_id}_form', 'htmx:xhr:progress', function(evt) {{
-                htmx.find('#{tron_id}_progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
-            }});
+                htmx.on('#{tron_id}_form', 'htmx:xhr:progress', function(evt) {{
+                    htmx.find('#{tron_id}_progress').setAttribute('value', evt.detail.loaded/evt.detail.total * 100)
+                }});
 
-            htmx.on('#{tron_id}_form', 'htmx:afterRequest', function(evt) {{
-            if (evt.detail.successful) {{
-                htmx.trigger("#{tron_id}", "finished", {{}});
-            }}
+                htmx.on('#{tron_id}_form', 'htmx:afterRequest', function(evt) {{
+                if (evt.detail.successful) {{
+                    htmx.trigger("#{tron_id}", "finished", {{}});
+                }}
             }});</script>"##,
             self.base.tag,
             self.generate_attr_string(),
@@ -129,11 +120,6 @@ pub struct TnDnDFileUpload<'a: 'static> {
     button_attributes: HashMap<String, String>, 
 }
 
-#[derive(Template)] // this will generate the code...
-#[template(path = "dnd_file_upload.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
-struct DnDScriptTemplate {
-    tron_id: String,
-}
 
 impl TnDnDFileUpload<'static> {
     pub fn new(
@@ -143,7 +129,7 @@ impl TnDnDFileUpload<'static> {
         button_attributes: HashMap<String, String>,
     ) -> Self {
         let mut base =
-            TnComponentBase::new("div".into(), idx, tnid.clone(), TnComponentType::FileUpload);
+            TnComponentBase::new("div".into(), idx, tnid.clone(), TnComponentType::DnDFileUpload);
         base.set_value(TnComponentValue::None);
         base.set_attribute("type".into(), "file_dnd_upload".into());
         base.set_attribute("id".into(), tnid.clone());
@@ -153,9 +139,6 @@ impl TnDnDFileUpload<'static> {
             "hx-vals".into(),
             "js:{event_data:get_event_with_files_dnd(event)}".into(),
         );
-        let script = DnDScriptTemplate { tron_id: tnid };
-        let script = script.render().unwrap();
-        base.script = Some(script);
 
         Self {
             base,
@@ -207,11 +190,8 @@ impl TnDnDFileUpload<'static>
                         htmx.trigger("#{tron_id}", "finished", {{}});
                     }};
                 }});
-                document.querySelector('#dropzone_lib').addEventListener('load', 
-                    function () {{
-                        let theDropzone = new Dropzone('#{tron_id}_form', {{paramName:'{tron_id}_form',  url: "/upload/{}"}});
-                        window.tron_assets["dropzones"] = {{"{tron_id}_form":theDropzone}};
-                }});
+                let theDropzone = new Dropzone('#{tron_id}_form', {{paramName:'{tron_id}_form',  url: "/upload/{}"}});
+                window.tron_assets["dropzones"] = {{"{tron_id}_form":theDropzone}};
                 document.querySelector('#{tron_id}_clear_btn').addEventListener('click', 
                     function () {{ 
                         window.tron_assets["dropzones"]["{tron_id}_form"].removeAllFiles(); 

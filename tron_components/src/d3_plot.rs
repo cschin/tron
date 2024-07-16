@@ -42,7 +42,6 @@ impl TnD3Plot<'static> {
             r##"js:{event_data:get_event_with_coordinate(event)}"##.into(),
         );
 
-        base.script = Some(include_str!("../javascript/d3_plot.html").to_string());
 
         Self { base }
     }
@@ -86,7 +85,7 @@ impl TnD3Plot<'static>
         let tron_id = self.tron_id();
         format!(
             r##"<{} {}></{}>{d3_plot_script} 
-            <script>document.querySelector('#d3_lib').addEventListener('load', function () {{d3_plot("{tron_id}");}});</script>"##,
+            <script>d3_plot("{tron_id}");</script>"##,
             self.base.tag,
             self.generate_attr_string(),
             self.base.tag

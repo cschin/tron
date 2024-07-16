@@ -1,3 +1,4 @@
+use askama::Template;
 use axum::{
     body::Body,
     extract::{DefaultBodyLimit, Host, Json, Multipart, OriginalUri, Path, Query, Request, State},
@@ -269,6 +270,13 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     }
 }
 
+
+#[derive(Template)] // this will generate the code...
+#[template(path = "index.html", escape = "none")]
+struct IndexPageTemplate {
+    script: String
+}
+
 /// Handles requests to the index route.
 ///
 /// This asynchronous function handles requests to the index route ("/").
@@ -289,7 +297,8 @@ async fn index(
     State(app_data): State<Arc<AppData>>,
     _: Request,
 ) -> impl IntoResponse {
-    let index_html = include_str!("../static/index.html");
+
+    
     if session.is_empty().await {
         // the line below is necessary to make sure the session is set
         session
@@ -302,7 +311,25 @@ async fn index(
         tracing::info!(target:"tron_app", "setting session");
         let mut session_expiry = app_data.session_expiry.write().await;
         session_expiry.insert(session.id().unwrap(), session.expiry_date());
-        Html::from(index_html.to_string()).into_response()
+        
+        let script = {
+            let new_context = tokio::task::block_in_place(|| (*app_data.build_context)());
+            let guard = new_context.read().await;
+            let script = tokio::task::block_in_place(move || {
+                guard.scripts.values()
+                    .cloned()
+                    .collect::<Vec<String>>()
+            })
+            .join("\n");
+            script
+        };
+
+        let html = IndexPageTemplate {
+            script
+        };
+        let html = html.render().unwrap();
+
+        Html::from(html).into_response()
     }
 }
 
@@ -361,19 +388,7 @@ async fn load_page(
 
     let context = context_guard.get(&session_id).unwrap().clone();
     let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context.clone()));
-
-    let context = context_guard.get(&session_id).unwrap().read().await;
-    let components = context.components.read().await;
-    let script = tokio::task::block_in_place(move || {
-        components
-            .iter()
-            .flat_map(|(_, component)| component.blocking_read().get_script())
-            .collect::<Vec<String>>()
-    })
-    .join("\n");
-
-    let html = [script, layout].join("\n");
-    Ok(Html::from(html))
+    Ok(Html::from(layout))
 }
 
 /// Represents event data associated with a Tron event.

@@ -26,3 +26,4 @@ tron_utils = { path = "../tron_utils" }
 reqwest = { version = "0.12.4", features = ["json"] }
 jsonwebtoken = "9.3.0"
 memory-stats = "1.1.0"
+askama = "0.12.1"

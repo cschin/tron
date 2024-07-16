@@ -43,7 +43,6 @@ impl TnAudioRecorder<'static> {
             .as_mut()
             .unwrap()
             .insert("audio_data".into(), TnAsset::Bytes(BytesMut::default()));
-        base.script = Some(include_str!("../javascript/audio_recorder.html").to_string());
         Self { base }
     }
 }

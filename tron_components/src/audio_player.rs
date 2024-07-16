@@ -50,7 +50,6 @@ impl<'a: 'static> TnAudioPlayer<'a> {
         // component_base.set_attribute("type".into(), "audio/webm".into());
         base.set_attribute("type".into(), "audio/mp3".into());
         base.set_attribute("hx-trigger".into(), "server_side_trigger, ended".into());
-        base.script = Some(include_str!("../javascript/audio_player.html").to_string());
         Self { base }
     }
 }

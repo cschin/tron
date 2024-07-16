@@ -161,7 +161,6 @@ impl TnStreamTextArea<'static> {
         base.remove_attribute("hx-vals".into());
         base.remove_attribute("hx-ext".into());
         base.set_attribute("type".into(), "text".into());
-        base.script = Some(include_str!("../javascript/stream_textarea.html").into());
         base.set_attribute("disabled".into(), "".into());
         Self { base }
     }

@@ -15,7 +15,6 @@ impl TnCheckList<'static> {
         base.set_value(TnComponentValue::CheckItems(value));
         base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
         base.set_attribute("type".into(), "checklist".into());
-        base.script = Some(include_str!("../javascript/checklist.html").to_string());
         Self { base }
     }
 }

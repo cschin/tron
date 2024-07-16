@@ -150,9 +150,9 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.base.get_parent()
             }
 
-            fn get_script(&self) -> Option<String> {
-                self.base.get_script()
-            }
+            // fn get_script(&self) -> Option<String> {
+            //     self.base.get_script()
+            // }
         }
     };
     gen.into()

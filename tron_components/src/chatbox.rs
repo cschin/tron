@@ -43,7 +43,6 @@ impl TnChatBox<'static> {
         ]);
         let assets: &mut HashMap<String, TnAsset> = base.asset.as_mut().unwrap();
         assets.insert("class".into(), TnAsset::HashMapString(class));
-        base.script = Some(include_str!("../javascript/chatbox.html").to_string());
 
         Self {
             base,

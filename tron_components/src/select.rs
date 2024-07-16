@@ -32,7 +32,6 @@ impl TnSelect<'static> {
             .as_mut()
             .unwrap()
             .insert("options".into(), TnAsset::VecString2(options));
-        base.script = Some(include_str!("../javascript/select.html").to_string());
         base.set_attribute(
             "hx-vals".into(),
             r##"js:{event_data:get_input_event(event)}"##.into(),

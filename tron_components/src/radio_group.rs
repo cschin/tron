@@ -37,7 +37,6 @@ impl TnRadioGroup<'static> {
             TnAsset::VecString2(radio_group_items),
         );
         base.asset = Some(asset);
-        base.script = Some(include_str!("../javascript/radio_group.html").to_string());
         Self { base }
     }
 }

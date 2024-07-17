@@ -150,7 +150,6 @@ fn add_input_image_area(component_index: u32, context: &mut TnContextBase, tnid:
     context.add_component(input_image);
 }
 
-
 #[derive(Template)] // this will generate the code...
 #[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
 struct AppPageTemplate {
@@ -193,7 +192,7 @@ fn build_actions(context: TnContext) -> TnEventActions {
 async fn get_image(
     State(_app_data): State<Arc<AppData>>,
     session: Session,
-    image_id: String,
+    _image_id: String,
 ) -> impl IntoResponse {
     let mut response_headers = HeaderMap::new();
     response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
@@ -249,15 +248,18 @@ fn handle_file_upload(
             let gs_service_tx = context.get_service_tx(GS_SERVICE).await;
             let (tx, rx) = oneshot::channel::<String>();
 
-            let gs_req_msg = TnServiceRequestMsg {
-                request: "process_image".into(),
-                payload: TnAsset::String(file_list[0].0.to_string()),
-                response: tx,
-            };
-            let _ = gs_service_tx.send(gs_req_msg).await;
+            let &(filename, _size, t) = file_list.last().unwrap();
+            if t == "image/png" || t == "image/jpeg" {
+                let gs_req_msg = TnServiceRequestMsg {
+                    request: "process_image".into(),
+                    payload: TnAsset::String(filename.to_string()),
+                    response: tx,
+                };
+                let _ = gs_service_tx.send(gs_req_msg).await;
 
-            if let Ok(out) = rx.await {
-                tracing::debug!(target: TRON_APP, "gs_service returned string: {}", out);
+                if let Ok(out) = rx.await {
+                    tracing::debug!(target: TRON_APP, "gs_service returned string: {}", out);
+                };
             };
         }
 

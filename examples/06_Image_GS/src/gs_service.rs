@@ -15,7 +15,7 @@ use candle_nn::init::Init::{Const, Uniform};
 use crate::{IMAGE_OUTPUT_AREA, INPUT_IMAGE_AREA};
 use data_encoding::BASE64;
 
-fn render(variables: &VarMap, grids_xy: &[Tensor], device: &Device) -> Result<Vec<Tensor>> {
+async fn render(variables: &VarMap, grids_xy: &[Tensor], device: &Device) -> Result<Vec<Tensor>> {
     let data = variables.data().lock().unwrap();
     //println!("{:?}", data);
     let x = &grids_xy[0];
@@ -124,7 +124,7 @@ pub async fn gs_service(context: TnContext, mut rx: Receiver<TnServiceRequestMsg
                         &format!(r##"<img src="data:image/png;base64,{}" style="width: 55vw; min-width: 240px;"/>"##, image_b64),
                     )
                     .await;
-                    gs_fit(&context.clone(), &image).await;
+                    let _ = gs_fit(&context.clone(), &image).await;
                 };
             }
         }
@@ -194,7 +194,7 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
     let grids_xy = Tensor::meshgrid(&[&x, &y], true)?;
     // let mut out_data_file = std::io::BufWriter::new(std::fs::File::create("test.out").unwrap());
     for i in 0..51 {
-        let e = render(&variables, &grids_xy, &device)?;
+        let e = render(&variables, &grids_xy, &device).await?;
 
         let loss_r = &e[0].sub(&ref_r)?.abs()?.sum_all()?;
         let loss_g = &e[1].sub(&ref_g)?.abs()?.sum_all()?;
@@ -211,8 +211,8 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
         // let ux_grad = gradient_store.get(&ux).unwrap();
         // println!("{}", ux_grad);
 
-        {
-            let e = render(&variables, &grids_xy, &device)?;
+        if i % 2 == 0 {
+            // let e = render(&variables, &grids_xy, &device)?;
             let r = e[0].to_vec2::<f32>()?;
             let g = e[1].to_vec2::<f32>()?;
             let b = e[2].to_vec2::<f32>()?;
@@ -238,7 +238,7 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
                     &format!(r##"<img src="data:image/png;base64,{}" style="width: 55vw; min-width: 240px;"/>"##, image_b64),
                 )
                 .await;
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
 
             //imgbuf.save(format!("out_{:03}.png", i)).unwrap();

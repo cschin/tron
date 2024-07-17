@@ -32,4 +32,5 @@ candle-datasets = "0.6.0"
 image = { version = "0.25.0", default-features = false, features = ["jpeg", "png"] }
 imageproc = { version = "0.25.0", default-features = false }
 data-encoding = "2.6.0"
+rayon = "1.10.0"
 # rand = "0.8.5"

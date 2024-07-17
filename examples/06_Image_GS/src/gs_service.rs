@@ -5,6 +5,7 @@ use anyhow::Result;
 use candle_core::{op, scalar::TensorScalar, DType, Device, Shape, Tensor, Var};
 use candle_nn::{Optimizer, VarMap};
 use image::{DynamicImage, GenericImageView, ImageEncoder, ImageFormat};
+use rayon::iter::IntoParallelIterator;
 use std::io::Write;
 use tokio::sync::mpsc::Receiver;
 use tron_app::tron_components::div::update_and_send_div_with_context;
@@ -15,7 +16,9 @@ use candle_nn::init::Init::{Const, Uniform};
 use crate::{IMAGE_OUTPUT_AREA, INPUT_IMAGE_AREA};
 use data_encoding::BASE64;
 
-async fn render(variables: &VarMap, grids_xy: &[Tensor], device: &Device) -> Result<Vec<Tensor>> {
+use rayon::prelude::*;
+
+fn render(variables: &VarMap, grids_xy: &[Tensor], device: &Device) -> Result<Vec<Tensor>> {
     let data = variables.data().lock().unwrap();
     //println!("{:?}", data);
     let x = &grids_xy[0];
@@ -48,16 +51,14 @@ async fn render(variables: &VarMap, grids_xy: &[Tensor], device: &Device) -> Res
     let green = green.clamp(0.0, 1.0).unwrap();
     let blue = blue.clamp(0.0, 1.0).unwrap();
 
-    let mut r_s = Vec::new();
-    let mut g_s = Vec::new();
-    let mut b_s = Vec::new();
+  
 
     let size = c.shape().dims()[0];
 
     // let mut rng = rand::thread_rng();
     // let between = RngUniform::from(0..size - 1);
 
-    for idx in 0..size {
+    let res = (0..size).into_par_iter().flat_map( |idx| -> Result<_> {
         let ux0 = &ux.get(idx)?;
         let uy0 = &uy.get(idx)?;
         let a0 = &a.get(idx)?;
@@ -85,10 +86,18 @@ async fn render(variables: &VarMap, grids_xy: &[Tensor], device: &Device) -> Res
         let r0 = v.broadcast_mul(red0)?.broadcast_mul(alpha0)?;
         let g0 = v.broadcast_mul(green0)?.broadcast_mul(alpha0)?;
         let b0 = v.broadcast_mul(blue0)?.broadcast_mul(alpha0)?;
-        r_s.push(r0);
-        g_s.push(g0);
-        b_s.push(b0);
-    }
+        // r_s.push(r0);
+        // g_s.push(g0);
+        // b_s.push(b0);
+        Ok([r0, g0, b0])
+    }).collect::<Vec<_>>();
+
+
+    let r_s = res.iter().map(|v| v[0].clone()).collect::<Vec<_>>();
+    let g_s = res.iter().map(|v| v[1].clone()).collect::<Vec<_>>();
+    let b_s = res.iter().map(|v| v[2].clone()).collect::<Vec<_>>();
+    
+    
     let r_s = Tensor::stack(&r_s[..], 0)?.sum(0)?;
     let g_s = Tensor::stack(&g_s[..], 0)?.sum(0)?;
     let b_s = Tensor::stack(&b_s[..], 0)?.sum(0)?;
@@ -139,6 +148,7 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
     println!("{:?}", ref_img.color());
 
     //let device = Device::new_cuda(0).unwrap();
+    //let device = Device::new_metal(0).unwrap();
     let device = Device::Cpu;
 
     let mut ref_r = Vec::new();
@@ -194,7 +204,7 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
     let grids_xy = Tensor::meshgrid(&[&x, &y], true)?;
     // let mut out_data_file = std::io::BufWriter::new(std::fs::File::create("test.out").unwrap());
     for i in 0..51 {
-        let e = render(&variables, &grids_xy, &device).await?;
+        let e = render(&variables, &grids_xy, &device)?;
 
         let loss_r = &e[0].sub(&ref_r)?.abs()?.sum_all()?;
         let loss_g = &e[1].sub(&ref_g)?.abs()?.sum_all()?;

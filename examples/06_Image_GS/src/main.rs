@@ -242,8 +242,6 @@ fn handle_file_upload(
             vec![]
         };
         tracing::info!( target: TRON_APP, "{:?}", file_list);
-        //let image_out = context.get_component(IMAGE_OUTPUT_AREA);
-        //update_and_send_div_with_context(&context, IMAGE_OUTPUT_AREA, "file uploaded").await;
         if !file_list.is_empty() {
             let gs_service_tx = context.get_service_tx(GS_SERVICE).await;
             let (tx, rx) = oneshot::channel::<String>();

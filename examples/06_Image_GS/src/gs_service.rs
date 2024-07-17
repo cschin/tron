@@ -125,7 +125,7 @@ pub async fn gs_service(context: TnContext, mut rx: Receiver<TnServiceRequestMsg
 }
 
 pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
-    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+    tokio::time::sleep(std::time::Duration::from_millis(20)).await;
     let dims = ref_img.dimensions();
     //println!("dimensions {:?}", ref_img.dimensions());
     //println!("{:?}", ref_img.color());

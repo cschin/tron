@@ -1,4 +1,5 @@
 use std::borrow::{Borrow, BorrowMut};
+use std::collections::HashMap;
 use std::f64::consts::PI;
 
 use anyhow::Result;
@@ -15,95 +16,78 @@ use candle_nn::init::Init::{Const, Uniform};
 
 use crate::{IMAGE_OUTPUT_AREA, INPUT_IMAGE_AREA};
 use data_encoding::BASE64;
-
 use rayon::prelude::*;
 
-fn render(variables: &VarMap, grids_xy: &[Tensor], device: &Device) -> Result<Vec<Tensor>> {
-    let data = variables.data().lock().unwrap();
-    //println!("{:?}", data);
+fn render(gs: &Var, grids_xy: &[Tensor], device: &Device) -> Result<Vec<Tensor>> {
     let x = &grids_xy[0];
     let y = &grids_xy[1];
-    let ux = data.get("ux").unwrap();
-    let uy = data.get("uy").unwrap();
-    let a = data.get("a").unwrap();
-    let b = data.get("b").unwrap();
-    let c = data.get("c").unwrap();
-    let red = data.get("red").unwrap();
-    let green = data.get("green").unwrap();
-    let blue = data.get("blue").unwrap();
-    let alpha = data.get("alpha").unwrap();
 
-    //let a = a.clamp(0.025, 0.50).unwrap();
-    //let b = b.clamp(0.025, 0.50).unwrap();
-    // let c = c.clamp(-1.9, 1.9).unwrap();
-    let a = a
-        .erf()?
-        .broadcast_add(&Tensor::from_slice(&[1.0_f32], (1,), device).unwrap())?
-        .broadcast_mul(&Tensor::from_slice(&[2.0_f32], (1,), device).unwrap())?;
-    let b = b
-        .erf()?
-        .broadcast_add(&Tensor::from_slice(&[1.0_f32], (1,), device).unwrap())?
-        .broadcast_mul(&Tensor::from_slice(&[2.0_f32], (1,), device).unwrap())?;
-    // let c = c
-    //     .erf()?
-    //     .broadcast_mul(&Tensor::from_slice(&[1.5_f32], (1,), device).unwrap())?;
-    let red = red.clamp(0.0, 1.0).unwrap();
-    let green = green.clamp(0.0, 1.0).unwrap();
-    let blue = blue.clamp(0.0, 1.0).unwrap();
+    let size = gs.shape().dims()[0];
+    let gs_vec = (0..size)
+        .flat_map(|idx| -> Result<_> {
+            let gs0 = &gs.get(idx)?;
+            let ux0 = gs0.get(0)?;
+            let uy0 = gs0.get(1)?;
+            let a0 = gs0.get(2)?;
+            let b0 = gs0.get(3)?;
+            let c0 = gs0.get(4)?;
+            let red0 = gs0.get(5)?;
+            let green0 = gs0.get(6)?;
+            let blue0 = gs0.get(7)?;
+            let alpha0 = gs0.get(8)?;
+            Ok((ux0, uy0, a0, b0, c0, red0, green0, blue0, alpha0))
+        })
+        .collect::<Vec<_>>();
+    
+    // the par_iter does not help much. some lock issue?
+    let res = gs_vec
+        .into_par_iter()
+        .flat_map(
+            |(ux0, uy0, a0, b0, c0, red0, green0, blue0, alpha0)| -> Result<_> {
+                let a0 = &a0
+                    .erf()?
+                    .add(&Tensor::from_slice(&[1.0_f32], (), device)?)?
+                    .mul(&Tensor::from_slice(&[2.0_f32], (), device)?)?;
 
-  
+                let b0 = &b0
+                    .erf()?
+                    .add(&Tensor::from_slice(&[1.0_f32], (), device)?)?
+                    .mul(&Tensor::from_slice(&[2.0_f32], (), device)?)?;
 
-    let size = c.shape().dims()[0];
+                let dx = x.broadcast_sub(&ux0)?;
+                let dy = y.broadcast_sub(&uy0)?;
 
-    // let mut rng = rand::thread_rng();
-    // let between = RngUniform::from(0..size - 1);
+                let sin = c0.sin()?;
+                let cos = c0.cos()?;
+                let rdx = dx.broadcast_mul(&cos)?.add(&dy.broadcast_mul(&sin)?)?;
+                let rdy = dx
+                    .broadcast_mul(&sin.neg()?)?
+                    .add(&dy.broadcast_mul(&cos)?)?;
 
-    let res = (0..size).into_par_iter().flat_map( |idx| -> Result<_> {
-        let ux0 = &ux.get(idx)?;
-        let uy0 = &uy.get(idx)?;
-        let a0 = &a.get(idx)?;
-        let b0 = &b.get(idx)?;
-        let c0 = &c.get(idx)?;
-        let red0 = &red.get(idx)?;
-        let green0 = &green.get(idx)?;
-        let blue0 = &blue.get(idx)?;
-        let alpha0 = &alpha.get(idx)?;
+                let rdxsq = &rdx.sqr()?.broadcast_mul(a0)?;
+                let rdysq = &rdy.sqr()?.broadcast_mul(b0)?;
 
-        let dx = x.broadcast_sub(ux0)?;
-        let dy = y.broadcast_sub(uy0)?;
+                let v = &rdxsq.add(rdysq)?.neg()?.exp()?;
+                let r0 = v.broadcast_mul(&red0)?.broadcast_mul(&alpha0)?;
+                let g0 = v.broadcast_mul(&green0)?.broadcast_mul(&alpha0)?;
+                let b0 = v.broadcast_mul(&blue0)?.broadcast_mul(&alpha0)?;
 
-        let sin = c0.sin()?;
-        let cos = c0.cos()?;
-        let rdx = dx.broadcast_mul(&cos)?.add(&dy.broadcast_mul(&sin)?)?;
-        let rdy = dx
-            .broadcast_mul(&sin.neg()?)?
-            .add(&dy.broadcast_mul(&cos)?)?;
-
-        let rdxsq = &rdx.sqr()?.broadcast_mul(a0)?;
-        let rdysq = &rdy.sqr()?.broadcast_mul(b0)?;
-
-        let v = &rdxsq.add(rdysq)?.neg()?.exp()?;
-        let r0 = v.broadcast_mul(red0)?.broadcast_mul(alpha0)?;
-        let g0 = v.broadcast_mul(green0)?.broadcast_mul(alpha0)?;
-        let b0 = v.broadcast_mul(blue0)?.broadcast_mul(alpha0)?;
-        // r_s.push(r0);
-        // g_s.push(g0);
-        // b_s.push(b0);
-        Ok([r0, g0, b0])
-    }).collect::<Vec<_>>();
-
+                Ok([r0, g0, b0])
+            },
+        )
+        .collect::<Vec<_>>();
 
     let r_s = res.iter().map(|v| v[0].clone()).collect::<Vec<_>>();
     let g_s = res.iter().map(|v| v[1].clone()).collect::<Vec<_>>();
     let b_s = res.iter().map(|v| v[2].clone()).collect::<Vec<_>>();
-    
-    
+
     let r_s = Tensor::stack(&r_s[..], 0)?.sum(0)?;
     let g_s = Tensor::stack(&g_s[..], 0)?.sum(0)?;
     let b_s = Tensor::stack(&b_s[..], 0)?.sum(0)?;
 
     Ok(vec![r_s.clone(), g_s.clone(), b_s.clone()])
 }
+
 use std::io::Cursor;
 pub async fn gs_service(context: TnContext, mut rx: Receiver<TnServiceRequestMsg>) {
     while let Some(r) = rx.recv().await {
@@ -122,7 +106,7 @@ pub async fn gs_service(context: TnContext, mut rx: Receiver<TnServiceRequestMsg
                 };
                 if let Some(image_data) = image_data {
                     let image = image::load_from_memory(image_data).expect("can't load image");
-                    let image = image.resize(125, 1250, image::imageops::FilterType::Gaussian);
+                    let image = image.resize(128, 128, image::imageops::FilterType::Gaussian);
 
                     let mut buf = Cursor::new(vec![]);
                     image.write_to(&mut buf, ImageFormat::Png).unwrap();
@@ -142,10 +126,9 @@ pub async fn gs_service(context: TnContext, mut rx: Receiver<TnServiceRequestMsg
 
 pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-    //let ref_img = image::open("test_data/test.png").unwrap();
     let dims = ref_img.dimensions();
-    println!("dimensions {:?}", ref_img.dimensions());
-    println!("{:?}", ref_img.color());
+    //println!("dimensions {:?}", ref_img.dimensions());
+    //println!("{:?}", ref_img.color());
 
     //let device = Device::new_cuda(0).unwrap();
     //let device = Device::new_metal(0).unwrap();
@@ -177,26 +160,25 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
     //let size = 2500;
     let size = 1024;
 
-    let variables = VarMap::new();
-
     let var_init = [
-        ("ux", 0.0_f64, dims.0 as f64),
-        ("uy", 0.0_f64, dims.1 as f64),
-        ("a", -1.5_f64, -1.0_f64),
-        ("b", -1.5_f64, -1.0_f64),
-        ("c", -PI, PI),
-        ("red", 0.00_f64, 0.05_f64),
-        ("green", 0.00_f64, 0.05_f64),
-        ("blue", 0.00_f64, 0.05_f64),
-        ("alpha", 0.00_f64, 1.0_f64),
+        ("ux", 0.0_f32, dims.0 as f32),
+        ("uy", 0.0_f32, dims.1 as f32),
+        ("a", -1.5_f32, -1.0_f32),
+        ("b", -1.5_f32, -1.0_f32),
+        ("c", -PI as f32, PI as f32),
+        ("red", 0.00_f32, 0.05_f32),
+        ("green", 0.00_f32, 0.05_f32),
+        ("blue", 0.00_f32, 0.05_f32),
+        ("alpha", 0.00_f32, 1.0_f32),
     ];
-    var_init.into_iter().for_each(|(name, lo, up)| {
-        variables
-            .get((size,), name, Uniform { lo, up }, DType::F32, &device)
-            .unwrap();
-    });
+    let r = var_init
+        .into_iter()
+        .map(|(_name, lo, up)| Tensor::rand(lo, up, (size,), &device).unwrap())
+        .collect::<Vec<_>>();
+    let r = Tensor::stack(&r, 0).unwrap().t().unwrap();
 
-    let mut opt = candle_nn::AdamW::new_lr(variables.all_vars(), 0.1)?;
+    let var = Var::from_tensor(&r).unwrap();
+    let mut opt = candle_nn::AdamW::new_lr(vec![var.clone()], 0.1)?;
 
     let x = Tensor::arange(0.0_f32, dims.0 as f32, &device)?;
     let y = Tensor::arange(0.0_f32, dims.1 as f32, &device)?;
@@ -204,7 +186,7 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
     let grids_xy = Tensor::meshgrid(&[&x, &y], true)?;
     // let mut out_data_file = std::io::BufWriter::new(std::fs::File::create("test.out").unwrap());
     for i in 0..51 {
-        let e = render(&variables, &grids_xy, &device)?;
+        let e = render(&var, &grids_xy, &device)?;
 
         let loss_r = &e[0].sub(&ref_r)?.abs()?.sum_all()?;
         let loss_g = &e[1].sub(&ref_g)?.abs()?.sum_all()?;
@@ -212,7 +194,7 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
 
         let loss = &loss_r.add(loss_g)?.add(loss_b)?;
         let gradient_store = loss.backward()?;
-        println!("{} loss: {}", i, loss);
+        println!("{} loss: {}", i, loss.to_vec0::<f32>().unwrap());
         opt.step(&gradient_store)?;
 
         // let ux = variables
@@ -222,7 +204,6 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
         // println!("{}", ux_grad);
 
         if i % 2 == 0 {
-            // let e = render(&variables, &grids_xy, &device)?;
             let r = e[0].to_vec2::<f32>()?;
             let g = e[1].to_vec2::<f32>()?;
             let b = e[2].to_vec2::<f32>()?;
@@ -250,23 +231,6 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
                 .await;
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
             }
-
-            //imgbuf.save(format!("out_{:03}.png", i)).unwrap();
-            // {
-            //     let data = variables.data().lock().unwrap();
-            //     let ux = data.get("ux").unwrap();
-            //     let uy = data.get("uy").unwrap();
-            //     let a = data.get("a").unwrap();
-            //     let b = data.get("b").unwrap();
-            //     let c = data.get("c").unwrap();
-            //     let red = data.get("red").unwrap();
-            //     let ux = ux.to_vec1::<f32>().unwrap();
-            //     let uy = uy.to_vec1::<f32>().unwrap();
-            //     let red = red.to_vec1::<f32>().unwrap();
-            //     (0..ux.len()).for_each(|idx| {
-            //         let _ = writeln!(out_data_file, "{} {} {} {}", i, ux[idx], uy[idx], red[idx]);
-            //     });
-            // }
         };
     }
     // drop(out_data_file);

@@ -184,7 +184,6 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
     let y = Tensor::arange(0.0_f32, dims.1 as f32, &device)?;
 
     let grids_xy = Tensor::meshgrid(&[&x, &y], true)?;
-    // let mut out_data_file = std::io::BufWriter::new(std::fs::File::create("test.out").unwrap());
     for i in 0..51 {
         let e = render(&var, &grids_xy, &device)?;
 
@@ -227,6 +226,5 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
             }
         };
     }
-    // drop(out_data_file);
     Ok(())
 }

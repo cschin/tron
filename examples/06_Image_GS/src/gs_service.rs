@@ -197,12 +197,6 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
         println!("{} loss: {}", i, loss.to_vec0::<f32>().unwrap());
         opt.step(&gradient_store)?;
 
-        // let ux = variables
-        //     .get((size,), "ux", Const(0.0), DType::F32, &device)
-        //     .unwrap();
-        // let ux_grad = gradient_store.get(&ux).unwrap();
-        // println!("{}", ux_grad);
-
         if i % 2 == 0 {
             let r = e[0].to_vec2::<f32>()?;
             let g = e[1].to_vec2::<f32>()?;

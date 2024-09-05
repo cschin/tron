@@ -36,7 +36,7 @@ impl TnAudioRecorder<'static> {
         base.set_attribute("hx-trigger".into(), "streaming, server_side_trigger".into());
         base.set_attribute(
             "hx-vals".into(),
-            r##"js:{event_data:get_event(event), audio_data: event.detail.audio_data, streaming: event.detail.streaming}"##.into(),
+            r##"js:{event_data:get_audio_event(event)}"##.into(),
         );
         base.asset = Some(HashMap::<String, TnAsset>::default());
         base.asset

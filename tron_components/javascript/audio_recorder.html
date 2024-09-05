@@ -12,6 +12,24 @@
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert("Your browser does not support audio recording.");
     }
+    function get_audio_event(event) {
+        if (event == null || event.type == "load") { // htxm may evaluate "load" event that does not has "getAttribute" 
+            return
+        } else {
+            return {
+                "tn_event":
+                {
+                    "e_trigger": event.currentTarget.id,
+                    "e_type": event.type,
+                    "e_state": event.currentTarget.getAttribute('state'),
+                    "e_target": event.currentTarget.getAttribute('hx-target')
+                },
+                "audio_data": event.detail.audio_data, 
+                "streaming": event.detail.streaming
+            };
+        };
+    };
+
 
     let mediaRecorder;
 

@@ -68,7 +68,7 @@
 
   function get_event_with_transformed_coordinate(event) {
     if (event == null || event.type == "load" || event.type != "click") { // htxm may evaluate "load" event that does not has "getAttribute" 
-      return
+      return {}
     } else {
       const plot_spec = get_plot_spec();
 

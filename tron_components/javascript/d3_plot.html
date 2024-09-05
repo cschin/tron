@@ -2,7 +2,7 @@
 <script> // for d3 plot
   function get_event_with_coordinate(event) {
     if (event == null || event.type == "load") { // htxm may evaluate "load" event that does not has "getAttribute" 
-      return
+      return {}
     } else {
       const rect = event.currentTarget.getBoundingClientRect();
       const svg = document.querySelector("#"+event.currentTarget.id+'> svg');

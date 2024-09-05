@@ -729,7 +729,14 @@ fn audio_input_stream_processing(
         if event.e_type != "streaming" || event.e_state != "updating" {
             return None;
         }
-        let chunk: Option<AudioChunk> = serde_json::from_value(payload).unwrap_or(None);
+
+        let event_data = payload
+            .as_object()
+            .unwrap()
+            .get("event_data")
+            .unwrap_or(&Value::Null);
+            
+        let chunk: Option<AudioChunk> = serde_json::from_value(event_data.clone()).unwrap_or(None);
 
         if let Some(chunk) = chunk {
             let b64data = chunk.audio_data.trim_end_matches('"');

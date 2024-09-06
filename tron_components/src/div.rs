@@ -9,7 +9,7 @@ pub struct TnDiv<'a: 'static> {
 }
 
 impl TnDiv<'static> {
-    /// Creates a new TextArea component with the specified ID, name, and value.
+    /// Creates a new Div component with the specified ID, name, and value.
     pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::Div);
         base.set_value(TnComponentValue::String(value));

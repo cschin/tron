@@ -199,7 +199,7 @@ pub struct TnComponentBase<'a: 'static> {
     pub state: TnComponentState,
     pub children: Vec<TnComponent<'a>>,
     pub parent: Weak<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>,
-    // pub script: Option<String>,
+    pub action: Option<(TnActionExecutionMethod, TnActionFn)>, // pub script: Option<String>,
 }
 
 /// Represents a service request message structure used for inter-service communication.
@@ -242,22 +242,22 @@ pub struct TnSseMsgChannel {
 }
 
 /// Alias for a string that uniquely identifies a stream.
-type TnStreamID = String;
+pub type TnStreamID = String;
 
 /// Alias for a string representing the protocol used by a stream.
-type TnStreamProtocol = String;
+pub type TnStreamProtocol = String;
 
 /// Alias for a double-ended queue of mutable byte buffers, used for streaming data.
-type TnStreamData = VecDeque<BytesMut>;
+pub type TnStreamData = VecDeque<BytesMut>;
 
 /// Alias for a string that names an asset associated with a component or service.
-type TnAssetName = String;
+pub type TnAssetName = String;
 
 /// Alias for a string that uniquely identifies a component.
-type TnComponentId = String;
+pub type TnComponentId = String;
 
 /// Alias for a string that identifies a service within a system or application.
-type TnServiceName = String;
+pub type TnServiceName = String;
 
 /// Alias for a thread-safe, reference-counted hash map that maps component indices
 /// to their corresponding `TnComponent` instances.
@@ -436,9 +436,16 @@ impl TnContext {
     /// Asynchronously retrieves a component by its `tron_id`.
     pub async fn get_component(&self, tron_id: &str) -> TnComponent<'static> {
         let context_guard = self.write().await;
-        let components_guard = context_guard.components.write().await;
+        let components_guard = context_guard.components.read().await;
         let comp_id = context_guard.get_component_index(tron_id);
         components_guard.get(&comp_id).unwrap().clone()
+    }
+
+    /// Asynchronously retrieves a component by its `id`.
+    pub async fn get_component_by_id(&self, id: u32) -> TnComponent<'static> {
+        let context_guard = self.write().await;
+        let components_guard = context_guard.components.read().await;
+        components_guard.get(&id).unwrap().clone()
     }
 
     /// Synchronously retrieves a component by its `tron_id`.
@@ -543,7 +550,6 @@ impl TnContext {
             // set the reset button back to the ready state
             self.set_state_for_component(tron_id, TnComponentState::Ready)
                 .await;
-
             let msg = TnSseTriggerMsg {
                 // update the button state
                 server_side_trigger_data: TnServerSideTriggerData {
@@ -618,6 +624,9 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 
     fn add_parent(&mut self, parent: TnComponent<'a>);
     fn get_parent(&self) -> TnComponent<'a>;
+
+    fn set_action(&mut self, m: TnActionExecutionMethod, f: TnActionFn);
+    fn get_action(&self) -> &Option<(TnActionExecutionMethod, TnActionFn)>;
 
     // fn get_script(&self) -> Option<String>;
 }
@@ -705,7 +714,7 @@ impl Default for TnComponentBase<'static> {
             state: TnComponentState::Ready,
             children: Vec::default(),
             parent: Weak::default(),
-            //script: Option::default(),
+            action: None, //script: Option::default(),
         }
     }
 }
@@ -879,6 +888,14 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
         unimplemented!()
     }
 
+    fn set_action(&mut self, m: TnActionExecutionMethod, f: TnActionFn) {
+        self.action = Some((m, f));
+    }
+
+    fn get_action(&self) -> &Option<(TnActionExecutionMethod, TnActionFn)> {
+        &self.action
+    }
+
     // fn get_script(&self) -> Option<String> {
     //     self.script.clone()
     // }
@@ -928,12 +945,6 @@ pub enum TnActionExecutionMethod {
     Await,
 }
 
-/// Represents a collection of event actions associated with Tron component indices.
-///
-/// This type defines a hashmap where each key is a `TnComponentIndex`, and each value is a tuple
-/// containing an `ActionExecutionMethod` and an `Arc` wrapped around a `TnActionFn`. It is used to store
-/// and manage event actions associated with Tron components.
-pub type TnEventActions = HashMap<TnComponentIndex, (TnActionExecutionMethod, Arc<TnActionFn>)>;
 #[cfg(test)]
 mod tests {
     use crate::{TnButton, TnComponentBaseTrait};

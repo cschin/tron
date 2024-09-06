@@ -47,7 +47,7 @@ use tron_app::{
 };
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
-    TnContext, TnContextBase, TnEvent, TnEventActions, TnTextArea,
+    TnContext, TnContextBase, TnEvent, TnTextArea,
 };
 
 use once_cell::sync::Lazy;
@@ -79,9 +79,7 @@ async fn main() {
     let app_share_data = AppData {
         context: RwLock::new(HashMap::default()),
         session_expiry: RwLock::new(HashMap::default()),
-        event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_context)),
-        build_actions: Arc::new(Box::new(build_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
 
@@ -131,12 +129,14 @@ fn add_dnd_file_upload(component_index: u32, context: &mut TnContextBase, tnid: 
     .into_iter()
     .collect::<HashMap<String, String>>();
 
-    let dnd_file_upload = TnDnDFileUpload::new(
+    let mut dnd_file_upload = TnDnDFileUpload::new(
         component_index,
         tnid.into(),
         "Drop A File".into(),
         button_attributes,
     );
+    dnd_file_upload.set_action(TnActionExecutionMethod::Await, handle_file_upload);
+
     context.add_component(dnd_file_upload);
 }
 
@@ -171,23 +171,23 @@ fn layout(context: TnContext) -> String {
     html.render().unwrap()
 }
 
-fn build_actions(context: TnContext) -> TnEventActions {
-    let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
+// fn build_actions(context: TnContext) -> TnEventActions {
+//     let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
 
-    actions.push((
-        DND_FILE_UPLOAD.to_string(),
-        TnActionExecutionMethod::Await,
-        handle_file_upload,
-    ));
+//     // actions.push((
+//     //     DND_FILE_UPLOAD.to_string(),
+//     //     TnActionExecutionMethod::Await,
+//     //     handle_file_upload,
+//     // ));
 
-    actions
-        .into_iter()
-        .map(|(id, exe_method, action_fn)| {
-            let idx = context.blocking_read().get_component_index(&id);
-            (idx, (exe_method, Arc::new(action_fn)))
-        })
-        .collect::<TnEventActions>()
-}
+//     actions
+//         .into_iter()
+//         .map(|(id, exe_method, action_fn)| {
+//             let idx = context.blocking_read().get_component_index(&id);
+//             (idx, (exe_method, Arc::new(action_fn)))
+//         })
+//         .collect::<TnEventActions>()
+// }
 
 async fn get_image(
     State(_app_data): State<Arc<AppData>>,

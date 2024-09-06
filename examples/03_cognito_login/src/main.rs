@@ -14,7 +14,7 @@ use tracing::debug;
 use tron_app::tron_components;
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
-    TnContext, TnContextBase, TnEvent, TnEventActions, TnTextArea,
+    TnContext, TnContextBase, TnEvent, TnTextArea,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -29,9 +29,7 @@ async fn main() {
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
         session_expiry: RwLock::new(HashMap::default()),
-        event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_context)),
-        build_actions: Arc::new(Box::new(build_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
     tron_app::run(app_share_data, app_configure).await
@@ -60,9 +58,6 @@ fn layout(_context: TnContext) -> String {
     html.render().unwrap()
 }
 
-fn build_actions(_context: TnContext) -> TnEventActions {
-    TnEventActions::default()
-}
 
 // fn test_event_action(
 //     context: TnContext,

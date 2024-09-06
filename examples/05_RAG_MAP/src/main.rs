@@ -52,7 +52,7 @@ use tron_app::{
 };
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
-    TnContext, TnContextBase, TnEvent, TnEventActions, TnTextArea,
+    TnContext, TnContextBase, TnEvent, TnTextArea,
 };
 //use std::sync::Mutex;
 use once_cell::sync::Lazy;
@@ -183,9 +183,7 @@ async fn main() {
     let app_share_data = AppData {
         context: RwLock::new(HashMap::default()),
         session_expiry: RwLock::new(HashMap::default()),
-        event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_context)),
-        build_actions: Arc::new(Box::new(build_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
 
@@ -206,6 +204,7 @@ fn build_context() -> TnContext {
         "hx-vals".into(),
         r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##.into(),
     );
+    d3_plot.set_action(TnActionExecutionMethod::Await, d3_plot_clicked);
     context.add_component(d3_plot);
 
     component_index += 1;
@@ -217,6 +216,7 @@ fn build_context() -> TnContext {
 
     reset_btn.set_attribute("hx-target".to_string(), format!("#{D3PLOT}"));
     reset_btn.set_attribute("hx-swap".to_string(), "none".to_string());
+    reset_btn.set_action(TnActionExecutionMethod::Await, reset_button_clicked);
     context.add_component(reset_btn);
 
     component_index += 1;
@@ -249,6 +249,7 @@ fn build_context() -> TnContext {
         "class".to_string(),
         "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
     );
+    context_query_btn.set_action(TnActionExecutionMethod::Await, query_with_hits);
     context.add_component(context_query_btn);
 
     component_index += 1;
@@ -257,6 +258,7 @@ fn build_context() -> TnContext {
         "class".to_string(),
         "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
     );
+    query_btn.set_action(TnActionExecutionMethod::Await, query_button_clicked);
     context.add_component(query_btn);
 
     component_index += 1;
@@ -269,6 +271,7 @@ fn build_context() -> TnContext {
         "class".to_string(),
         "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
     );
+    find_related_btn.set_action(TnActionExecutionMethod::Await, find_related_button_clicked);
     context.add_component(find_related_btn);
 
     component_index += 1;
@@ -396,54 +399,6 @@ fn layout(context: TnContext) -> String {
     html.render().unwrap()
 }
 
-fn build_actions(context: TnContext) -> TnEventActions {
-    let mut actions = TnEventActions::default();
-
-    let index = context.blocking_read().get_component_index(D3PLOT);
-    actions.insert(
-        index,
-        (TnActionExecutionMethod::Await, Arc::new(d3_plot_clicked)),
-    );
-
-    let index = context.blocking_read().get_component_index(RESET_BUTTON);
-    actions.insert(
-        index,
-        (
-            TnActionExecutionMethod::Await,
-            Arc::new(reset_button_clicked),
-        ),
-    );
-
-    let index = context
-        .blocking_read()
-        .get_component_index(FIND_RELATED_BUTTON);
-    actions.insert(
-        index,
-        (
-            TnActionExecutionMethod::Await,
-            Arc::new(find_related_button_clicked),
-        ),
-    );
-
-    let index = context.blocking_read().get_component_index(QUERY_BUTTON);
-    actions.insert(
-        index,
-        (
-            TnActionExecutionMethod::Await,
-            Arc::new(query_button_clicked),
-        ),
-    );
-
-    let index = context
-        .blocking_read()
-        .get_component_index(CONTEXT_QUERY_BUTTON);
-    actions.insert(
-        index,
-        (TnActionExecutionMethod::Await, Arc::new(query_with_hits)),
-    );
-
-    actions
-}
 #[derive(Debug, Clone)]
 struct TwoDPoint<'a> {
     d: OrderedFloat<f64>,

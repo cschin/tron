@@ -61,9 +61,7 @@ async fn main() {
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
         session_expiry: RwLock::new(HashMap::default()),
-        event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_session_context)),
-        build_actions: Arc::new(Box::new(build_session_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
 
@@ -97,15 +95,20 @@ fn build_session_context() -> TnContext {
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
+        btn.set_action(TnActionExecutionMethod::Await, toggle_recording);
         context.add_component(btn);
     }
     {
         // add a recorder
         component_index += 1;
-        let recorder = TnAudioRecorder::<'static>::new(
+        let mut recorder = TnAudioRecorder::<'static>::new(
             component_index,
             RECORDER.to_string(),
             "Paused".to_string(),
+        );
+        recorder.set_action(
+            TnActionExecutionMethod::Await,
+            audio_input_stream_processing,
         );
         context.add_component(recorder);
     }
@@ -118,6 +121,10 @@ fn build_session_context() -> TnContext {
             "Paused".to_string(),
         );
         player.set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string());
+        player.set_action(
+            TnActionExecutionMethod::Await,
+            audio_player::stop_audio_playing_action,
+        );
         context.add_component(player);
     }
 
@@ -133,6 +140,7 @@ fn build_session_context() -> TnContext {
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
+        btn.set_action(TnActionExecutionMethod::Await, reset_conversation);
         context.add_component(btn);
     }
     {
@@ -244,6 +252,9 @@ fn build_session_context() -> TnContext {
             "class".into(),
             "select select-bordered w-full max-w-xs".into(),
         );
+        preset_prompt_select
+            .set_action(TnActionExecutionMethod::Await, preset_prompt_select_change);
+
         context.add_component(preset_prompt_select);
 
         let mut prompts = HashMap::<String, String>::default();
@@ -393,50 +404,6 @@ fn layout(context: TnContext) -> String {
     html.render().unwrap()
 }
 
-/// Builds and initializes the event actions for the application.
-///
-/// This function sets up the event actions for various components such as the record button,
-/// audio recorder, audio player, reset button, and preset prompt select dropdown. It associates
-/// each component with a specific action function and an execution method (await or immediate).
-///
-/// Returns:
-///     A `TnEventActions` instance
-fn build_session_actions(context: TnContext) -> TnEventActions {
-    let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
-    actions.push((
-        RECORDING_BUTTON.into(),
-        TnActionExecutionMethod::Await,
-        toggle_recording,
-    ));
-    actions.push((
-        RECORDER.into(),
-        TnActionExecutionMethod::Await,
-        audio_input_stream_processing,
-    ));
-    actions.push((
-        PLAYER.into(),
-        TnActionExecutionMethod::Await,
-        audio_player::stop_audio_playing_action,
-    ));
-    actions.push((
-        RESET_BUTTON.into(),
-        TnActionExecutionMethod::Await,
-        reset_conversation,
-    ));
-    actions.push((
-        PRESET_PROMPT_SELECT.into(),
-        TnActionExecutionMethod::Await,
-        preset_prompt_select_change,
-    ));
-
-    actions
-        .into_iter()
-        .map(|(id, exe_method, action_fn)| {
-            let idx = context.blocking_read().get_component_index(&id);
-            (idx, (exe_method, Arc::new(action_fn)))
-        })
-        .collect::<TnEventActions>()
-}
 
 fn _do_nothing(
     context: TnContext,
@@ -735,7 +702,7 @@ fn audio_input_stream_processing(
             .unwrap()
             .get("event_data")
             .unwrap_or(&Value::Null);
-            
+
         let chunk: Option<AudioChunk> = serde_json::from_value(event_data.clone()).unwrap_or(None);
 
         if let Some(chunk) = chunk {

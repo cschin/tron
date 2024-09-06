@@ -14,7 +14,7 @@ use tracing::debug;
 use tron_app::tron_components::{self, TnActionExecutionMethod, TnAsset, TnHtmlResponse};
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
-    TnContext, TnContextBase, TnEvent, TnEventActions, TnTextArea,
+    TnContext, TnContextBase, TnEvent, TnTextArea,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc, task::Context};
@@ -34,9 +34,7 @@ async fn main() {
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
         session_expiry: RwLock::new(HashMap::default()),
-        event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_context)),
-        build_actions: Arc::new(Box::new(build_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
     tron_app::run(app_share_data, app_config).await
@@ -56,6 +54,7 @@ fn build_context() -> TnContext {
 
     btn.set_attribute("hx-target".to_string(), "#count".to_string());
     btn.set_attribute("hx-swap".to_string(), "innerHTML".to_string());
+    btn.set_action(TnActionExecutionMethod::Await, button_clicked);
     context
         .assets
         .blocking_write()
@@ -79,16 +78,6 @@ fn layout(context: TnContext) -> String {
     let button = context_guard.render_to_string(BUTTON);
     let html = AppPageTemplate { button };
     html.render().unwrap()
-}
-
-fn build_actions(context: TnContext) -> TnEventActions {
-    let mut actions = TnEventActions::default();
-    let index = context.blocking_read().get_component_index(BUTTON);
-    actions.insert(
-        index,
-        (TnActionExecutionMethod::Await, Arc::new(button_clicked)),
-    );
-    actions
 }
 
 fn button_clicked(

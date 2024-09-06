@@ -18,7 +18,7 @@ use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
     TnActionExecutionMethod, TnAsset, TnComponent, TnComponentIndex, TnComponentValue, TnContext,
-    TnEvent, TnEventActions, TnSseMsgChannel,
+    TnEvent, TnSseMsgChannel,
 };
 //use std::sync::Mutex;
 use std::{
@@ -52,14 +52,9 @@ pub type SessionId = tower_sessions::session::Id;
 /// Represents a session context containing mappings of session IDs to Tron contexts.
 pub type SessionContext = RwLock<HashMap<SessionId, TnContext>>;
 
-/// Represents event actions protected by a reader-writer lock.
-pub type EventActions = RwLock<TnEventActions>;
 
 /// Alias for a context builder function.
 type ContextBuilder = Arc<Box<dyn Fn() -> TnContext + Send + Sync>>;
-
-/// Alias for an action function template, which generates event actions from a context.
-type ActionFunctionTemplate = Arc<Box<dyn Fn(TnContext) -> TnEventActions + Send + Sync>>;
 
 /// Alias for a layout function, which generates HTML layout from a context.
 type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
@@ -72,9 +67,7 @@ type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
 pub struct AppData {
     pub context: SessionContext,
     pub session_expiry: RwLock<HashMap<SessionId, time::OffsetDateTime>>,
-    pub event_actions: EventActions,
     pub build_context: ContextBuilder,
-    pub build_actions: ActionFunctionTemplate,
     pub build_layout: LayoutFunction,
 }
 /// Represents configuration options for a Tron application.
@@ -113,7 +106,7 @@ impl Default for AppConfigure {
     /// * `ports`: `Ports { http: 8080, https: 3001 }`
     /// * `cognito_login`: `false`
     /// * `log_level`: `Some("server=info,tower_http=info,tron_app=info")`
-    /// TODO: update doc for api_router
+    /// - TODO: update doc for api_router
     fn default() -> Self {
         let address = [127, 0, 0, 1];
         let ports = Ports {
@@ -376,12 +369,6 @@ async fn load_page(
 
     let context_guard = app_data.context.read().await;
     let context = context_guard.get(&session_id).unwrap().clone();
-    let mut app_event_action_guard = app_data.event_actions.write().await;
-    app_event_action_guard.clone_from(&tokio::task::block_in_place(|| {
-        (*app_data.build_actions)(context.clone())
-    }));
-
-    let context = context_guard.get(&session_id).unwrap().clone();
     let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context.clone()));
     Ok(Html::from(layout))
 }
@@ -494,19 +481,35 @@ async fn tron_entry(
             }
         }
 
+        // let has_event_action = {
+        //     let event_action_guard = app_data.event_actions.read().await;
+        //     event_action_guard.contains_key(&tron_index)
+        // };
+
         let has_event_action = {
-            let event_action_guard = app_data.event_actions.read().await;
-            event_action_guard.contains_key(&tron_index)
-        };
+            let context_guard = app_data.context.read().await;
+            let context = context_guard.get(&session_id).unwrap().clone(); 
+            let c = context.get_component_by_id(tron_index).await;
+            let c = c.read().await;
+            c.get_action().is_some()
+        }; 
 
         if has_event_action {
+         
+
+            // let event_action_guard = app_data.event_actions.write().await;
+            // let (action_exec_method, action_generator) =
+            //     event_action_guard.get(&tron_index).unwrap().clone();
+        
+            let (action_exec_method, action_generator) = {
+                let context_guard = app_data.context.read().await;
+                let context = context_guard.get(&session_id).unwrap().clone();
+                let c = context.get_component_by_id(tron_index).await;
+                let c = c.read().await;
+                c.get_action().as_ref().unwrap().clone() 
+            };
             let context_guard = app_data.context.read().await;
             let context = context_guard.get(&session_id).unwrap().clone();
-
-            let event_action_guard = app_data.event_actions.write().await;
-            let (action_exec_method, action_generator) =
-                event_action_guard.get(&tron_index).unwrap().clone();
-
             let action = action_generator(context, evt, payload);
             match action_exec_method {
                 TnActionExecutionMethod::Spawn => {

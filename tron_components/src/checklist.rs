@@ -81,6 +81,7 @@ impl TnCheckBox<'static> {
         base.set_attribute("hx-swap".into(), "none".into());
         //component_base.set_attribute("type".into(), "checkbox".into());
         base.asset = Some(HashMap::default());
+        base.set_action(TnActionExecutionMethod::Await,toggle_checkbox); 
         Self { base }
     }
 }

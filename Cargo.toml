@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = [ "tron_app", "tron_components", "tron_macro" , "tron_utils", "examples/*" ]
+members = [ "tron_app", "tron_components", "tron_macro" , "tron_utils", "examples/*"]
 
 [workspace.package]
 name = "Tron" # the name of the package

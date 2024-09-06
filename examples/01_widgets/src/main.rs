@@ -17,9 +17,9 @@ use tron_app::tron_components::{
 use tron_components::{
     checklist, radio_group,
     text::{self, append_textarea_value},
-    TnActionExecutionMethod, TnActionFn, TnButton, TnComponentBaseTrait, TnComponentState,
-    TnComponentValue, TnContext, TnContextBase, TnEvent, TnEventActions, TnHtmlResponse,
-    TnRangeSlider, TnSelect, TnStreamTextArea, TnTextArea, TnTextInput,
+    TnActionExecutionMethod, TnButton, TnComponentBaseTrait, TnComponentState,
+    TnComponentValue, TnContext, TnContextBase, TnEvent, TnHtmlResponse, TnRangeSlider, TnSelect,
+    TnStreamTextArea, TnTextArea, TnTextInput,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, str::FromStr, sync::Arc};
@@ -39,9 +39,7 @@ async fn main() {
     let app_share_data = tron_app::AppData {
         context: RwLock::new(HashMap::default()),
         session_expiry: RwLock::new(HashMap::default()),
-        event_actions: RwLock::new(TnEventActions::default()),
         build_context: Arc::new(Box::new(build_session_context)),
-        build_actions: Arc::new(Box::new(build_session_actions)),
         build_layout: Arc::new(Box::new(layout)),
     };
     tron_app::run(app_share_data, app_config).await
@@ -67,6 +65,8 @@ fn build_session_context() -> TnContext {
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
+
+        btn.set_action(TnActionExecutionMethod::Spawn, test_event_actions);
 
         context.add_component(btn);
 
@@ -176,6 +176,7 @@ fn build_session_context() -> TnContext {
         let mut slider =
             TnRangeSlider::<'static>::new(component_index, "slider".into(), 0.0, 0.0, 100.0);
         slider.set_attribute("class".to_string(), "flex-1".to_string());
+        slider.set_action(TnActionExecutionMethod::Await, slider_value_update);
         context.add_component(slider);
     }
     {
@@ -190,6 +191,7 @@ fn build_session_context() -> TnContext {
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
         clean_button.set_attribute("hx-target".to_string(), "#stream_textarea".to_string());
+        clean_button.set_action(TnActionExecutionMethod::Await, clean_stream_textarea);
         context.add_component(clean_button);
     }
     {
@@ -203,6 +205,7 @@ fn build_session_context() -> TnContext {
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
+        clean_button.set_action(TnActionExecutionMethod::Await, clean_textarea);
         context.add_component(clean_button);
     }
     {
@@ -216,6 +219,7 @@ fn build_session_context() -> TnContext {
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
         );
+        clean_button.set_action(TnActionExecutionMethod::Await, clean_textinput);
         context.add_component(clean_button);
     }
     {
@@ -233,13 +237,13 @@ fn build_session_context() -> TnContext {
         )]
         .into_iter()
         .collect::<HashMap<String, String>>();
-        let file_upload = TnFileUpload::new(
+        let mut file_upload = TnFileUpload::new(
             component_index,
             "file_upload".into(),
             "Upload File".into(),
             button_attributes,
         );
-
+        file_upload.set_action(TnActionExecutionMethod::Await, handle_file_upload);
         context.add_component(file_upload);
     }
 
@@ -252,12 +256,13 @@ fn build_session_context() -> TnContext {
         .into_iter()
         .collect::<HashMap<String, String>>();
 
-        let dnd_file_upload = TnDnDFileUpload::new(
+        let mut dnd_file_upload = TnDnDFileUpload::new(
             component_index,
             "dnd_file_upload".into(),
             "Drop A File".into(),
             button_attributes,
         );
+        dnd_file_upload.set_action(TnActionExecutionMethod::Await, handle_file_upload);
 
         context.add_component(dnd_file_upload);
     }
@@ -265,100 +270,6 @@ fn build_session_context() -> TnContext {
     TnContext {
         base: Arc::new(RwLock::new(context)),
     }
-}
-
-/// Builds the event actions for the session.
-///
-/// This function creates a vector of tuples containing the component ID, execution method,
-/// and action function for each component. It then maps these tuples to the corresponding
-/// component indices in the `TnContext` and returns a `TnEventActions` object.
-///
-/// The event actions include:
-///
-/// - Test actions for buttons with IDs `btn-00` to `btn-09`
-/// - Actions for the checklist component
-/// - Actions for the radio group component
-/// - Action for updating the slider value
-/// - Actions for cleaning the stream textarea, textarea, and text input
-///
-/// # Arguments
-///
-/// * `context` - The `TnContext` object containing the components and their states.
-///
-/// # Returns
-///
-/// A `TnEventActions` object mapping component indices to their corresponding action functions.
-fn build_session_actions(context: TnContext) -> TnEventActions {
-    let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
-    for i in 0..10 {
-        actions.push((
-            format!("btn-{:02}", i),
-            TnActionExecutionMethod::Spawn,
-            test_event_actions,
-        ));
-    }
-    {
-        let checklist = context.blocking_get_component("checklist");
-        let checklist_actions = checklist::get_checklist_actions(checklist);
-        checklist_actions.into_iter().for_each(|(tron_id, action)| {
-            actions.push((tron_id, TnActionExecutionMethod::Await, action));
-        });
-    }
-
-    {
-        let radio_group: Arc<RwLock<Box<dyn TnComponentBaseTrait<'_>>>> =
-            context.blocking_get_component("radio_group");
-        let radio_group_actions = radio_group::get_radio_group_actions(radio_group);
-        radio_group_actions
-            .into_iter()
-            .for_each(|(tron_id, action)| {
-                actions.push((tron_id, TnActionExecutionMethod::Await, action));
-            });
-    }
-
-    actions.push((
-        "slider".into(),
-        TnActionExecutionMethod::Await,
-        slider_value_update,
-    ));
-
-    actions.push((
-        "clean_stream_textarea".into(),
-        TnActionExecutionMethod::Await,
-        clean_stream_textarea,
-    ));
-
-    actions.push((
-        "clean_textarea".into(),
-        TnActionExecutionMethod::Await,
-        clean_textarea,
-    ));
-
-    actions.push((
-        "clean_textinput".into(),
-        TnActionExecutionMethod::Await,
-        clean_textinput,
-    ));
-
-    actions.push((
-        "file_upload".into(),
-        TnActionExecutionMethod::Await,
-        handle_file_upload,
-    ));
-
-    actions.push((
-        "dnd_file_upload".into(),
-        TnActionExecutionMethod::Await,
-        handle_file_upload,
-    ));
-
-    actions
-        .into_iter()
-        .map(|(id, exe_method, action_fn)| {
-            let idx = context.blocking_read().get_component_index(&id);
-            (idx, (exe_method, Arc::new(action_fn)))
-        })
-        .collect::<TnEventActions>()
 }
 
 /// Test event actions for buttons with IDs `btn-00` to `btn-09`.
@@ -543,7 +454,7 @@ fn clean_textarea(
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
         text::clean_textarea_with_context(&context, "textarea").await;
-        context.set_ready_for(&event.e_trigger).await;
+        context.set_ready_for(&event.e_trigger).await; 
         let html = context.render_component(&event.e_trigger).await;
         Some((HeaderMap::new(), Html::from(html)))
     };

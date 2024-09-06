@@ -150,6 +150,14 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.base.get_parent()
             }
 
+            fn set_action(&mut self, m: TnActionExecutionMethod, f: TnActionFn ) {
+                self.base.action = Some( (m, f) )
+            }
+
+            fn get_action(&self) -> &Option<(TnActionExecutionMethod, TnActionFn)> {
+                &self.base.action
+            }
+
             // fn get_script(&self) -> Option<String> {
             //     self.base.get_script()
             // }

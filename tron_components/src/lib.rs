@@ -232,9 +232,9 @@ pub struct TnServiceResponseMsg {
 /// Properties:
 ///
 /// * `tx`: The `tx` property is a `Sender<String>` which is used for sending messages of type `String`
-/// over a channel. This allows one part of the code to send messages to another part asynchronously.
+///   over a channel. This allows one part of the code to send messages to another part asynchronously.
 /// * `rx`: The `rx` property is an optional field that holds a `Receiver<String>`. It is initially set
-/// to `Some(receiver)` but will be moved out and replaced by `None` at some point.
+///   to `Some(receiver)` but will be moved out and replaced by `None` at some point.
 
 pub struct TnSseMsgChannel {
     pub tx: Sender<String>,

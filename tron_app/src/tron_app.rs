@@ -481,11 +481,6 @@ async fn tron_entry(
             }
         }
 
-        // let has_event_action = {
-        //     let event_action_guard = app_data.event_actions.read().await;
-        //     event_action_guard.contains_key(&tron_index)
-        // };
-
         let has_event_action = {
             let context_guard = app_data.context.read().await;
             let context = context_guard.get(&session_id).unwrap().clone(); 
@@ -495,12 +490,6 @@ async fn tron_entry(
         }; 
 
         if has_event_action {
-         
-
-            // let event_action_guard = app_data.event_actions.write().await;
-            // let (action_exec_method, action_generator) =
-            //     event_action_guard.get(&tron_index).unwrap().clone();
-        
             let (action_exec_method, action_generator) = {
                 let context_guard = app_data.context.read().await;
                 let context = context_guard.get(&session_id).unwrap().clone();

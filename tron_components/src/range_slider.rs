@@ -2,12 +2,13 @@ use super::*;
 use tron_macro::*;
 
 /// Represents a range slider component.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnRangeSlider<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl TnRangeSlider<'static> {
+impl TnRangeSliderBuilder<'static> {
     /// Creates a new instance of `TnRangeSlider`.
     ///
     /// # Arguments

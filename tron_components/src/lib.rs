@@ -16,7 +16,7 @@ pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
 pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
-pub use d3_plot::TnD3Plot;
+pub use d3_plot::{TnD3Plot, TnD3PlotBuilder};
 pub use div::TnDiv;
 pub use file_upload::{TnDnDFileUpload, TnFileUpload};
 pub use radio_group::{TnRadioGroup, TnRadioItem};
@@ -26,9 +26,7 @@ pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
 
 use serde_json::Value;
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
-    pin::Pin,
-    sync::{Arc, Weak},
+    collections::{HashMap, HashSet, VecDeque}, pin::Pin, sync::{Arc, Weak}
 };
 use tokio::sync::{oneshot, Mutex};
 use tokio::{
@@ -63,8 +61,9 @@ pub type TnComponent<'a> = Arc<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>;
 /// - `CheckItems(HashMap<String, bool>)`: A map of strings to boolean values, typically used for checkboxes.
 /// - `CheckItem(bool)`: A single boolean value, typically used for a checkbox.
 /// - `RadioItem(bool)`: A boolean value, typically used for a radio button.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum TnComponentValue {
+    #[default]
     None,
     String(String),
     VecString(Vec<String>),
@@ -125,8 +124,9 @@ pub enum TnAsset {
 /// - `RadioGroup`: A group of radio buttons.
 /// - `RadioItem`: A single radio button.
 /// - `UserDefined(String)`: A user-defined component specified by a string identifier.
-#[derive(PartialEq, Eq, Debug, Clone, Hash)]
+#[derive(PartialEq, Eq, Debug, Clone, Hash, Default)]
 pub enum TnComponentType {
+    #[default]
     Base,
     AudioPlayer,
     AudioRecorder,
@@ -156,8 +156,9 @@ pub enum TnComponentType {
 /// - `Updating`: The server is ready to send a response; the UI updates to receive this response. This state can repeat.
 /// - `Finished`: No further updates are expected; the component will transition back to the `Ready` state.
 /// - `Disabled`: The component is disabled, making it non-interactive and unable to send or receive HTTP requests.
-#[derive(PartialEq, Eq, Debug, Clone)]
+#[derive(Default, PartialEq, Eq, Debug, Clone)]
 pub enum TnComponentState {
+    #[default]
     Ready,    // ready to receive new event on the UI end
     Pending,  // UI event receive, server function dispatched, waiting for server to response
     Updating, // server ready to send, change UI to update to receive server response, can repeate
@@ -947,11 +948,11 @@ pub enum TnActionExecutionMethod {
 
 #[cfg(test)]
 mod tests {
-    use crate::{TnButton, TnComponentBaseTrait};
+    use crate::{button::TnButtonBuilder, TnButton, TnComponentBaseTrait};
 
     #[test]
     fn test_simple_button() {
-        let mut btn = TnButton::new(12, "12".into(), "12".into());
+        let mut btn = TnButtonBuilder::new(12, "12".into(), "12".into()).build();
         btn.set_attribute("hx-get".to_string(), format!("/tron/{}", 12));
         //println!("{}", btn.generate_hx_attr_string());
     }

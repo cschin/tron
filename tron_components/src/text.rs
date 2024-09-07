@@ -4,12 +4,13 @@ use tron_macro::*;
 use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
 
 /// Represents a TextArea component.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnTextArea<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl TnTextArea<'static> {
+impl TnTextAreaBuilder<'static> {
     /// Creates a new TextArea component with the specified ID, name, and value.
     pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("textarea".into(), id, name, TnComponentType::TextArea);
@@ -121,6 +122,7 @@ pub async fn clean_textarea_with_context(context: &TnContext, tron_id: &str) {
 }
 
 /// Represents a TextArea component with streaming updates.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnStreamTextArea<'a: 'static> {
     base: TnComponentBase<'a>,
@@ -144,7 +146,7 @@ pub struct SseStreamTextAreaTriggerMsg {
 /// # Returns
 ///
 /// A new instance of TnStreamTextArea.
-impl TnStreamTextArea<'static> {
+impl TnStreamTextAreaBuilder<'static> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<String>) -> Self {
         let mut base = TnComponentBase::new(
             "textarea".into(),
@@ -286,6 +288,7 @@ pub async fn clean_stream_textarea_with_context(context: &TnContext, tron_id: &s
 }
 
 /// Represents a text input component.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnTextInput<'a: 'static> {
     base: TnComponentBase<'a>,
@@ -302,7 +305,7 @@ pub struct TnTextInput<'a: 'static> {
 /// # Returns
 ///
 /// A new `TnTextInput` instance.
-impl TnTextInput<'static> {
+impl TnTextInputBuilder<'static> {
     pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
         let mut base = TnComponentBase::new("input".into(), idx, tnid, TnComponentType::TextInput);
         base.set_value(TnComponentValue::String(value.to_string()));

@@ -2,13 +2,14 @@ use super::*;
 use tron_macro::*;
 
 /// Represents a button component in a Tron application.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnButton<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-/// Creates a new button component with the specified idx, tnid, and value.
-impl TnButton<'static> {
+
+impl<'a:'static> TnButtonBuilder<'a>  {
     pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
         let mut base = TnComponentBase::new("button".into(), idx, tnid, TnComponentType::Button);
         base.set_value(TnComponentValue::String(value));

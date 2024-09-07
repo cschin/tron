@@ -3,12 +3,13 @@ use futures_util::Future;
 use tron_macro::*;
 
 /// Defines a radio group component.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnRadioGroup<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl TnRadioGroup<'static> {
+impl TnRadioGroupBuilder<'static> {
     /// Creates a new instance of `TnRadioGroup`.
     ///
     /// # Arguments
@@ -90,6 +91,7 @@ impl TnRadioGroup<'static> {
 }
 
 /// Represents a radio item component within a radio group.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnRadioItem<'a: 'static> {
     base: TnComponentBase<'a>,
@@ -233,12 +235,12 @@ pub fn add_radio_group_to_context(
         .collect::<Vec<_>>();
 
     *component_index += 1;
-    let radio_group = TnRadioGroup::new(
+    let radio_group = TnRadioGroupBuilder::new(
         *component_index,
         radio_group_tron_id,
         default_item,
         radio_group_items,
-    );
+    ).build();
     context.add_component(radio_group);
     let components = context.components.blocking_read();
     let radio_group = components.get(component_index).unwrap();

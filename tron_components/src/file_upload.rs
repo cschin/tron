@@ -1,6 +1,9 @@
 use super::*;
 use tron_macro::*;
+use std::default::Default;
 
+
+#[allow(dead_code)]
 #[derive(ComponentBase)]
 pub struct TnFileUpload<'a: 'static> {
     base: TnComponentBase<'a>,
@@ -8,7 +11,7 @@ pub struct TnFileUpload<'a: 'static> {
     button_attributes: HashMap<String, String>,
 }
 
-impl TnFileUpload<'static> {
+impl TnFileUploadBuilder<'static> {
     pub fn new(
         idx: TnComponentIndex,
         tnid: String,
@@ -48,6 +51,7 @@ impl Default for TnFileUpload<'static> {
         }
     }
 }
+
 
 impl TnFileUpload<'static> {
     /// Renders the `TnScatterPlot` component.
@@ -110,7 +114,7 @@ impl TnFileUpload<'static> {
 }
 
 // Drag and Drop
-
+#[allow(dead_code)]
 #[derive(ComponentBase)]
 pub struct TnDnDFileUpload<'a: 'static> {
     base: TnComponentBase<'a>,
@@ -118,7 +122,7 @@ pub struct TnDnDFileUpload<'a: 'static> {
     button_attributes: HashMap<String, String>,
 }
 
-impl TnDnDFileUpload<'static> {
+impl TnDnDFileUploadBuilder<'static> {
     pub fn new(
         idx: TnComponentIndex,
         tnid: String,
@@ -145,6 +149,20 @@ impl TnDnDFileUpload<'static> {
             base,
             title,
             button_attributes,
+        }
+    }
+}
+
+impl Default for TnDnDFileUpload<'static> {
+    /// Returns the default instance of `TnScatterPlot`.
+    fn default() -> Self {
+        Self {
+            base: TnComponentBase {
+                value: TnComponentValue::None,
+                ..Default::default()
+            },
+            title: "File Upload".into(),
+            button_attributes: HashMap::default(),
         }
     }
 }

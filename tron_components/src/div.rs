@@ -3,12 +3,13 @@ use tron_macro::*;
 use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
 
 /// Represents a TextArea component.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnDiv<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl TnDiv<'static> {
+impl TnDivBuilder<'static> {
     /// Creates a new Div component with the specified ID, name, and value.
     pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
         let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::Div);

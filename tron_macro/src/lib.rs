@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 
 /// Procedural macro to derive the `TnComponentBaseTrait` for a custom component.
 ///
@@ -28,6 +28,10 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
 
     // Build the trait implementation
     let name = &ast.ident;
+    let builder_name = format_ident!("{}Builder", name);
+    let mut builder_ast = ast.clone();
+    builder_ast.ident = builder_name.clone();
+
     let gen = quote! {
         impl<'a> TnComponentBaseTrait<'a> for #name<'a> where 'a:'static {
             fn id(&self) -> TnComponentIndex {
@@ -162,6 +166,35 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             //     self.base.get_script()
             // }
         }
+
+        #[derive(Default)]
+        #builder_ast
+        
+        impl<'a:'static> #builder_name<'a>  {
+            // This method will help users to discover the builder
+            // pub fn builder() -> #builder_name<'static>  {
+            //     #builder_name::default()
+            // }
+
+            pub fn set_action(mut self, m: TnActionExecutionMethod, f: TnActionFn) -> #builder_name<'static> {
+                self.base.set_action(m, f);
+                self
+            }
+            
+            pub fn set_attribute(mut self, key: String, val: String) -> #builder_name<'static> {
+                self.base
+                    .attributes
+                    .insert(key, val);
+                self
+            }
+
+            pub fn build(self) -> #name<'a> {
+                #name {base: self.base, ..Default::default()}
+            } 
+           
+        }
+
+
     };
     gen.into()
 }

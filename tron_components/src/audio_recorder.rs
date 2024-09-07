@@ -11,13 +11,12 @@ pub struct SseAudioRecorderTriggerMsg {
 }
 
 /// Represents an audio recorder component.
-
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnAudioRecorder<'a: 'static> {
     base: TnComponentBase<'a>,
 }
-
-impl TnAudioRecorder<'static> {
+impl TnAudioRecorderBuilder<'static> {
     /// Creates a new `TnAudioRecorder` component with the specified index, name, and value.
     ///
     /// # Arguments

@@ -11,16 +11,20 @@ use tokio::sync::RwLock;
 use serde_json::Value;
 
 use tracing::debug;
+
 use tron_app::tron_components::{
-    self, text::append_and_update_stream_textarea_with_context, TnDnDFileUpload, TnFileUpload,
-};
-use tron_components::{
-    checklist, radio_group,
+    button::TnButtonBuilder,
+    checklist,
+    file_upload::{TnDnDFileUploadBuilder, TnFileUploadBuilder},
+    radio_group,
+    range_slider::TnRangeSliderBuilder,
+    select::TnSelectBuilder,
+    text::append_and_update_stream_textarea_with_context,
     text::{self, append_textarea_value},
-    TnActionExecutionMethod, TnButton, TnComponentBaseTrait, TnComponentState,
-    TnComponentValue, TnContext, TnContextBase, TnEvent, TnHtmlResponse, TnRangeSlider, TnSelect,
-    TnStreamTextArea, TnTextArea, TnTextInput,
+    TnActionExecutionMethod, TnComponentState, TnComponentValue, TnContext, TnContextBase, TnEvent,
+    TnHtmlResponse,
 };
+
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, str::FromStr, sync::Arc};
 
@@ -55,18 +59,17 @@ fn build_session_context() -> TnContext {
 
     let mut component_index = 0_u32;
     loop {
-        let mut btn = TnButton::<'static>::new(
+        let btn = TnButtonBuilder::new(
             component_index,
             format!("btn-{:02}", component_index),
             format!("{:02}", component_index),
-        );
-
-        btn.set_attribute(
+        )
+        .set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        );
-
-        btn.set_action(TnActionExecutionMethod::Spawn, test_event_actions);
+        )
+        .set_action(TnActionExecutionMethod::Spawn, test_event_actions)
+        .build();
 
         context.add_component(btn);
 
@@ -77,30 +80,30 @@ fn build_session_context() -> TnContext {
     }
 
     component_index += 1;
-    let mut stream_textarea = TnStreamTextArea::<'static>::new(
+    let stream_textarea = text::TnStreamTextAreaBuilder::new(
         component_index,
         "stream_textarea".into(),
         vec!["This is a streamable textarea\n".to_string()],
-    );
-
-    stream_textarea.set_attribute(
+    )
+    .set_attribute(
         "class".into(),
         "textarea textarea-bordered flex-1 h-20".into(),
-    );
+    )
+    .build();
 
     context.add_component(stream_textarea);
 
     component_index += 1;
-    let mut textarea = TnTextArea::<'static>::new(
+    let textarea = text::TnTextAreaBuilder::new(
         component_index,
         "textarea".into(),
         "This is a textarea\n".to_string(),
-    );
-
-    textarea.set_attribute(
+    )
+    .set_attribute(
         "class".into(),
         "textarea textarea-bordered flex-1 h-20".into(),
-    );
+    )
+    .build();
 
     context.add_component(textarea);
 
@@ -163,69 +166,75 @@ fn build_session_context() -> TnContext {
             ("three".into(), "Three".into()),
         ];
 
-        let select = TnSelect::<'static>::new(
+        let select = TnSelectBuilder::new(
             component_index,
             "select_one".into(),
             "one".into(),
             select_options,
-        );
+        )
+        .build();
         context.add_component(select);
     }
     {
         component_index += 1;
-        let mut slider =
-            TnRangeSlider::<'static>::new(component_index, "slider".into(), 0.0, 0.0, 100.0);
-        slider.set_attribute("class".to_string(), "flex-1".to_string());
-        slider.set_action(TnActionExecutionMethod::Await, slider_value_update);
+        let slider = TnRangeSliderBuilder::new(component_index, "slider".into(), 0.0, 0.0, 100.0)
+            .set_attribute("class".to_string(), "flex-1".to_string())
+            .set_action(TnActionExecutionMethod::Await, slider_value_update)
+            .build();
         context.add_component(slider);
     }
     {
         component_index += 1;
-        let mut clean_button = TnButton::<'static>::new(
+        let clean_button = TnButtonBuilder::new(
             component_index,
             "clean_stream_textarea".into(),
             "clean_stream_textarea".into(),
-        );
-        clean_button.set_attribute(
+        )
+        .set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        );
-        clean_button.set_attribute("hx-target".to_string(), "#stream_textarea".to_string());
-        clean_button.set_action(TnActionExecutionMethod::Await, clean_stream_textarea);
+        )
+        .set_attribute("hx-target".to_string(), "#stream_textarea".to_string())
+        .set_action(TnActionExecutionMethod::Await, clean_stream_textarea)
+        .build();
         context.add_component(clean_button);
     }
     {
         component_index += 1;
-        let mut clean_button = TnButton::<'static>::new(
+        let clean_button = TnButtonBuilder::new(
             component_index,
             "clean_textarea".into(),
             "clean_textarea".into(),
-        );
-        clean_button.set_attribute(
+        )
+        .set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        );
-        clean_button.set_action(TnActionExecutionMethod::Await, clean_textarea);
+        )
+        .set_action(TnActionExecutionMethod::Await, clean_textarea)
+        .build();
         context.add_component(clean_button);
     }
     {
         component_index += 1;
-        let mut clean_button = TnButton::<'static>::new(
+        let clean_button = TnButtonBuilder::new(
             component_index,
             "clean_textinput".into(),
             "clean_textinput".into(),
-        );
-        clean_button.set_attribute(
+        )
+        .set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        );
-        clean_button.set_action(TnActionExecutionMethod::Await, clean_textinput);
+        )
+        .set_action(TnActionExecutionMethod::Await, clean_textinput)
+        .build();
         context.add_component(clean_button);
     }
     {
         component_index += 1;
-        let mut textinput = TnTextInput::new(component_index, "textinput".into(), "".into());
-        textinput.set_attribute("class".into(), "input input-bordered w-full".into());
+        let textinput =
+            text::TnTextInputBuilder::new(component_index, "textinput".into(), "".into())
+                .set_attribute("class".into(), "input input-bordered w-full".into())
+                .build();
 
         context.add_component(textinput);
     }
@@ -237,13 +246,14 @@ fn build_session_context() -> TnContext {
         )]
         .into_iter()
         .collect::<HashMap<String, String>>();
-        let mut file_upload = TnFileUpload::new(
+        let file_upload = TnFileUploadBuilder::new(
             component_index,
             "file_upload".into(),
             "Upload File".into(),
             button_attributes,
-        );
-        file_upload.set_action(TnActionExecutionMethod::Await, handle_file_upload);
+        )
+        .set_action(TnActionExecutionMethod::Await, handle_file_upload)
+        .build();
         context.add_component(file_upload);
     }
 
@@ -256,13 +266,14 @@ fn build_session_context() -> TnContext {
         .into_iter()
         .collect::<HashMap<String, String>>();
 
-        let mut dnd_file_upload = TnDnDFileUpload::new(
+        let dnd_file_upload = TnDnDFileUploadBuilder::new(
             component_index,
             "dnd_file_upload".into(),
             "Drop A File".into(),
             button_attributes,
-        );
-        dnd_file_upload.set_action(TnActionExecutionMethod::Await, handle_file_upload);
+        )
+        .set_action(TnActionExecutionMethod::Await, handle_file_upload)
+        .build();
 
         context.add_component(dnd_file_upload);
     }
@@ -454,7 +465,7 @@ fn clean_textarea(
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
         text::clean_textarea_with_context(&context, "textarea").await;
-        context.set_ready_for(&event.e_trigger).await; 
+        context.set_ready_for(&event.e_trigger).await;
         let html = context.render_component(&event.e_trigger).await;
         Some((HeaderMap::new(), Html::from(html)))
     };

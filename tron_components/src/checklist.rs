@@ -3,12 +3,13 @@ use futures_util::Future;
 use tron_macro::*;
 
 /// Represents a checklist component.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnCheckList<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl TnCheckList<'static> {
+impl TnCheckListBuilder<'static> {
     /// Creates a new checklist component with the specified ID, name, and values.
     pub fn new(id: TnComponentIndex, name: String, value: HashMap<String, bool>) -> Self {
         let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
@@ -61,12 +62,13 @@ impl TnCheckList<'static> {
     pub fn internal_post_render(&mut self) {}
 }
 /// Represents a checkbox component.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnCheckBox<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl TnCheckBox<'static> {
+impl TnCheckBoxBuilder<'static> {
     /// Creates a new checkbox component.
     pub fn new(id: TnComponentIndex, name: String, value: bool) -> Self {
         let mut base =
@@ -81,7 +83,7 @@ impl TnCheckBox<'static> {
         base.set_attribute("hx-swap".into(), "none".into());
         //component_base.set_attribute("type".into(), "checkbox".into());
         base.asset = Some(HashMap::default());
-        base.set_action(TnActionExecutionMethod::Await,toggle_checkbox); 
+        base.set_action(TnActionExecutionMethod::Await, toggle_checkbox);
         Self { base }
     }
 }
@@ -168,7 +170,8 @@ pub fn add_checklist_to_context(
         .map(|(child_trod_id, label)| {
             *component_index += 1;
             let checkbox_index = *component_index;
-            let mut checkbox = TnCheckBox::new(checkbox_index, child_trod_id.clone(), false);
+            let mut checkbox =
+                TnCheckBoxBuilder::new(checkbox_index, child_trod_id.clone(), false).build();
             let asset = checkbox.get_mut_assets().unwrap();
             asset.insert(
                 "container_attributes".into(),
@@ -184,7 +187,8 @@ pub fn add_checklist_to_context(
         .collect::<Vec<_>>();
 
     *component_index += 1;
-    let checklist = TnCheckList::new(*component_index, checklist_tron_id, HashMap::default());
+    let checklist =
+        TnCheckListBuilder::new(*component_index, checklist_tron_id, HashMap::default()).build();
     context.add_component(checklist);
     let components = context.components.blocking_read();
     let checklist = components.get(component_index).unwrap();

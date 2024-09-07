@@ -35,7 +35,8 @@ use tron_app::{
         self, button,
         chatbox::clean_chatbox_with_context,
         d3_plot::SseD3PlotTriggerMsg,
-        div::{clean_div_with_context, update_and_send_div_with_context},
+        div::{clean_div_with_context, update_and_send_div_with_context, TnDivBuilder},
+        file_upload::TnDnDFileUploadBuilder,
         text::{
             append_and_update_stream_textarea_with_context, clean_stream_textarea_with_context,
             clean_textarea_with_context, update_and_send_textarea_with_context,
@@ -129,24 +130,25 @@ fn add_dnd_file_upload(component_index: u32, context: &mut TnContextBase, tnid: 
     .into_iter()
     .collect::<HashMap<String, String>>();
 
-    let mut dnd_file_upload = TnDnDFileUpload::new(
+    let dnd_file_upload = TnDnDFileUploadBuilder::new(
         component_index,
         tnid.into(),
         "Drop A File".into(),
         button_attributes,
-    );
-    dnd_file_upload.set_action(TnActionExecutionMethod::Await, handle_file_upload);
+    )
+    .set_action(TnActionExecutionMethod::Await, handle_file_upload)
+    .build();
 
     context.add_component(dnd_file_upload);
 }
 
 fn add_image_output_area(component_index: u32, context: &mut TnContextBase, tnid: &str) {
-    let image_output = TnDiv::new(component_index, tnid.into(), "".into());
+    let image_output = TnDivBuilder::new(component_index, tnid.into(), "".into()).build();
     context.add_component(image_output);
 }
 
 fn add_input_image_area(component_index: u32, context: &mut TnContextBase, tnid: &str) {
-    let input_image = TnDiv::new(component_index, tnid.into(), "".into());
+    let input_image = TnDivBuilder::new(component_index, tnid.into(), "".into()).build();
     context.add_component(input_image);
 }
 

@@ -2,12 +2,13 @@ use super::*;
 use tron_macro::*;
 
 /// Represents a select component.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnSelect<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl TnSelect<'static> {
+impl TnSelectBuilder<'static> {
     /// Creates a new select component.
     ///
     /// # Arguments

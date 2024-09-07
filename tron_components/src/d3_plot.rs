@@ -8,28 +8,14 @@ pub struct SseD3PlotTriggerMsg {
     pub d3_plot: String,
 }
 
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnD3Plot<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl TnD3Plot<'static> {
-    /// Creates a new `TnComponent` instance specifically for a D3 simple scatter plot visualization.
-    ///
-    /// # Arguments
-    /// * `idx`: The index of the component in the parent container.
-    /// * `tnid`: A unique identifier for the component.
-    /// * `d3_plot_script`: A string containing the JavaScript code for a D3 simple scatter plot.
-    ///
-    /// # Returns
-    /// Returns a new instance of the component, initialized with the provided `idx`, `tnid`, and `d3_plot_script`,
-    /// and configured with attributes specific for handling a D3 scatter plot, including interactive JavaScript actions.
-    ///
-    /// The component is also set with attributes to specify its behavior on certain events like `click`,
-    /// with specific data handling and swap behavior defined using `hx-trigger`, `hx-swap`, and `hx-vals` attributes.
-    ///
-    /// An external JavaScript file for the D3 scatter plot is included and linked to the component's script property.
-    pub fn new(idx: TnComponentIndex, tnid: String, d3_plot_script: String) -> Self {
+impl<'a:'static> TnD3PlotBuilder<'a>  {
+    pub fn new(idx: TnComponentIndex, tnid: String, d3_plot_script: String) -> TnD3PlotBuilder<'a> {
         let mut base = TnComponentBase::new("div".into(), idx, tnid, TnComponentType::D3Plot);
         base.set_value(TnComponentValue::String(d3_plot_script));
         base.set_attribute("type".into(), "d3_simple_scatter_plot".into());
@@ -41,9 +27,8 @@ impl TnD3Plot<'static> {
             "hx-vals".into(),
             r##"js:{event_data:get_event_with_coordinate(event)}"##.into(),
         );
-
-        Self { base }
-    }
+        TnD3PlotBuilder {base}
+    }    
 }
 
 impl Default for TnD3Plot<'static> {

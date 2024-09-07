@@ -21,12 +21,14 @@ pub struct SseAudioPlayerTriggerMsg {
 /// Represents an audio player component in the application.
 ///
 /// This component provides functionality for playing audio content within the application.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnAudioPlayer<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a: 'static> TnAudioPlayer<'a> {
+
+impl<'a: 'static> TnAudioPlayerBuilder<'a> {
     /// Creates a new instance of `TnAudioPlayer` with the specified index, ID, and audio source URL.
     ///
     /// # Arguments
@@ -53,6 +55,7 @@ impl<'a: 'static> TnAudioPlayer<'a> {
         Self { base }
     }
 }
+
 
 impl<'a: 'static> Default for TnAudioPlayer<'a> {
     /// Returns the default instance of `TnAudioPlayer`.

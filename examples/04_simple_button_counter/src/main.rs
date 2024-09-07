@@ -11,7 +11,9 @@ use tokio::sync::{mpsc::Sender, RwLock};
 use serde_json::Value;
 
 use tracing::debug;
-use tron_app::tron_components::{self, TnActionExecutionMethod, TnAsset, TnHtmlResponse};
+use tron_app::tron_components::{
+    self, button::TnButtonBuilder, TnActionExecutionMethod, TnAsset, TnHtmlResponse,
+};
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
     TnContext, TnContextBase, TnEvent, TnTextArea,
@@ -46,15 +48,15 @@ fn build_context() -> TnContext {
     let mut context = TnContextBase::default();
 
     let component_index = 0;
-    let mut btn = TnButton::new(component_index, BUTTON.into(), "click me".into());
-    btn.set_attribute(
-        "class".to_string(),
-        "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-    );
-
-    btn.set_attribute("hx-target".to_string(), "#count".to_string());
-    btn.set_attribute("hx-swap".to_string(), "innerHTML".to_string());
-    btn.set_action(TnActionExecutionMethod::Await, button_clicked);
+    let btn = TnButtonBuilder::new(component_index, BUTTON.into(), "click me".into())
+        .set_attribute(
+            "class".to_string(),
+            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+        )
+        .set_attribute("hx-target".to_string(), "#count".to_string())
+        .set_attribute("hx-swap".to_string(), "innerHTML".to_string())
+        .set_action(TnActionExecutionMethod::Await, button_clicked)
+        .build();
     context
         .assets
         .blocking_write()

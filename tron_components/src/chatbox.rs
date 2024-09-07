@@ -3,23 +3,24 @@ use tron_macro::*;
 use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
 
 /// A component representing a chat box.
+#[non_exhaustive]
 #[derive(ComponentBase)]
 pub struct TnChatBox<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-/// Creates a new instance of `TnChatBox`.
-///
-/// # Arguments
-///
-/// * `idx` - The unique identifier of the chat box.
-/// * `tnid` - The name of the chat box.
-/// * `value` - Initial messages to be displayed in the chat box, each message consists of a tuple containing the sender and the message content.
-///
-/// # Returns
-///
-/// A new instance of `TnChatBox`.
-impl TnChatBox<'static> {
+impl TnChatBoxBuilder<'static> {
+    /// Creates a new instance of `TnChatBox`.
+    ///
+    /// # Arguments
+    ///
+    /// * `idx` - The unique identifier of the chat box.
+    /// * `tnid` - The name of the chat box.
+    /// * `value` - Initial messages to be displayed in the chat box, each message consists of a tuple containing the sender and the message content.
+    ///
+    /// # Returns
+    ///
+    /// A new instance of `TnChatBox`.
     pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<(String, String)>) -> Self {
         let mut base = TnComponentBase::new("div".into(), idx, tnid, TnComponentType::ChatBox);
         base.set_value(TnComponentValue::VecString2(value));
@@ -49,6 +50,7 @@ impl TnChatBox<'static> {
         Self { base }
     }
 }
+
 
 impl Default for TnChatBox<'static> {
     /// Creates a default instance of `TnChatBox` with an empty message list.

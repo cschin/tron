@@ -52,7 +52,6 @@ pub type SessionId = tower_sessions::session::Id;
 /// Represents a session context containing mappings of session IDs to Tron contexts.
 pub type SessionContext = RwLock<HashMap<SessionId, TnContext>>;
 
-
 /// Alias for a context builder function.
 type ContextBuilder = Arc<Box<dyn Fn() -> TnContext + Send + Sync>>;
 
@@ -150,11 +149,7 @@ impl Default for AppConfigure {
 /// ```
 pub async fn run(app_share_data: AppData, config: AppConfigure) {
     let log_level = config.log_level;
-    let log_level = if let Some(log_level) = log_level {
-        log_level
-    } else {
-        "server=info,tower_http=info,tron_app=info"
-    };
+    let log_level = log_level.unwrap_or("server=info,tower_http=info,tron_app=info");
 
     tracing_subscriber::registry()
         .with(
@@ -483,11 +478,11 @@ async fn tron_entry(
 
         let has_event_action = {
             let context_guard = app_data.context.read().await;
-            let context = context_guard.get(&session_id).unwrap().clone(); 
+            let context = context_guard.get(&session_id).unwrap().clone();
             let c = context.get_component_by_id(tron_index).await;
             let c = c.read().await;
             c.get_action().is_some()
-        }; 
+        };
 
         if has_event_action {
             let (action_exec_method, action_generator) = {
@@ -495,7 +490,7 @@ async fn tron_entry(
                 let context = context_guard.get(&session_id).unwrap().clone();
                 let c = context.get_component_by_id(tron_index).await;
                 let c = c.read().await;
-                c.get_action().as_ref().unwrap().clone() 
+                c.get_action().as_ref().unwrap().clone()
             };
             let context_guard = app_data.context.read().await;
             let context = context_guard.get(&session_id).unwrap().clone();

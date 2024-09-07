@@ -58,6 +58,7 @@ pub type TnComponent<'a> = Arc<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>;
 /// - `String(String)`: A single string value.
 /// - `VecString(Vec<String>)`: A list of strings.
 /// - `VecString2(Vec<(String, String)>)`: A list of string pairs.
+/// - `VecDequeString(VecDeque<String>)`: A double-ended queue of strings.
 /// - `CheckItems(HashMap<String, bool>)`: A map of strings to boolean values, typically used for checkboxes.
 /// - `CheckItem(bool)`: A single boolean value, typically used for a checkbox.
 /// - `RadioItem(bool)`: A boolean value, typically used for a radio button.
@@ -79,11 +80,18 @@ pub enum TnComponentValue {
 /// Variants include:
 /// - `None`: Represents no asset.
 /// - `VecU8(Vec<u8>)`: A vector of bytes.
+/// - `VecF32(Vec<f32>)`: A vector of 32-bit floating-point numbers.
+/// - `VecF32_2(Vec<(f32, f32)>)`: A vector of 2D float tuples.
+/// - `VecF32_3(Vec<(f32, f32, f32)>)`: A vector of 3D float tuples.
+/// - `VecF32_4(Vec<(f32, f32, f32, f32)>)`: A vector of 4D float tuples.
 /// - `VecString(Vec<String>)`: A vector of strings.
 /// - `VecString2(Vec<(String, String)>)`: A vector of string pairs.
 /// - `HashMapString(HashMap<String, String>)`: A hash map with string keys and values.
+/// - `HashMapVecU8(HashMap<String, Vec<u8>>)`: A hash map with string keys and byte vector values.
+/// - `HashSetU32(HashSet<u32>)`: A hash set of 32-bit unsigned integers.
 /// - `String(String)`: A single string value.
 /// - `Bytes(BytesMut)`: A mutable buffer of bytes.
+/// - `U32(u32)`: A 32-bit unsigned integer.
 /// - `Value(Value)`: A JSON value.
 /// - `Bool(bool)`: A boolean value.
 #[derive(Debug, Clone)]
@@ -123,6 +131,10 @@ pub enum TnAsset {
 /// - `Slider`: A slider component.
 /// - `RadioGroup`: A group of radio buttons.
 /// - `RadioItem`: A single radio button.
+/// - `D3Plot`: A component for D3 plotting.
+/// - `FileUpload`: A component for file uploads.
+/// - `DnDFileUpload`: A component for drag-and-drop file uploads.
+/// - `Div`: A generic division or container component.
 /// - `UserDefined(String)`: A user-defined component specified by a string identifier.
 #[derive(PartialEq, Eq, Debug, Clone, Hash, Default)]
 pub enum TnComponentType {
@@ -187,7 +199,6 @@ type TnComponentAsset = Option<HashMap<String, TnAsset>>;
 /// - `children`: A vector of child components.
 /// - `parent`: A weak reference to the parent component, encapsulated in a read-write lock.
 /// - `script`: Optional custom script associated with the component.
-
 pub struct TnComponentBase<'a: 'static> {
     pub tag: TnElmTag,
     pub type_: TnComponentType,
@@ -209,19 +220,18 @@ pub struct TnComponentBase<'a: 'static> {
 /// - `request`: A string specifying the request type or action to be performed.
 /// - `payload`: The `TnAsset` associated with the request, representing any data needed for the request.
 /// - `response`: A `oneshot::Sender<String>` used to send back a response string from the service handler.
-
 #[derive(Debug)]
 pub struct TnServiceRequestMsg {
     pub request: String,
     pub payload: TnAsset,
     pub response: oneshot::Sender<String>,
 }
+
 /// Represents a service response message structure used in inter-service communication.
 ///
 /// Fields:
 /// - `response`: A string containing the response or outcome of the service request.
 /// - `payload`: The `TnAsset` accompanying the response, which can contain additional data relevant to the response.
-
 #[derive(Debug)]
 pub struct TnServiceResponseMsg {
     pub response: String,
@@ -236,7 +246,6 @@ pub struct TnServiceResponseMsg {
 ///   over a channel. This allows one part of the code to send messages to another part asynchronously.
 /// * `rx`: The `rx` property is an optional field that holds a `Receiver<String>`. It is initially set
 ///   to `Some(receiver)` but will be moved out and replaced by `None` at some point.
-
 pub struct TnSseMsgChannel {
     pub tx: Sender<String>,
     pub rx: Option<Receiver<String>>, // this will be moved out and replaced by None
@@ -290,11 +299,14 @@ pub type TnService = (
 ///
 /// Fields:
 /// - `components`: A `TnComponentMap` that maps component IDs to their corresponding component structures.
+/// - `scripts`: A `HashMap` mapping `TnComponentType` to their associated scripts as `String`s.
 /// - `stream_data`: A `TnStreamMap` that manages the streaming data associated with various components.
-/// - `asset`: A `TnContextAsset`, which is a thread-safe map storing assets linked to the context.
+/// - `assets`: A `TnContextAssets`, which is a thread-safe map storing assets linked to the context.
 /// - `sse_channel`: A `TnSseChannel` for managing server-sent events communication.
 /// - `tnid_to_index`: A hash map mapping component IDs (`TnComponentId`) to their indices (`TnComponentIndex`).
+/// - `service_handles`: A vector of `JoinHandle`s for managing service threads.
 /// - `services`: A hash map that maps service names (`TnServiceName`) to their corresponding service handlers (`TnService`).
+/// - `next_index`: A `u32` value used to generate the next component index.
 pub struct TnContextBase<'a: 'static> {
     pub components: TnComponentMap<'a>, // component ID mapped to Component structs
     pub scripts: HashMap<TnComponentType, String>,
@@ -396,6 +408,7 @@ impl TnContextBase<'static> {
         component.first_render()
     }
 
+    /// Returns and increments the next available index.
     pub fn next_index(&mut self) -> u32 {
         let rtn = self.next_index;
         self.next_index += 1;
@@ -413,14 +426,12 @@ impl TnContextBase<'static> {
 /// - `base`: An `Arc<RwLock<TnContextBase<'static>>>` that holds the core context structure,
 ///   allowing for concurrent read/write access to the components, assets, and other elements
 ///   managed by `TnContextBase`.
-
 #[derive(Clone)]
 pub struct TnContext {
     pub base: Arc<RwLock<TnContextBase<'static>>>,
 }
 
 /// Provides methods for managing and interacting with `TnContextBase`, facilitating asynchronous and blocking access to its properties and functions.
-
 impl TnContext {
     /// Asynchronously acquires a read lock on the `TnContextBase`.
     pub async fn read(&self) -> RwLockReadGuard<TnContextBase<'static>> {
@@ -570,16 +581,19 @@ impl TnContext {
         }
     }
 
+    /// Retrieves the sender for a service's request channel by service ID.
     pub async fn get_service_tx(&self, service_id: &str) -> Sender<TnServiceRequestMsg> {
         let context_guard = self.read().await;
         context_guard.services.get(service_id).unwrap().0.clone()
     }
 
+    /// Returns a reference to the shared asset map.
     pub async fn get_asset_ref(&self) -> Arc<RwLock<HashMap<String, TnAsset>>> {
         let context_guard = self.write().await;
         context_guard.assets.clone()
     }
 
+    /// Aborts all running services and clears the service registry.
     pub async fn abort_all_services(&mut self) {
         let mut guard = self.write().await;
         guard.service_handles.iter().for_each(|handle| {
@@ -595,6 +609,11 @@ impl Default for TnContextBase<'static> {
         Self::new()
     }
 }
+
+/// Defines the base functionality for Tron components.
+/// This trait provides methods for managing component properties,
+/// rendering, handling attributes and headers, managing children and parents,
+/// and setting actions.
 
 pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn id(&self) -> TnComponentIndex;
@@ -728,77 +747,73 @@ impl Default for TnComponentBase<'static> {
     }
 }
 
-/// Provides an implementation of `TnComponentBaseTrait` for `TnComponentBase`.
+/// Implementation of the TnComponentBaseTrait for TnComponentBase
 ///
-/// This trait implementation includes methods to access and manipulate component properties.
-/// Methods include:
-/// - `id()`: Returns the component's ID.
-/// - `tron_id()`: Returns a reference to the component's Tron ID.
-/// - `get_type()`: Returns the component's type.
-/// - `attributes()`: Returns a reference to the component's attributes.
-/// - `set_attribute(key, val)`: Sets an attribute for the component.
-/// - `remove_attribute(key)`: Removes an attribute from the component.
-/// - `extra_headers()`: Returns a reference to the component's extra response headers.
-/// - `set_header(key, val)`: Sets a response header for the component.
-/// - `remove_header(key)`: Removes a response header.
-/// - `clear_header()`: Clears all response headers.
-/// - `generate_attr_string()`: Generates a string of HTML attributes for the component.
-/// - `value()`: Returns a reference to the component's value.
-/// - `get_mut_value()`: Returns a mutable reference to the component's value.
-/// - `set_value(new_value)`: Sets the component's value.
-/// - `set_state(new_state)`: Sets the component's state and updates the state attribute.
-/// - `state()`: Returns a reference to the component's state.
-/// - `get_assets()`: Returns an optional reference to the component's assets.
-/// - `get_mut_assets()`: Returns an optional mutable reference to the component's assets.
-/// - `get_children()`: Returns a reference to the component's child components.
-/// - `get_mut_children()`: Returns a mutable reference to the component's child components.
-/// - `add_child(child)`: Adds a child to the component.
-/// - `add_parent(parent)`: Sets the parent for the component.
-/// - `get_parent()`: Returns the component's parent.
-/// - `first_render()`: First render logic (unimplemented).
-/// - `render()`: Render logic (unimplemented).
-/// - `get_script()`: Returns an optional clone of the component's script.
+/// This implementation provides methods for managing various aspects of a Tron component,
+/// including its identifier, attributes, state, value, children, and actions. It also
+/// includes placeholder methods for rendering and lifecycle operations.
+///
+/// Key features:
+/// - Getters and setters for component properties (id, type, attributes, state, etc.)
+/// - Methods for managing extra response headers
+/// - Attribute string generation
+/// - Child component management
+/// - Parent component reference
+/// - Asset management
+/// - Action setting and retrieval
+/// - Placeholder methods for rendering and lifecycle operations (first_render, pre_render, render, post_render)
 impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
+    /// Returns the component's unique identifier
     fn id(&self) -> u32 {
         self.id
     }
 
+    /// Returns a reference to the component's Tron identifier
     fn tron_id(&self) -> &TnComponentId {
         &self.tron_id
     }
 
+    /// Returns the component's type
     fn get_type(&self) -> TnComponentType {
         self.type_.clone()
     }
 
+    /// Returns a reference to the component's attributes
     fn attributes(&self) -> &TnElmAttributes {
         &self.attributes
     }
 
+    /// Sets an attribute for the component
     fn set_attribute(&mut self, key: String, val: String) {
         self.attributes.insert(key, val);
     }
 
+    /// Removes an attribute from the component
     fn remove_attribute(&mut self, key: String) {
         self.attributes.remove(&key);
     }
 
+    /// Returns a reference to the component's extra response headers
     fn extra_headers(&self) -> &TnExtraResponseHeader {
         &self.extra_response_headers
     }
 
+    /// Sets an extra response header for the component
     fn set_header(&mut self, key: String, val: (String, bool)) {
         self.extra_response_headers.insert(key, val);
     }
 
+    /// Removes an extra response header from the component
     fn remove_header(&mut self, key: String) {
         self.extra_response_headers.remove(&key);
     }
 
+    /// Clears all extra response headers from the component
     fn clear_header(&mut self) {
         self.extra_response_headers.clear();
     }
 
+    /// Generates a string representation of the component's attributes
     fn generate_attr_string(&self) -> String {
         self.attributes
             .iter()
@@ -813,18 +828,22 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
             .join(" ")
     }
 
+    /// Returns a reference to the component's value
     fn value(&self) -> &TnComponentValue {
         &self.value
     }
 
+    /// Returns a mutable reference to the component's value
     fn get_mut_value(&mut self) -> &mut TnComponentValue {
         &mut self.value
     }
 
+    /// Sets the component's value
     fn set_value(&mut self, _new_value: TnComponentValue) {
         self.value = _new_value;
     }
 
+    /// Sets the component's state and updates the 'state' attribute
     fn set_state(&mut self, new_state: TnComponentState) {
         self.state = new_state;
         let state = match self.state {
@@ -837,79 +856,81 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
         self.attributes.insert("state".into(), state.into());
     }
 
+    /// Returns a reference to the component's state
     fn state(&self) -> &TnComponentState {
         &self.state
     }
 
+    /// Creates the assets HashMap for the component
     fn create_assets(&mut self) {
         self.asset = Some(HashMap::default());
     }
 
+    /// Returns a reference to the component's assets, if they exist
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>> {
-        if let Some(assets) = self.asset.as_ref() {
-            Some(assets)
-        } else {
-            None
-        }
+        self.asset.as_ref()
     }
 
+    /// Returns a mutable reference to the component's assets, if they exist
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>> {
-        if let Some(assets) = self.asset.as_mut() {
-            Some(assets)
-        } else {
-            None
-        }
+        self.asset.as_mut()
     }
 
+    /// Returns a reference to the component's children
     fn get_children(&self) -> &Vec<TnComponent<'static>> {
         &self.children
     }
 
+    /// Returns a mutable reference to the component's children
     fn get_mut_children(&mut self) -> &mut Vec<TnComponent<'static>> {
         &mut self.children
     }
 
+    /// Adds a child component to this component
     fn add_child(&mut self, child: TnComponent<'static>) {
         self.children.push(child);
     }
 
+    /// Sets the parent component for this component
     fn add_parent(&mut self, parent: TnComponent<'static>) {
         self.parent = Arc::downgrade(&parent);
     }
 
+    /// Returns the parent component of this component
     fn get_parent(&self) -> TnComponent<'static> {
         Weak::upgrade(&self.parent).unwrap()
     }
 
+    /// Performs the first render of the component (unimplemented)
     fn first_render(&self) -> String {
         unimplemented!()
     }
 
+    /// Performs pre-render operations (unimplemented)
     fn pre_render(&mut self) {
         unimplemented!()
     }
 
+    /// Renders the component (unimplemented)
     fn render(&self) -> String {
         unimplemented!()
     }
 
+    /// Performs post-render operations (unimplemented)
     fn post_render(&mut self) {
         unimplemented!()
     }
 
+    /// Sets the action for the component
     fn set_action(&mut self, m: TnActionExecutionMethod, f: TnActionFn) {
         self.action = Some((m, f));
     }
 
+    /// Returns a reference to the component's action, if it exists
     fn get_action(&self) -> &Option<(TnActionExecutionMethod, TnActionFn)> {
         &self.action
     }
-
-    // fn get_script(&self) -> Option<String> {
-    //     self.script.clone()
-    // }
 }
-
 /// Represents a Tron event.
 ///
 /// This struct encapsulates various properties of a Tron event, including its trigger, type, state, target, and header target.
@@ -926,6 +947,7 @@ pub struct TnEvent {
     #[serde(default)]
     pub h_target: Option<String>,
 }
+
 use tokio::sync::{mpsc::Sender, RwLock};
 use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
 

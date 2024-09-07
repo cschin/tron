@@ -95,12 +95,9 @@ static GS_SERVICE: &str = "gs_service";
 fn build_context() -> TnContext {
     let mut context = TnContextBase::default();
 
-    let mut component_index = 0;
-    add_dnd_file_upload(component_index, &mut context, DND_FILE_UPLOAD);
-    component_index += 1;
-    add_image_output_area(component_index, &mut context, IMAGE_OUTPUT_AREA);
-    component_index += 1;
-    add_input_image_area(component_index, &mut context, INPUT_IMAGE_AREA);
+    add_dnd_file_upload(context.next_index(), &mut context, DND_FILE_UPLOAD);
+    add_image_output_area(context.next_index(), &mut context, IMAGE_OUTPUT_AREA);
+    add_input_image_area(context.next_index(), &mut context, INPUT_IMAGE_AREA);
 
     // add service
 

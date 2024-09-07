@@ -56,13 +56,12 @@ async fn main() {
 
 fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
-
-    let mut component_index = 0_u32;
+    let mut btn_idx = 0_u32;
     loop {
         let btn = TnButtonBuilder::new(
-            component_index,
-            format!("btn-{:02}", component_index),
-            format!("{:02}", component_index),
+            context.next_index(),
+            format!("btn-{:02}", btn_idx),
+            format!("{:02}", btn_idx),
         )
         .set_attribute(
             "class".to_string(),
@@ -73,15 +72,14 @@ fn build_session_context() -> TnContext {
 
         context.add_component(btn);
 
-        component_index += 1;
-        if component_index >= 10 {
+        btn_idx += 1;
+        if btn_idx >= 10 {
             break;
         }
     }
 
-    component_index += 1;
     let stream_textarea = text::TnStreamTextAreaBuilder::new(
-        component_index,
+        context.next_index(),
         "stream_textarea".into(),
         vec!["This is a streamable textarea\n".to_string()],
     )
@@ -93,9 +91,8 @@ fn build_session_context() -> TnContext {
 
     context.add_component(stream_textarea);
 
-    component_index += 1;
     let textarea = text::TnTextAreaBuilder::new(
-        component_index,
+        context.next_index(),
         "textarea".into(),
         "This is a textarea\n".to_string(),
     )
@@ -107,7 +104,6 @@ fn build_session_context() -> TnContext {
 
     context.add_component(textarea);
 
-    component_index += 1;
 
     let checklist_items = vec![
         ("checkbox-1".to_string(), "CHECKBOX 1".to_string()),
@@ -121,12 +117,12 @@ fn build_session_context() -> TnContext {
     let container_attributes = vec![("class".to_string(), "flex-1".to_string())];
     checklist::add_checklist_to_context(
         &mut context,
-        &mut component_index,
-        checklist_tron_id,
+        &checklist_tron_id,
         checklist_items,
         container_attributes,
     );
     {
+        let component_index = context.get_component_index(&checklist_tron_id);
         let component_guard = context.components.blocking_read();
         let checklist_guard = component_guard.get(&component_index).unwrap();
         checklist_guard
@@ -134,7 +130,6 @@ fn build_session_context() -> TnContext {
             .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
     }
 
-    component_index += 1;
     let radio_group_items = vec![
         ("radio-1".to_string(), "Radio 1".to_string()),
         ("radio-2".to_string(), "Radio 2".to_string()),
@@ -145,13 +140,13 @@ fn build_session_context() -> TnContext {
     let container_attributes = vec![("class".to_string(), "flex-1".to_string())];
     radio_group::add_radio_group_to_context(
         &mut context,
-        &mut component_index,
-        radio_group_tron_id,
+        &radio_group_tron_id,
         radio_group_items,
         container_attributes,
         "radio-1".into(),
     );
     {
+        let component_index = context.get_component_index(&radio_group_tron_id);
         let component_guard = context.components.blocking_read();
         let radio_group_guard = component_guard.get(&component_index).unwrap();
         radio_group_guard
@@ -159,7 +154,7 @@ fn build_session_context() -> TnContext {
             .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
     }
     {
-        component_index += 1;
+        let component_index = context.next_index();
         let select_options = vec![
             ("one".into(), "One".into()),
             ("two".into(), "Two".into()),
@@ -176,17 +171,15 @@ fn build_session_context() -> TnContext {
         context.add_component(select);
     }
     {
-        component_index += 1;
-        let slider = TnRangeSliderBuilder::new(component_index, "slider".into(), 0.0, 0.0, 100.0)
+        let slider = TnRangeSliderBuilder::new(context.next_index(), "slider".into(), 0.0, 0.0, 100.0)
             .set_attribute("class".to_string(), "flex-1".to_string())
             .set_action(TnActionExecutionMethod::Await, slider_value_update)
             .build();
         context.add_component(slider);
     }
     {
-        component_index += 1;
         let clean_button = TnButtonBuilder::new(
-            component_index,
+            context.next_index(),
             "clean_stream_textarea".into(),
             "clean_stream_textarea".into(),
         )
@@ -200,9 +193,8 @@ fn build_session_context() -> TnContext {
         context.add_component(clean_button);
     }
     {
-        component_index += 1;
         let clean_button = TnButtonBuilder::new(
-            component_index,
+            context.next_index(),
             "clean_textarea".into(),
             "clean_textarea".into(),
         )
@@ -215,9 +207,8 @@ fn build_session_context() -> TnContext {
         context.add_component(clean_button);
     }
     {
-        component_index += 1;
         let clean_button = TnButtonBuilder::new(
-            component_index,
+            context.next_index(),
             "clean_textinput".into(),
             "clean_textinput".into(),
         )
@@ -230,16 +221,14 @@ fn build_session_context() -> TnContext {
         context.add_component(clean_button);
     }
     {
-        component_index += 1;
         let textinput =
-            text::TnTextInputBuilder::new(component_index, "textinput".into(), "".into())
+            text::TnTextInputBuilder::new(context.next_index(), "textinput".into(), "".into())
                 .set_attribute("class".into(), "input input-bordered w-full".into())
                 .build();
 
         context.add_component(textinput);
     }
     {
-        component_index += 1;
         let button_attributes = vec![(
             "class".into(),
             "btn btn-sm btn-outline btn-primary flex-1".into(),
@@ -247,7 +236,7 @@ fn build_session_context() -> TnContext {
         .into_iter()
         .collect::<HashMap<String, String>>();
         let file_upload = TnFileUploadBuilder::new(
-            component_index,
+            context.next_index(),
             "file_upload".into(),
             "Upload File".into(),
             button_attributes,
@@ -258,7 +247,6 @@ fn build_session_context() -> TnContext {
     }
 
     {
-        component_index += 1;
         let button_attributes = vec![(
             "class".into(),
             "btn btn-sm btn-outline btn-primary flex-1".into(),
@@ -267,7 +255,7 @@ fn build_session_context() -> TnContext {
         .collect::<HashMap<String, String>>();
 
         let dnd_file_upload = TnDnDFileUploadBuilder::new(
-            component_index,
+            context.next_index(),
             "dnd_file_upload".into(),
             "Drop A File".into(),
             button_attributes,

@@ -204,8 +204,7 @@ impl TnRadioItem<'static> {
 
 pub fn add_radio_group_to_context(
     context: &mut TnContextBase<'static>,
-    component_index: &mut u32,
-    radio_group_tron_id: String,
+    radio_group_tron_id: &str,
     radio_group_items: Vec<(String, String)>,
     container_attributes: Vec<(String, String)>,
     default_item: String,
@@ -213,8 +212,7 @@ pub fn add_radio_group_to_context(
     let children_ids = radio_group_items
         .iter()
         .map(|(child_trod_id, label)| {
-            *component_index += 1;
-            let radio_item_index = *component_index;
+            let radio_item_index = context.next_index();
             let is_default_item = *child_trod_id == default_item;
             let mut radio_item =
                 TnRadioItem::new(radio_item_index, child_trod_id.clone(), is_default_item);
@@ -234,16 +232,17 @@ pub fn add_radio_group_to_context(
         })
         .collect::<Vec<_>>();
 
-    *component_index += 1;
+    let component_index = context.next_index();
     let radio_group = TnRadioGroupBuilder::new(
-        *component_index,
-        radio_group_tron_id,
+        component_index,
+        radio_group_tron_id.to_string(),
         default_item,
         radio_group_items,
-    ).build();
+    )
+    .build();
     context.add_component(radio_group);
     let components = context.components.blocking_read();
-    let radio_group = components.get(component_index).unwrap();
+    let radio_group = components.get(&component_index).unwrap();
     children_ids.iter().for_each(|child_id| {
         {
             let mut radio_group = radio_group.blocking_write();

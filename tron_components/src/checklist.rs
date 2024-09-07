@@ -160,16 +160,14 @@ impl TnCheckBox<'static> {
 /// Adds a checklist component to the context along with its child checkboxes.
 pub fn add_checklist_to_context(
     context: &mut TnContextBase<'static>,
-    component_index: &mut u32,
-    checklist_tron_id: String,
+    checklist_tron_id: &str,
     checklist_items: Vec<(String, String)>,
     container_attributes: Vec<(String, String)>,
 ) {
     let children_ids = checklist_items
         .into_iter()
         .map(|(child_trod_id, label)| {
-            *component_index += 1;
-            let checkbox_index = *component_index;
+            let checkbox_index = context.next_index();
             let mut checkbox =
                 TnCheckBoxBuilder::new(checkbox_index, child_trod_id.clone(), false).build();
             let asset = checkbox.get_mut_assets().unwrap();
@@ -186,12 +184,12 @@ pub fn add_checklist_to_context(
         })
         .collect::<Vec<_>>();
 
-    *component_index += 1;
+    let component_index = context.next_index();
     let checklist =
-        TnCheckListBuilder::new(*component_index, checklist_tron_id, HashMap::default()).build();
+        TnCheckListBuilder::new(component_index, checklist_tron_id.to_string(), HashMap::default()).build();
     context.add_component(checklist);
     let components = context.components.blocking_read();
-    let checklist = components.get(component_index).unwrap();
+    let checklist = components.get(&component_index).unwrap();
     children_ids.iter().for_each(|child_id| {
         {
             let mut checklist = checklist.blocking_write();

@@ -43,7 +43,9 @@ use tron_app::{
         d3_plot::SseD3PlotTriggerMsg,
         div::{clean_div_with_context, update_and_send_div_with_context, TnDivBuilder},
         text::{
-            append_and_update_stream_textarea_with_context, clean_stream_textarea_with_context, clean_textarea_with_context, update_and_send_textarea_with_context, TnStreamTextAreaBuilder, TnTextAreaBuilder
+            append_and_update_stream_textarea_with_context, clean_stream_textarea_with_context,
+            clean_textarea_with_context, update_and_send_textarea_with_context,
+            TnStreamTextAreaBuilder, TnTextAreaBuilder,
         },
         TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnD3PlotBuilder, TnDiv,
         TnHtmlResponse, TnServiceRequestMsg, TnStreamTextArea,
@@ -195,10 +197,8 @@ async fn main() {
 fn build_context() -> TnContext {
     let mut context = TnContextBase::default();
 
-    let mut component_index = 0;
-
     let d3_plot_script = include_str!("../templates/d3_plot_script.html").to_string();
-    let d3_plot = TnD3PlotBuilder::new(component_index, D3PLOT.into(), d3_plot_script)
+    let d3_plot = TnD3PlotBuilder::new(context.next_index(), D3PLOT.into(), d3_plot_script)
         .set_attribute(
             "hx-vals".into(),
             r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##.into(),
@@ -207,21 +207,20 @@ fn build_context() -> TnContext {
         .build();
     context.add_component(d3_plot);
 
-    component_index += 1;
-    let mut reset_btn = TnButtonBuilder::new(component_index, RESET_BUTTON.into(), "Reset".into())
-        .set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary w-full h-min p-1".to_string(),
-        )
-        .build();
+    let mut reset_btn =
+        TnButtonBuilder::new(context.next_index(), RESET_BUTTON.into(), "Reset".into())
+            .set_attribute(
+                "class".to_string(),
+                "btn btn-sm btn-outline btn-primary w-full h-min p-1".to_string(),
+            )
+            .build();
 
     reset_btn.set_attribute("hx-target".to_string(), format!("#{D3PLOT}"));
     reset_btn.set_attribute("hx-swap".to_string(), "none".to_string());
     reset_btn.set_action(TnActionExecutionMethod::Await, reset_button_clicked);
     context.add_component(reset_btn);
 
-    component_index += 1;
-    let top_hit_div = TnDivBuilder::new(component_index, TOP_HIT_DIV.into(), "".into())
+    let top_hit_div = TnDivBuilder::new(context.next_index(), TOP_HIT_DIV.into(), "".into())
         .set_attribute(
             "class".to_string(),
             "flex flex-col w-full h-full".to_string(),
@@ -241,9 +240,8 @@ fn build_context() -> TnContext {
         );
     }
 
-    component_index += 1;
     let context_query_btn = TnButtonBuilder::new(
-        component_index,
+        context.next_index(),
         CONTEXT_QUERY_BUTTON.into(),
         "Query With The Hits".into(),
     )
@@ -255,9 +253,8 @@ fn build_context() -> TnContext {
     .build();
     context.add_component(context_query_btn);
 
-    component_index += 1;
     let query_btn =
-        TnButtonBuilder::new(component_index, QUERY_BUTTON.into(), "General Query".into())
+        TnButtonBuilder::new(context.next_index(), QUERY_BUTTON.into(), "General Query".into())
             .set_attribute(
                 "class".to_string(),
                 "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
@@ -266,9 +263,8 @@ fn build_context() -> TnContext {
             .build();
     context.add_component(query_btn);
 
-    component_index += 1;
     let find_related_btn = TnButtonBuilder::new(
-        component_index,
+        context.next_index(),
         FIND_RELATED_BUTTON.into(),
         "Find Related Text".into(),
     )
@@ -280,29 +276,29 @@ fn build_context() -> TnContext {
     .build();
     context.add_component(find_related_btn);
 
-    component_index += 1;
-    let mut query_text_input = TnTextAreaBuilder::new(component_index, QUERY_TEXT_INPUT.into(), "".into())
-    .set_attribute("class".to_string(), "min-h-32 w-full".to_string())
-    .set_attribute("style".to_string(), "resize:none".to_string())
-    .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
-    .set_attribute(
-        "hx-vals".into(),
-        r##"js:{event_data:get_input_event(event)}"##.into(),
-    ).build(); //over-ride the default as we need the value of the input text
+    let mut query_text_input =
+        TnTextAreaBuilder::new(context.next_index(), QUERY_TEXT_INPUT.into(), "".into())
+            .set_attribute("class".to_string(), "min-h-32 w-full".to_string())
+            .set_attribute("style".to_string(), "resize:none".to_string())
+            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
+            .set_attribute(
+                "hx-vals".into(),
+                r##"js:{event_data:get_input_event(event)}"##.into(),
+            )
+            .build(); //over-ride the default as we need the value of the input text
     query_text_input.remove_attribute("disabled".into());
     context.add_component(query_text_input);
 
-    component_index += 1;
     let query_stream_textarea =
-        TnStreamTextAreaBuilder::new(component_index, QUERY_STREAM_TEXTAREA.into(), Vec::new())
-    .set_attribute("class".to_string(), "min-h-24 w-full".to_string())
-    .set_attribute("style".to_string(), r#"resize:none"#.to_string()).build();
+        TnStreamTextAreaBuilder::new(context.next_index(), QUERY_STREAM_TEXTAREA.into(), Vec::new())
+            .set_attribute("class".to_string(), "min-h-24 w-full".to_string())
+            .set_attribute("style".to_string(), r#"resize:none"#.to_string())
+            .build();
     context.add_component(query_stream_textarea);
 
     // add a chatbox
-    component_index += 1;
     let query_result_textarea =
-        TnChatBoxBuilder::new(component_index, QUERY_RESULT_TEXTAREA.to_string(), vec![])
+        TnChatBoxBuilder::new(context.next_index(), QUERY_RESULT_TEXTAREA.to_string(), vec![])
             .set_attribute(
                 "class".to_string(),
                 "min-h-96 max-h-96 overflow-auto flex-1 p-2".to_string(),

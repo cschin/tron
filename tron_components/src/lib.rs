@@ -304,6 +304,7 @@ pub struct TnContextBase<'a: 'static> {
     pub tnid_to_index: HashMap<TnComponentId, TnComponentIndex>,
     pub service_handles: Vec<JoinHandle<()>>,
     pub services: HashMap<TnServiceName, TnService>,
+    next_index: u32,
 }
 
 /// Provides the implementation for `TnContextBase`, a context management structure for handling
@@ -322,6 +323,7 @@ impl TnContextBase<'static> {
             stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
             sse_channel: Arc::new(RwLock::new(None)),
+            next_index: 0,
         }
     }
 
@@ -392,6 +394,12 @@ impl TnContextBase<'static> {
         let component_guard = self.components.blocking_read();
         let component = component_guard.get(&id).unwrap().blocking_read();
         component.first_render()
+    }
+
+    pub fn next_index(&mut self) -> u32 {
+        let rtn = self.next_index;
+        self.next_index += 1;
+        rtn
     }
 }
 
@@ -948,7 +956,7 @@ pub enum TnActionExecutionMethod {
 
 #[cfg(test)]
 mod tests {
-    use crate::{button::TnButtonBuilder, TnButton, TnComponentBaseTrait};
+    use crate::{button::TnButtonBuilder, TnComponentBaseTrait};
 
     #[test]
     fn test_simple_button() {

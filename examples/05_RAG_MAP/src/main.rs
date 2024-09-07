@@ -213,11 +213,11 @@ fn build_context() -> TnContext {
                 "class".to_string(),
                 "btn btn-sm btn-outline btn-primary w-full h-min p-1".to_string(),
             )
+            .set_attribute("hx-target".to_string(), format!("#{D3PLOT}"))
+            .set_attribute("hx-swap".to_string(), "none".to_string())
+            .set_action(TnActionExecutionMethod::Await, reset_button_clicked)
             .build();
 
-    reset_btn.set_attribute("hx-target".to_string(), format!("#{D3PLOT}"));
-    reset_btn.set_attribute("hx-swap".to_string(), "none".to_string());
-    reset_btn.set_action(TnActionExecutionMethod::Await, reset_button_clicked);
     context.add_component(reset_btn);
 
     let top_hit_div = TnDivBuilder::new(context.next_index(), TOP_HIT_DIV.into(), "".into())

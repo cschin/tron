@@ -61,7 +61,7 @@ fn build_session_context() -> TnContext {
                 "class".to_string(),
                 "btn btn-sm btn-outline btn-primary flex-1".to_string(),
             )
-            .set_action(TnActionExecutionMethod::Spawn, test_event_actions)
+            .set_action(TnActionExecutionMethod::Spawn, counter_btn_clicked)
             .build();
 
         context.add_component(btn);
@@ -290,7 +290,7 @@ fn build_session_context() -> TnContext {
 ///
 /// A `Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>>` representing the asynchronous
 /// operation that generates the HTML response.
-fn test_event_actions(
+fn counter_btn_clicked(
     context: TnContext,
     event: TnEvent,
     _payload: Value,

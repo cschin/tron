@@ -162,24 +162,6 @@ fn layout(context: TnContext) -> String {
     html.render().unwrap()
 }
 
-// fn build_actions(context: TnContext) -> TnEventActions {
-//     let mut actions = Vec::<(String, TnActionExecutionMethod, TnActionFn)>::new();
-
-//     // actions.push((
-//     //     DND_FILE_UPLOAD.to_string(),
-//     //     TnActionExecutionMethod::Await,
-//     //     handle_file_upload,
-//     // ));
-
-//     actions
-//         .into_iter()
-//         .map(|(id, exe_method, action_fn)| {
-//             let idx = context.blocking_read().get_component_index(&id);
-//             (idx, (exe_method, Arc::new(action_fn)))
-//         })
-//         .collect::<TnEventActions>()
-// }
-
 async fn get_image(
     State(_app_data): State<Arc<AppData>>,
     session: Session,

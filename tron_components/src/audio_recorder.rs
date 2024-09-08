@@ -29,15 +29,18 @@ impl TnAudioRecorderBuilder<'static> {
     ///
     /// A new instance of `TnAudioRecorder`.
     pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
-        self.base.init("div".to_string(), idx, tnid, TnComponentType::AudioRecorder);
-        self.base.set_value(TnComponentValue::String(value));
-        self.base.set_attribute("hx-trigger".into(), "streaming, server_side_trigger".into());
-        self.base.set_attribute(
-            "hx-vals".into(),
-            r##"js:{event_data:get_audio_event(event)}"##.into(),
-        );
+        self.base = TnComponentBase::builder(self.base)
+            .init("div".to_string(), idx, tnid, TnComponentType::AudioRecorder)
+            .set_value(TnComponentValue::String(value))
+            .set_attribute("hx-trigger".into(), "streaming, server_side_trigger".into())
+            .set_attribute(
+                "hx-vals".into(),
+                r##"js:{event_data:get_audio_event(event)}"##.into(),
+            )
+            .build();
         self.base.asset = Some(HashMap::<String, TnAsset>::default());
-        self.base.asset
+        self.base
+            .asset
             .as_mut()
             .unwrap()
             .insert("audio_data".into(), TnAsset::Bytes(BytesMut::default()));

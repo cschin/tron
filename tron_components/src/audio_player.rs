@@ -27,7 +27,6 @@ pub struct TnAudioPlayer<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-
 impl<'a: 'static> TnAudioPlayerBuilder<'a> {
     /// Creates a new instance of `TnAudioPlayer` with the specified index, ID, and audio source URL.
     ///
@@ -41,20 +40,20 @@ impl<'a: 'static> TnAudioPlayerBuilder<'a> {
     ///
     /// A new instance of `TnAudioPlayer`.
     pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
-        self.base.init(
-            "audio".to_string(),
-            idx,
-            tnid.clone(),
-            TnComponentType::AudioPlayer,
-        );
-        self.base.set_value(TnComponentValue::String(value));
-        self.base.set_attribute("src".into(), format!("/tron_streaming/{}", tnid));
-        self.base.set_attribute("type".into(), "audio/mp3".into());
-        self.base.set_attribute("hx-trigger".into(), "server_side_trigger, ended".into());
+        self.base = TnComponentBase::builder(self.base)
+            .init(
+                "audio".to_string(),
+                idx,
+                tnid.clone(),
+                TnComponentType::AudioPlayer,
+            )
+            .set_value(TnComponentValue::String(value))
+            .set_attribute("src".into(), format!("/tron_streaming/{}", tnid))
+            .set_attribute("type".into(), "audio/mp3".into())
+            .set_attribute("hx-trigger".into(), "server_side_trigger, ended".into()).build();
         self
     }
 }
-
 
 impl<'a: 'static> Default for TnAudioPlayer<'a> {
     /// Returns the default instance of `TnAudioPlayer`.

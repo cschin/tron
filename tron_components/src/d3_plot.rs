@@ -14,21 +14,26 @@ pub struct TnD3Plot<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a:'static> TnD3PlotBuilder<'a>  {
-    pub fn init(mut self, idx: TnComponentIndex, tnid: String, d3_plot_script: String) -> TnD3PlotBuilder<'a> {
-        self.base.init("div".into(), idx, tnid, TnComponentType::D3Plot);
-        self.base.set_value(TnComponentValue::String(d3_plot_script));
-        self.base.set_attribute("type".into(), "d3_simple_scatter_plot".into());
-
-        self.base.set_attribute("hx-trigger".into(), "click, server_side_trigger".into());
-        self.base.set_attribute("hx-swap".into(), "none".into());
-
-        self.base.set_attribute(
-            "hx-vals".into(),
-            r##"js:{event_data:get_event_with_coordinate(event)}"##.into(),
-        );
+impl<'a: 'static> TnD3PlotBuilder<'a> {
+    pub fn init(
+        mut self,
+        idx: TnComponentIndex,
+        tnid: String,
+        d3_plot_script: String,
+    ) -> TnD3PlotBuilder<'a> {
+        self.base = TnComponentBase::builder(self.base)
+            .init("div".into(), idx, tnid, TnComponentType::D3Plot)
+            .set_value(TnComponentValue::String(d3_plot_script))
+            .set_attribute("type".into(), "d3_simple_scatter_plot".into())
+            .set_attribute("hx-trigger".into(), "click, server_side_trigger".into())
+            .set_attribute("hx-swap".into(), "none".into())
+            .set_attribute(
+                "hx-vals".into(),
+                r##"js:{event_data:get_event_with_coordinate(event)}"##.into(),
+            )
+            .build();
         self
-    }    
+    }
 }
 
 impl Default for TnD3Plot<'static> {

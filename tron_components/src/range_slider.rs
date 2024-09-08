@@ -22,18 +22,27 @@ impl TnRangeSliderBuilder<'static> {
     /// # Returns
     ///
     /// A new instance of `TnRangeSlider`.
-    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: f32, min: f32, max: f32) -> Self {
-        self.base.init("input".into(), idx, tnid, TnComponentType::Slider);
-        self.base.set_value(TnComponentValue::String(format!("{}", value)));
-        self.base.set_attribute("type".into(), "range".into());
-        self.base.set_attribute("min".into(), format!("{}", min));
-        self.base.set_attribute("max".into(), format!("{}", max));
-        self.base.set_attribute(
-            "hx-vals".into(),
-            r##"js:{event_data:get_input_event(event)}"##.into(),
-        );
-        self.base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        self.base.set_attribute("hx-swap".into(), "none".into());
+    pub fn init(
+        mut self,
+        idx: TnComponentIndex,
+        tnid: String,
+        value: f32,
+        min: f32,
+        max: f32,
+    ) -> Self {
+        self.base = TnComponentBase::builder(self.base)
+            .init("input".into(), idx, tnid, TnComponentType::Slider)
+            .set_value(TnComponentValue::String(format!("{}", value)))
+            .set_attribute("type".into(), "range".into())
+            .set_attribute("min".into(), format!("{}", min))
+            .set_attribute("max".into(), format!("{}", max))
+            .set_attribute(
+                "hx-vals".into(),
+                r##"js:{event_data:get_input_event(event)}"##.into(),
+            )
+            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
+            .set_attribute("hx-swap".into(), "none".into())
+            .build();
         self
     }
 }

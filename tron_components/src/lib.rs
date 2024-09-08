@@ -26,7 +26,9 @@ pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
 
 use serde_json::Value;
 use std::{
-    collections::{HashMap, HashSet, VecDeque}, pin::Pin, sync::{Arc, Weak}
+    collections::{HashMap, HashSet, VecDeque},
+    pin::Pin,
+    sync::{Arc, Weak},
 };
 use tokio::sync::{oneshot, Mutex};
 use tokio::{
@@ -171,7 +173,7 @@ pub enum TnComponentType {
 #[derive(Default, PartialEq, Eq, Debug, Clone)]
 pub enum TnComponentState {
     #[default]
-    Ready,    // ready to receive new event on the UI end
+    Ready, // ready to receive new event on the UI end
     Pending,  // UI event receive, server function dispatched, waiting for server to response
     Updating, // server ready to send, change UI to update to receive server response, can repeate
     Finished, // no more new update to consider, will transition to Ready
@@ -318,10 +320,6 @@ pub struct TnContextBase<'a: 'static> {
     pub services: HashMap<TnServiceName, TnService>,
     next_index: u32,
 }
-
-
-
-
 
 /// Provides the implementation for `TnContextBase`, a context management structure for handling
 /// UI components and their interaction in an application.
@@ -669,38 +667,6 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 /// such as its ID, type, attributes, headers, value, state, assets, children, parent, and script.
 /// Implementors of this trait must provide concrete implementations for these methods.
 impl TnComponentBase<'static> {
-    pub fn new(
-        tag: String,
-        index: TnComponentIndex,
-        tron_id: TnComponentId,
-        type_: TnComponentType,
-    ) -> Self {
-        let mut attributes = HashMap::<String, String>::default();
-        attributes.insert("id".into(), tron_id.clone());
-        attributes.insert("hx-post".to_string(), format!("/tron/{}", index));
-        attributes.insert("hx-target".to_string(), format!("#{}", tron_id));
-        attributes.insert("hx-swap".to_string(), "outerHTML".into());
-
-        attributes.insert(
-            "hx-vals".into(),
-            r##"js:{event_data:get_event(event)}"##.into(),
-        );
-        attributes.insert("hx-ext".into(), "json-enc".into());
-        attributes.insert("state".to_string(), "ready".to_string());
-        Self {
-            tag,
-            type_,
-            id: index,
-            tron_id,
-            attributes,
-            extra_response_headers: HashMap::default(),
-            value: TnComponentValue::None,
-            asset: None,
-            state: TnComponentState::Ready,
-            ..Default::default()
-        }
-    }
-
     pub fn init(
         &mut self,
         tag: String,
@@ -962,6 +928,61 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
     }
 }
 
+pub struct TnComponentBaseBuilder<'a: 'static> {
+    base: TnComponentBase<'a>,
+}
+
+impl<'a: 'static> TnComponentBase<'a> {
+    fn builder(base: TnComponentBase) -> TnComponentBaseBuilder<'a> {
+        TnComponentBaseBuilder { base }
+    }
+}
+
+impl<'a: 'static> TnComponentBaseBuilder<'a> {
+    pub fn init(
+        mut self,
+        tag: String,
+        index: TnComponentIndex,
+        tron_id: TnComponentId,
+        type_: TnComponentType,
+    ) -> TnComponentBaseBuilder<'a> {
+        let mut attributes = HashMap::<String, String>::default();
+        attributes.insert("id".into(), tron_id.clone());
+        attributes.insert("hx-post".to_string(), format!("/tron/{}", index));
+        attributes.insert("hx-target".to_string(), format!("#{}", tron_id));
+        attributes.insert("hx-swap".to_string(), "outerHTML".into());
+
+        attributes.insert(
+            "hx-vals".into(),
+            r##"js:{event_data:get_event(event)}"##.into(),
+        );
+        attributes.insert("hx-ext".into(), "json-enc".into());
+        attributes.insert("state".to_string(), "ready".to_string());
+        self.base.tag = tag;
+        self.base.type_ = type_;
+        self.base.id = index;
+        self.base.tron_id = tron_id;
+        self.base.attributes = attributes;
+        self
+    }
+
+    /// Sets the component's value
+    fn set_value(mut self, new_value: TnComponentValue) -> TnComponentBaseBuilder<'a> {
+        self.base.value = new_value;
+        self
+    }
+
+    /// Sets an attribute for the component
+    fn set_attribute(mut self, key: String, val: String) -> TnComponentBaseBuilder<'a> {
+        self.base.attributes.insert(key, val);
+        self
+    }
+
+    fn build(self) -> TnComponentBase<'a> {
+        self.base
+    }
+}
+
 /// Represents a Tron event.
 ///
 /// This struct encapsulates various properties of a Tron event, including its trigger, type, state, target, and header target.
@@ -1013,7 +1034,9 @@ mod tests {
 
     #[test]
     fn test_simple_button() {
-        let mut btn = TnButton::builder().init(12, "12".into(), "12".into()).build();
+        let mut btn = TnButton::builder()
+            .init(12, "12".into(), "12".into())
+            .build();
         btn.set_attribute("hx-get".to_string(), format!("/tron/{}", 12));
         //println!("{}", btn.generate_hx_attr_string());
     }

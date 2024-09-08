@@ -8,11 +8,13 @@ pub struct TnButton<'a: 'static> {
     base: TnComponentBase<'a>,
 }
 
-impl<'a:'static> TnButtonBuilder<'a>  {
+impl<'a: 'static> TnButtonBuilder<'a> {
     pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
-        self.base.init("button".into(), idx, tnid, TnComponentType::Button);
-        self.base.set_value(TnComponentValue::String(value));
-        self.base.set_attribute("hx-trigger".into(), "click, server_side_trigger".into());
+        self.base = TnComponentBase::builder(self.base)
+            .init("button".into(), idx, tnid, TnComponentType::Button)
+            .set_value(TnComponentValue::String(value))
+            .set_attribute("hx-trigger".into(), "click, server_side_trigger".into())
+            .build();
         self
     }
 }

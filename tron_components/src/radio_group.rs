@@ -29,12 +29,12 @@ impl TnRadioGroupBuilder<'static> {
         value: String,
         radio_group_items: Vec<(String, String)>,
     ) -> Self {
-        self.base
-            .init("div".into(), idx, tnid, TnComponentType::RadioGroup);
-        self.base.set_value(TnComponentValue::String(value));
-        self.base
-            .set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        self.base.set_attribute("type".into(), "radio_group".into());
+        self.base = TnComponentBase::builder(self.base)
+            .init("div".into(), idx, tnid, TnComponentType::RadioGroup)
+            .set_value(TnComponentValue::String(value))
+            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
+            .set_attribute("type".into(), "radio_group".into())
+            .build();
         let mut asset = HashMap::default();
         asset.insert(
             "radio_group_items".into(),
@@ -113,22 +113,22 @@ pub struct TnRadioItem<'a: 'static> {
 /// A new `TnRadioItem` instance.
 impl TnRadioItemBuilder<'static> {
     pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: bool) -> Self {
-        self.base.init(
-            "input".into(),
-            idx,
-            tnid.clone(),
-            TnComponentType::RadioItem,
-        );
-        self.base.set_value(TnComponentValue::RadioItem(value));
-        self.base
-            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        self.base
-            .set_attribute("hx-target".into(), format!("#{}-container", tnid));
-        self.base.set_attribute(
-            "hx-vals".into(),
-            r##"js:{event_data: get_radio_group_event(event)}"##.into(),
-        );
-        self.base.set_attribute("hx-swap".into(), "none".into());
+        self.base = TnComponentBase::builder(self.base)
+            .init(
+                "input".into(),
+                idx,
+                tnid.clone(),
+                TnComponentType::RadioItem,
+            )
+            .set_value(TnComponentValue::RadioItem(value))
+            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
+            .set_attribute("hx-target".into(), format!("#{}-container", tnid))
+            .set_attribute(
+                "hx-vals".into(),
+                r##"js:{event_data: get_radio_group_event(event)}"##.into(),
+            )
+            .set_attribute("hx-swap".into(), "none".into())
+            .build();
         //component_self.base.set_attribute("type".into(), "checkbox".into());
         self.base.asset = Some(HashMap::default());
         self.base

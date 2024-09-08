@@ -17,12 +17,12 @@ impl TnCheckListBuilder<'static> {
         name: String,
         value: HashMap<String, bool>,
     ) -> Self {
-        self.base
-            .init("div".into(), id, name, TnComponentType::CheckList);
-        self.base.set_value(TnComponentValue::CheckItems(value));
-        self.base
-            .set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        self.base.set_attribute("type".into(), "checklist".into());
+        self.base = TnComponentBase::builder(self.base)
+            .init("div".into(), id, name, TnComponentType::CheckList)
+            .set_value(TnComponentValue::CheckItems(value))
+            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
+            .set_attribute("type".into(), "checklist".into())
+            .build();
         self
     }
 }
@@ -78,18 +78,17 @@ pub struct TnCheckBox<'a: 'static> {
 impl TnCheckBoxBuilder<'static> {
     /// Creates a new checkbox component.
     pub fn init(mut self, id: TnComponentIndex, name: String, value: bool) -> Self {
-        self.base
-            .init("input".into(), id, name.clone(), TnComponentType::CheckBox);
-        self.base.set_value(TnComponentValue::CheckItem(value));
-        self.base
-            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        self.base
-            .set_attribute("hx-target".into(), format!("#{}-container", name));
-        self.base.set_attribute(
-            "hx-vals".into(),
-            r##"js:{event_data: get_checkbox_event(event)}"##.into(),
-        );
-        self.base.set_attribute("hx-swap".into(), "none".into());
+        self.base = TnComponentBase::builder(self.base)
+            .init("input".into(), id, name.clone(), TnComponentType::CheckBox)
+            .set_value(TnComponentValue::CheckItem(value))
+            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
+            .set_attribute("hx-target".into(), format!("#{}-container", name))
+            .set_attribute(
+                "hx-vals".into(),
+                r##"js:{event_data: get_checkbox_event(event)}"##.into(),
+            )
+            .set_attribute("hx-swap".into(), "none".into())
+            .build();
         //component_self.base.set_attribute("type".into(), "checkbox".into());
         self.base.asset = Some(HashMap::default());
         self.base

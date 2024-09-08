@@ -22,15 +22,15 @@ impl TnChatBoxBuilder<'static> {
     ///
     /// A new instance of `TnChatBox`.
     pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: Vec<(String, String)>) -> Self {
-        self.base.init("div".into(), idx, tnid, TnComponentType::ChatBox);
-        self.base.set_value(TnComponentValue::VecString2(value));
-
-        self.base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        self.base.set_attribute(
-            "hx-swap".into(),
-            "beforeend scroll:bottom focus-scroll:true ".into(),
-        );
-        self.base.set_attribute("class".into(), "flex-col".into());
+        self.base = TnComponentBase::builder(self.base)
+            .init("div".into(), idx, tnid, TnComponentType::ChatBox)
+            .set_value(TnComponentValue::VecString2(value))
+            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
+            .set_attribute(
+                "hx-swap".into(),
+                "beforeend scroll:bottom focus-scroll:true ".into(),
+            )
+            .set_attribute("class".into(), "flex-col".into()).build();
         self.base.asset = Some(HashMap::default());
         let class = HashMap::from_iter(vec![
             // ("user".to_string(), "max-w-fill flex flex-row justify-end p-1 > bg-green-100 rounded-lg p-2 mb-1 text-right".to_string()),

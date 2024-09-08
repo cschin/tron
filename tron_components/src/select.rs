@@ -17,26 +17,30 @@ impl TnSelectBuilder<'static> {
     /// * `tnid` - The unique ID of the component.
     /// * `value` - The initial value of the select.
     /// * `options` - A vector of tuples representing the options of the select, where each tuple contains the value and label of an option.
-    pub fn init(mut self,
+    pub fn init(
+        mut self,
         idx: TnComponentIndex,
         tnid: String,
         value: String,
         options: Vec<(String, String)>,
     ) -> Self {
-        self.base.init("select".into(), idx, tnid, TnComponentType::Select);
-        self.base.set_value(TnComponentValue::String(value));
-        self.base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        self.base.set_attribute("type".into(), "select".into());
-        self.base.set_attribute("hx-swap".into(), "none".into());
+        self.base = TnComponentBase::builder(self.base)
+            .init("select".into(), idx, tnid, TnComponentType::Select)
+            .set_value(TnComponentValue::String(value))
+            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
+            .set_attribute("type".into(), "select".into())
+            .set_attribute("hx-swap".into(), "none".into())
+            .set_attribute(
+                "hx-vals".into(),
+                r##"js:{event_data:get_input_event(event)}"##.into(),
+            )
+            .build(); //over-ride the default as we need the value of the input text
         self.base.asset = Some(HashMap::default());
-        self.base.asset
+        self.base
+            .asset
             .as_mut()
             .unwrap()
             .insert("options".into(), TnAsset::VecString2(options));
-        self.base.set_attribute(
-            "hx-vals".into(),
-            r##"js:{event_data:get_input_event(event)}"##.into(),
-        ); //over-ride the default as we need the value of the input text
         self
     }
 }

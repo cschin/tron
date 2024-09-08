@@ -1,5 +1,38 @@
 use proc_macro::TokenStream;
 use quote::{format_ident, quote};
+use syn::{Data, DeriveInput, Fields};
+
+
+
+fn dup_struct(ast: DeriveInput) -> proc_macro2::TokenStream {
+    let struct_name = &ast.ident;
+
+    // Extract fields from the AST
+    let fields = match ast.data {
+        Data::Struct(ref data) => {
+            match data.fields {
+                Fields::Named(ref fields) => &fields.named,
+                _ => panic!("Expected named fields"),
+            }
+        },
+        _ => panic!("Expected a struct"),
+    };
+
+    // Generate struct initialization
+    let init_fields = fields.iter().map(|f| {
+        let name = &f.ident;
+        quote! { #name: self.#name }
+    });
+
+    let struct_init = quote! {
+        #struct_name {
+            #(#init_fields),*
+        }
+    };
+
+    struct_init
+}
+
 
 /// Procedural macro to derive the `TnComponentBaseTrait` for a custom component.
 ///
@@ -31,6 +64,10 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
     let builder_name = format_ident!("{}Builder", name);
     let mut builder_ast = ast.clone();
     builder_ast.ident = builder_name.clone();
+    let dup_struct = dup_struct(ast.clone());    
+    println!("XYX: {}", &dup_struct);
+    
+
 
     let gen = quote! {
         impl<'a> TnComponentBaseTrait<'a> for #name<'a> where 'a:'static {
@@ -159,10 +196,8 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 &self.base.action
             }
 
-            // fn get_script(&self) -> Option<String> {
-            //     self.base.get_script()
-            // }
         }
+
 
         #[derive(Default)]
         #builder_ast
@@ -189,12 +224,11 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             }
 
             pub fn build(self) -> #name<'a> {
-                #name {base: self.base, ..Default::default()}
+                #dup_struct
             } 
 
             pub fn add_to_context(self, context: &mut TnContextBase) {
-                let component = #name {base: self.base, ..Default::default()};
-                context.add_component(component);
+                context.add_component(#dup_struct);
             }
            
         }

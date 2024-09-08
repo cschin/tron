@@ -125,8 +125,8 @@ impl TnDnDFileUploadBuilder<'static> {
     pub fn init(
         mut self,
         tnid: String,
-        _title: String,
-        _button_attributes: HashMap<String, String>,
+        title: String,
+        button_attributes: HashMap<String, String>
     ) -> Self {
         let component_type = TnComponentType::DnDFileUpload;
         TnComponentType::register_script(
@@ -146,6 +146,10 @@ impl TnDnDFileUploadBuilder<'static> {
                 "js:{event_data:get_event_with_files_dnd(event)}".into(),
             )
             .build();
+        
+        self.title = title;
+        self.button_attributes = button_attributes;
+
         self
     }
 }

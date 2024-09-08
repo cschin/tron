@@ -34,7 +34,7 @@ async fn main() {
         ..Default::default()
     };
     // set app state
-    let app_share_data = tron_app::AppData::builder(build_session_context, layout).build(); 
+    let app_share_data = tron_app::AppData::builder(build_session_context, layout).build();
     tron_app::run(app_share_data, app_config).await
 }
 
@@ -47,19 +47,14 @@ fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
     let mut btn_idx = 0_u32;
     loop {
-        let btn = TnButton::builder()
-            .init(
-                format!("btn-{:02}", btn_idx),
-                format!("{:02}", btn_idx),
-            )
+        TnButton::builder()
+            .init(format!("btn-{:02}", btn_idx), format!("{:02}", btn_idx))
             .set_attribute(
                 "class".to_string(),
                 "btn btn-sm btn-outline btn-primary flex-1".to_string(),
             )
             .set_action(TnActionExecutionMethod::Spawn, counter_btn_clicked)
-            .build();
-
-        context.add_component(btn);
+            .add_to_context(&mut context);
 
         btn_idx += 1;
         if btn_idx >= 10 {
@@ -67,7 +62,7 @@ fn build_session_context() -> TnContext {
         }
     }
 
-    let stream_textarea = text::TnStreamTextArea::builder()
+    text::TnStreamTextArea::builder()
         .init(
             "stream_textarea".into(),
             vec!["This is a streamable textarea\n".to_string()],
@@ -76,22 +71,15 @@ fn build_session_context() -> TnContext {
             "class".into(),
             "textarea textarea-bordered flex-1 h-20".into(),
         )
-        .build();
+        .add_to_context(&mut context);
 
-    context.add_component(stream_textarea);
-
-    let textarea = text::TnTextArea::builder()
-        .init(
-            "textarea".into(),
-            "This is a textarea\n".to_string(),
-        )
+    text::TnTextArea::builder()
+        .init("textarea".into(), "This is a textarea\n".to_string())
         .set_attribute(
             "class".into(),
             "textarea textarea-bordered flex-1 h-20".into(),
         )
-        .build();
-
-    context.add_component(textarea);
+        .add_to_context(&mut context);
 
     let checklist_items = vec![
         ("checkbox-1".to_string(), "CHECKBOX 1".to_string()),
@@ -146,25 +134,19 @@ fn build_session_context() -> TnContext {
             ("three".into(), "Three".into()),
         ];
 
-        let select = TnSelect::builder()
-            .init(
-                "select_one".into(),
-                "one".into(),
-                select_options,
-            )
-            .build();
-        context.add_component(select);
+        TnSelect::builder()
+            .init("select_one".into(), "one".into(), select_options)
+            .add_to_context(&mut context);
     }
     {
-        let slider = TnRangeSlider::builder()
+        TnRangeSlider::builder()
             .init("slider".into(), 0.0, 0.0, 100.0)
             .set_attribute("class".to_string(), "flex-1".to_string())
             .set_action(TnActionExecutionMethod::Await, slider_value_update)
-            .build();
-        context.add_component(slider);
+            .add_to_context(&mut context);
     }
     {
-        let clean_button = TnButton::builder()
+        TnButton::builder()
             .init(
                 "clean_stream_textarea".into(),
                 "clean_stream_textarea".into(),
@@ -175,44 +157,33 @@ fn build_session_context() -> TnContext {
             )
             .set_attribute("hx-target".to_string(), "#stream_textarea".to_string())
             .set_action(TnActionExecutionMethod::Await, clean_stream_textarea)
-            .build();
-        context.add_component(clean_button);
+            .add_to_context(&mut context);
     }
     {
-        let clean_button = TnButton::builder()
-            .init(
-                "clean_textarea".into(),
-                "clean_textarea".into(),
-            )
+        TnButton::builder()
+            .init("clean_textarea".into(), "clean_textarea".into())
             .set_attribute(
                 "class".to_string(),
                 "btn btn-sm btn-outline btn-primary flex-1".to_string(),
             )
             .set_action(TnActionExecutionMethod::Await, clean_textarea)
-            .build();
-        context.add_component(clean_button);
+            .add_to_context(&mut context);
     }
     {
-        let clean_button = TnButton::builder()
-            .init(
-                "clean_textinput".into(),
-                "clean_textinput".into(),
-            )
+        TnButton::builder()
+            .init("clean_textinput".into(), "clean_textinput".into())
             .set_attribute(
                 "class".to_string(),
                 "btn btn-sm btn-outline btn-primary flex-1".to_string(),
             )
             .set_action(TnActionExecutionMethod::Await, clean_textinput)
-            .build();
-        context.add_component(clean_button);
+            .add_to_context(&mut context);
     }
     {
-        let textinput = text::TnTextInput::builder()
+        text::TnTextInput::builder()
             .init("textinput".into(), "".into())
             .set_attribute("class".into(), "input input-bordered w-full".into())
-            .build();
-
-        context.add_component(textinput);
+            .add_to_context(&mut context);
     }
     {
         let button_attributes = vec![(
@@ -221,15 +192,14 @@ fn build_session_context() -> TnContext {
         )]
         .into_iter()
         .collect::<HashMap<String, String>>();
-        let file_upload = TnFileUpload::builder()
+        TnFileUpload::builder()
             .init(
                 "file_upload".into(),
                 "Upload File".into(),
                 button_attributes,
             )
             .set_action(TnActionExecutionMethod::Await, handle_file_upload)
-            .build();
-        context.add_component(file_upload);
+            .add_to_context(&mut context);
     }
 
     {
@@ -240,16 +210,14 @@ fn build_session_context() -> TnContext {
         .into_iter()
         .collect::<HashMap<String, String>>();
 
-        let dnd_file_upload = TnDnDFileUpload::builder()
+        TnDnDFileUpload::builder()
             .init(
                 "dnd_file_upload".into(),
                 "Drop A File".into(),
                 button_attributes,
             )
             .set_action(TnActionExecutionMethod::Await, handle_file_upload)
-            .build();
-
-        context.add_component(dnd_file_upload);
+            .add_to_context(&mut context);
     }
 
     TnContext {
@@ -314,14 +282,22 @@ fn counter_btn_clicked(
                 {
                     let mut components_guard = context_guard.components.write().await;
                     {
-                        let btn = components_guard.get_mut(&event.e_trigger.clone()).unwrap().read().await;
+                        let btn = components_guard
+                            .get_mut(&event.e_trigger.clone())
+                            .unwrap()
+                            .read()
+                            .await;
                         v = match btn.value() {
                             TnComponentValue::String(s) => s.parse::<u32>().unwrap(),
                             _ => 0,
                         };
                     }
                     {
-                        let mut btn = components_guard.get_mut(&event.e_trigger.clone()).unwrap().write().await;
+                        let mut btn = components_guard
+                            .get_mut(&event.e_trigger.clone())
+                            .unwrap()
+                            .write()
+                            .await;
 
                         btn.set_value(TnComponentValue::String(format!("{:02}", v + 1)));
                         btn.set_state(TnComponentState::Updating);
@@ -373,7 +349,11 @@ fn counter_btn_clicked(
         {
             let context_guard = context.write().await;
             let mut components_guard = context_guard.components.write().await;
-            let mut btn = components_guard.get_mut(&event.e_trigger.clone()).unwrap().write().await;
+            let mut btn = components_guard
+                .get_mut(&event.e_trigger.clone())
+                .unwrap()
+                .write()
+                .await;
             btn.set_state(TnComponentState::Ready);
             let data = format!(
                 r##"{{"server_side_trigger_data": {{ "target":"{}", "new_state":"{}" }} }}"##,

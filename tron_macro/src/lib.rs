@@ -191,6 +191,11 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             pub fn build(self) -> #name<'a> {
                 #name {base: self.base, ..Default::default()}
             } 
+
+            pub fn add_to_context(self, context: &mut TnContextBase) {
+                let component = #name {base: self.base, ..Default::default()};
+                context.add_component(component);
+            }
            
         }
 

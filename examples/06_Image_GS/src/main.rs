@@ -96,8 +96,14 @@ fn build_context() -> TnContext {
     let mut context = TnContextBase::default();
 
     add_dnd_file_upload(&mut context, DND_FILE_UPLOAD);
-    add_image_output_area( &mut context, IMAGE_OUTPUT_AREA);
-    add_input_image_area(&mut context, INPUT_IMAGE_AREA);
+
+    TnDiv::builder()
+        .init(IMAGE_OUTPUT_AREA.into(), "".into())
+        .add_to_context(&mut context);
+
+    TnDiv::builder()
+        .init(INPUT_IMAGE_AREA.into(), "".into())
+        .add_to_context(&mut context);
 
     // add service
 
@@ -128,25 +134,11 @@ fn add_dnd_file_upload(context: &mut TnContextBase, tnid: &str) {
     .collect::<HashMap<String, String>>();
 
     let dnd_file_upload = TnDnDFileUpload::builder()
-        .init(
-            tnid.into(),
-            "Drop A File".into(),
-            button_attributes,
-        )
+        .init(tnid.into(), "Drop A File".into(), button_attributes)
         .set_action(TnActionExecutionMethod::Await, handle_file_upload)
         .build();
 
     context.add_component(dnd_file_upload);
-}
-
-fn add_image_output_area(context: &mut TnContextBase, tnid: &str) {
-    let image_output = TnDiv::builder().init( tnid.into(), "".into()).build();
-    context.add_component(image_output);
-}
-
-fn add_input_image_area(context: &mut TnContextBase, tnid: &str) {
-    let input_image = TnDiv::builder().init(tnid.into(), "".into()).build();
-    context.add_component(input_image);
 }
 
 #[derive(Template)] // this will generate the code...

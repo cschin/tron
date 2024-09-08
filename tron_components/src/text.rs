@@ -13,13 +13,13 @@ pub struct TnTextArea<'a: 'static> {
 impl TnTextAreaBuilder<'static> {
     /// Creates a new TextArea component with the specified ID, name, and value.
     pub fn init(mut self, name: TnComponentId, value: String) -> Self {
-        self.base
-            .init("textarea".into(), name, TnComponentType::TextArea);
-        self.base.set_value(TnComponentValue::String(value));
-        self.base.set_attribute("disabled".into(), "".into());
-        self.base
-            .set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        self.base.set_attribute("type".into(), "text".into());
+        self.base = TnComponentBase::builder(self.base)
+            .init("textarea".into(), name, TnComponentType::TextArea)
+            .set_value(TnComponentValue::String(value))
+            .set_attribute("disabled".into(), "".into())
+            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
+            .set_attribute("type".into(), "text".into())
+            .build();
         self
     }
 }
@@ -154,8 +154,12 @@ impl TnStreamTextAreaBuilder<'static> {
             component_type.clone(),
             include_str!("../javascript/stream_textarea.html"),
         );
-        self.base.init("textarea".into(), tnid, component_type);
-        self.base.set_value(TnComponentValue::VecString(value));
+        self.base = TnComponentBase::builder(self.base)
+            .init("textarea".into(), tnid, component_type)
+            .set_value(TnComponentValue::VecString(value))
+            .set_attribute("type".into(), "text".into())
+            .set_attribute("disabled".into(), "".into())
+            .build();
         // stream textarea is totally passive!!
         self.base.remove_attribute("hx-trigger".into());
         self.base.remove_attribute("hx-swap".into());
@@ -163,8 +167,7 @@ impl TnStreamTextAreaBuilder<'static> {
         self.base.remove_attribute("hx-target".into());
         self.base.remove_attribute("hx-vals".into());
         self.base.remove_attribute("hx-ext".into());
-        self.base.set_attribute("type".into(), "text".into());
-        self.base.set_attribute("disabled".into(), "".into());
+
         self
     }
 }

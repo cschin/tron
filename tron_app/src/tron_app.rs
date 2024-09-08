@@ -518,6 +518,7 @@ async fn tron_entry(
         let context_guard = app_data.context.read().await;
         let context = &context_guard.get(&session_id).unwrap().read().await;
 
+        // when there a hx_target, we update the component indicated by hx_target than the triggering component
         let tron_index = if let Some(hx_target) = hx_target {
             hx_target
         } else {

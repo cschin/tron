@@ -518,11 +518,11 @@ async fn tron_entry(
         let context_guard = app_data.context.read().await;
         let context = &context_guard.get(&session_id).unwrap().read().await;
 
-        // let tron_index = if let Some(hx_target) = hx_target {
-        //     context.get_component_index(&hx_target)
-        // } else {
-        //     tron_index
-        // };
+        let tron_index = if let Some(hx_target) = hx_target {
+            hx_target
+        } else {
+            tron_index
+        };
 
         let mut component_guard = context.components.write().await;
 

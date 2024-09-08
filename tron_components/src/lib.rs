@@ -946,23 +946,7 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
         tron_id: TnComponentId,
         type_: TnComponentType,
     ) -> TnComponentBaseBuilder<'a> {
-        let mut attributes = HashMap::<String, String>::default();
-        attributes.insert("id".into(), tron_id.clone());
-        attributes.insert("hx-post".to_string(), format!("/tron/{}", index));
-        attributes.insert("hx-target".to_string(), format!("#{}", tron_id));
-        attributes.insert("hx-swap".to_string(), "outerHTML".into());
-
-        attributes.insert(
-            "hx-vals".into(),
-            r##"js:{event_data:get_event(event)}"##.into(),
-        );
-        attributes.insert("hx-ext".into(), "json-enc".into());
-        attributes.insert("state".to_string(), "ready".to_string());
-        self.base.tag = tag;
-        self.base.type_ = type_;
-        self.base.id = index;
-        self.base.tron_id = tron_id;
-        self.base.attributes = attributes;
+        self.base.init(tag, index, tron_id, type_);
         self
     }
 

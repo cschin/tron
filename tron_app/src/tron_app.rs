@@ -17,7 +17,8 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    TnActionExecutionMethod, TnAsset, TnComponent, TnComponentId, TnComponentValue, TnContext, TnEvent, TnSseMsgChannel
+    TnActionExecutionMethod, TnAsset, TnComponent, TnComponentId, TnComponentValue, TnContext,
+    TnEvent, TnSseMsgChannel,
 };
 //use std::sync::Mutex;
 use std::{
@@ -57,17 +58,68 @@ type ContextBuilder = Arc<Box<dyn Fn() -> TnContext + Send + Sync>>;
 /// Alias for a layout function, which generates HTML layout from a context.
 type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
 
+type SessionExpiry = RwLock<HashMap<SessionId, time::OffsetDateTime>>;
+
 /// Represents application data used in a Tron application.
 ///
 /// This struct encapsulates various data components used in a Tron application,
 /// including session context, session expiry mappings, event actions, context builder function,
 /// action function template, and layout function.
 pub struct AppData {
+    pub head: Option<String>, // for inject head section to the html index page
     pub context: SessionContext,
-    pub session_expiry: RwLock<HashMap<SessionId, time::OffsetDateTime>>,
+    pub session_expiry: SessionExpiry,
     pub build_context: ContextBuilder,
     pub build_layout: LayoutFunction,
 }
+
+pub struct AppDataBuilder {
+    pub head: Option<String>, // for inject head section to the html index page
+    pub context: SessionContext,
+    pub session_expiry: RwLock<HashMap<SessionId, time::OffsetDateTime>>,
+    pub build_context: fn() -> TnContext,
+    pub build_layout: fn(TnContext) -> String,
+}
+
+impl AppData {
+    pub fn builder(
+        build_context: fn() -> TnContext,
+        build_layout: fn(TnContext) -> String,
+    ) -> AppDataBuilder {
+        AppDataBuilder {
+            head: Some(r#"<link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.1/dist/full.min.css" rel="stylesheet" type="text/css" /><script src="https://cdn.tailwindcss.com"></script>"#.to_string()),
+            context: RwLock::new(HashMap::default()),
+            session_expiry: RwLock::new(HashMap::default()),
+            build_context,
+            build_layout
+        }
+    }
+}
+
+impl AppDataBuilder {
+    pub fn set_head(mut self, head: &str) -> Self {
+        self.head = Some(head.to_string());
+        self
+    }
+    pub fn set_context(mut self, context: SessionContext) -> Self {
+        self.context = context;
+        self
+    }
+    pub fn session_expiry(mut self, session_expiry: SessionExpiry ) -> Self {
+        self.session_expiry = session_expiry;
+        self
+    }
+    pub fn build(self) -> AppData {
+        AppData {
+            head: self.head,
+            context: self.context,
+            session_expiry: self.session_expiry,
+            build_context: Arc::new(Box::new(self.build_context)),
+            build_layout: Arc::new(Box::new(self.build_layout))
+        }
+    }
+}
+
 /// Represents configuration options for a Tron application.
 ///
 /// This struct encapsulates various configuration options for a Tron application,
@@ -262,6 +314,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
 #[derive(Template)] // this will generate the code...
 #[template(path = "index.html", escape = "none")]
 struct IndexPageTemplate {
+    head: String,
     script: String,
 }
 
@@ -307,8 +360,12 @@ async fn index(
             .join("\n");
             script
         };
-
-        let html = IndexPageTemplate { script };
+        let head = if let Some(head) = &app_data.head {
+            head.clone()
+        } else {
+            "".into()
+        };
+        let html = IndexPageTemplate { head, script };
         let html = html.render().unwrap();
 
         Html::from(html).into_response()

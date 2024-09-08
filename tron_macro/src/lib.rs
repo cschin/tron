@@ -65,9 +65,6 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
     let mut builder_ast = ast.clone();
     builder_ast.ident = builder_name.clone();
     let dup_struct = dup_struct(ast.clone());    
-    println!("XYX: {}", &dup_struct);
-    
-
 
     let gen = quote! {
         impl<'a> TnComponentBaseTrait<'a> for #name<'a> where 'a:'static {

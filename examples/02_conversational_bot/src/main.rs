@@ -58,13 +58,7 @@ async fn main() {
         ..Default::default()
     };
     // set app state
-    let app_share_data = tron_app::AppData {
-        context: RwLock::new(HashMap::default()),
-        session_expiry: RwLock::new(HashMap::default()),
-        build_context: Arc::new(Box::new(build_session_context)),
-        build_layout: Arc::new(Box::new(layout)),
-    };
-
+    let app_share_data = tron_app::AppData::builder(build_session_context, layout).build(); 
     // Run the application
     //tron_app::run(app_share_data, Some("server=debug,tower_http=debug,tron_app=info")).await
     tron_app::run(app_share_data, app_configure).await

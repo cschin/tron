@@ -26,12 +26,7 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 async fn main() {
     let app_config = tron_app::AppConfigure::default();
     // set app state
-    let app_share_data = tron_app::AppData {
-        context: RwLock::new(HashMap::default()),
-        session_expiry: RwLock::new(HashMap::default()),
-        build_context: Arc::new(Box::new(build_context)),
-        build_layout: Arc::new(Box::new(layout)),
-    };
+    let app_share_data = tron_app::AppData::builder(build_context, layout).build(); 
     tron_app::run(app_share_data, app_config).await
 }
 

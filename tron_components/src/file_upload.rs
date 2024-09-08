@@ -10,6 +10,7 @@ pub struct TnFileUpload<'a: 'static> {
     button_attributes: HashMap<String, String>,
 }
 
+
 impl TnFileUploadBuilder<'static> {
     pub fn init(
         mut self,
@@ -18,8 +19,12 @@ impl TnFileUploadBuilder<'static> {
         _title: String,
         _button_attributes: HashMap<String, String>,
     ) -> Self {
+        let component_type = TnComponentType::FileUpload;
+        TnComponentType::register_script(component_type.clone(), include_str!(
+            "../javascript/file_upload.html"
+        ));
         self.base = TnComponentBase::builder(self.base)
-            .init("div".into(), idx, tnid.clone(), TnComponentType::FileUpload)
+            .init("div".into(), idx, tnid.clone(), component_type)
             .set_value(TnComponentValue::None)
             .set_attribute("type".into(), "file_upload".into())
             .set_attribute("id".into(), tnid.clone())
@@ -125,13 +130,11 @@ impl TnDnDFileUploadBuilder<'static> {
         _title: String,
         _button_attributes: HashMap<String, String>,
     ) -> Self {
+        let component_type = TnComponentType::DnDFileUpload;
+        TnComponentType::register_script(component_type.clone(), include_str!("../javascript/dnd_file_upload.html"));
+
         self.base = TnComponentBase::builder(self.base)
-            .init(
-                "div".into(),
-                idx,
-                tnid.clone(),
-                TnComponentType::DnDFileUpload,
-            )
+            .init("div".into(), idx, tnid.clone(), component_type)
             .set_value(TnComponentValue::None)
             .set_attribute("type".into(), "file_dnd_upload".into())
             .set_attribute("id".into(), tnid.clone())

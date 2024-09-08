@@ -16,6 +16,7 @@ pub struct SseAudioRecorderTriggerMsg {
 pub struct TnAudioRecorder<'a: 'static> {
     base: TnComponentBase<'a>,
 }
+
 impl TnAudioRecorderBuilder<'static> {
     /// Creates a new `TnAudioRecorder` component with the specified index, name, and value.
     ///
@@ -29,8 +30,14 @@ impl TnAudioRecorderBuilder<'static> {
     ///
     /// A new instance of `TnAudioRecorder`.
     pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
+        let component_type = TnComponentType::AudioRecorder;
+        TnComponentType::register_script(
+            component_type.clone(),
+            include_str!("../javascript/audio_recorder.html"),
+        );
+
         self.base = TnComponentBase::builder(self.base)
-            .init("div".to_string(), idx, tnid, TnComponentType::AudioRecorder)
+            .init("div".to_string(), idx, tnid, component_type)
             .set_value(TnComponentValue::String(value))
             .set_attribute("hx-trigger".into(), "streaming, server_side_trigger".into())
             .set_attribute(

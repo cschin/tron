@@ -29,8 +29,11 @@ impl TnRadioGroupBuilder<'static> {
         value: String,
         radio_group_items: Vec<(String, String)>,
     ) -> Self {
+        let component_type = TnComponentType::RadioGroup;
+        TnComponentType::register_script(component_type.clone(), 
+            include_str!("../javascript/radio_group.html"));
         self.base = TnComponentBase::builder(self.base)
-            .init("div".into(), idx, tnid, TnComponentType::RadioGroup)
+            .init("div".into(), idx, tnid, component_type)
             .set_value(TnComponentValue::String(value))
             .set_attribute("hx-trigger".into(), "server_side_trigger".into())
             .set_attribute("type".into(), "radio_group".into())

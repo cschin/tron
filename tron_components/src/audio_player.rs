@@ -40,17 +40,16 @@ impl<'a: 'static> TnAudioPlayerBuilder<'a> {
     ///
     /// A new instance of `TnAudioPlayer`.
     pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
+        let component_type = TnComponentType::AudioPlayer;
+        TnComponentType::register_script(component_type.clone(), include_str!("../javascript/audio_player.html"));
+
         self.base = TnComponentBase::builder(self.base)
-            .init(
-                "audio".to_string(),
-                idx,
-                tnid.clone(),
-                TnComponentType::AudioPlayer,
-            )
+            .init("audio".to_string(), idx, tnid.clone(), component_type)
             .set_value(TnComponentValue::String(value))
             .set_attribute("src".into(), format!("/tron_streaming/{}", tnid))
             .set_attribute("type".into(), "audio/mp3".into())
-            .set_attribute("hx-trigger".into(), "server_side_trigger, ended".into()).build();
+            .set_attribute("hx-trigger".into(), "server_side_trigger, ended".into())
+            .build();
         self
     }
 }

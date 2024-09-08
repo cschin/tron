@@ -13,10 +13,12 @@ pub struct TnTextArea<'a: 'static> {
 impl TnTextAreaBuilder<'static> {
     /// Creates a new TextArea component with the specified ID, name, and value.
     pub fn init(mut self, id: TnComponentIndex, name: String, value: String) -> Self {
-        self.base.init("textarea".into(), id, name, TnComponentType::TextArea);
+        self.base
+            .init("textarea".into(), id, name, TnComponentType::TextArea);
         self.base.set_value(TnComponentValue::String(value));
         self.base.set_attribute("disabled".into(), "".into());
-        self.base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
+        self.base
+            .set_attribute("hx-trigger".into(), "server_side_trigger".into());
         self.base.set_attribute("type".into(), "text".into());
         self
     }
@@ -147,12 +149,12 @@ pub struct SseStreamTextAreaTriggerMsg {
 /// A new instance of TnStreamTextArea.
 impl TnStreamTextAreaBuilder<'static> {
     pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: Vec<String>) -> Self {
-        self.base.init(
-            "textarea".into(),
-            idx,
-            tnid,
-            TnComponentType::StreamTextArea,
+        let component_type = TnComponentType::StreamTextArea;
+        TnComponentType::register_script(
+            component_type.clone(),
+            include_str!("../javascript/stream_textarea.html"),
         );
+        self.base.init("textarea".into(), idx, tnid, component_type);
         self.base.set_value(TnComponentValue::VecString(value));
         // stream textarea is totally passive!!
         self.base.remove_attribute("hx-trigger".into());
@@ -306,16 +308,20 @@ pub struct TnTextInput<'a: 'static> {
 /// A new `TnTextInput` instance.
 impl TnTextInputBuilder<'static> {
     pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
-        self.base.init("input".into(), idx, tnid, TnComponentType::TextInput);
-        self.base.set_value(TnComponentValue::String(value.to_string()));
+        self.base
+            .init("input".into(), idx, tnid, TnComponentType::TextInput);
+        self.base
+            .set_value(TnComponentValue::String(value.to_string()));
 
-        self.base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
+        self.base
+            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
         self.base.set_attribute("type".into(), "text".into());
         self.base.set_attribute(
             "hx-vals".into(),
             r##"js:{event_data:get_input_event(event)}"##.into(),
         ); //over-ride the default as we need the value of the input text
-        self.base.set_attribute("hx-swap".into(), "outerHTML".into());
+        self.base
+            .set_attribute("hx-swap".into(), "outerHTML".into());
         self
     }
 }

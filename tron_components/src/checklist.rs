@@ -17,8 +17,13 @@ impl TnCheckListBuilder<'static> {
         name: String,
         value: HashMap<String, bool>,
     ) -> Self {
+        let component_type = TnComponentType::CheckList;
+        TnComponentType::register_script(
+            component_type.clone(),
+            include_str!("../javascript/checklist.html"),
+        );
         self.base = TnComponentBase::builder(self.base)
-            .init("div".into(), id, name, TnComponentType::CheckList)
+            .init("div".into(), id, name, component_type)
             .set_value(TnComponentValue::CheckItems(value))
             .set_attribute("hx-trigger".into(), "server_side_trigger".into())
             .set_attribute("type".into(), "checklist".into())

@@ -21,8 +21,13 @@ impl<'a: 'static> TnD3PlotBuilder<'a> {
         tnid: String,
         d3_plot_script: String,
     ) -> TnD3PlotBuilder<'a> {
+        let component_type = TnComponentType::D3Plot;
+        TnComponentType::register_script(
+            component_type.clone(),
+            include_str!("../javascript/d3_plot.html"),
+        );
         self.base = TnComponentBase::builder(self.base)
-            .init("div".into(), idx, tnid, TnComponentType::D3Plot)
+            .init("div".into(), idx, tnid, component_type)
             .set_value(TnComponentValue::String(d3_plot_script))
             .set_attribute("type".into(), "d3_simple_scatter_plot".into())
             .set_attribute("hx-trigger".into(), "click, server_side_trigger".into())

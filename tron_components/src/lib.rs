@@ -161,6 +161,21 @@ pub enum TnComponentType {
     Div,
     UserDefined(String),
 }
+use std::sync::LazyLock;
+static COMPONENT_TYPE_SCRIPTS: LazyLock<Mutex<HashMap<TnComponentType, String>>> =
+    LazyLock::new(|| Mutex::new(HashMap::default()));
+
+impl<'a: 'static> TnComponentType {
+    fn register_script(t: TnComponentType, script: &str) {
+        let mut m = COMPONENT_TYPE_SCRIPTS.blocking_lock();
+        m.entry(t).or_insert_with(|| script.into());
+    }
+
+    fn get_script(&self) -> Option<String> {
+        let m = COMPONENT_TYPE_SCRIPTS.blocking_lock();
+        m.get(self).cloned()
+    }
+}
 
 /// Represents the various states a UI component can be in during its lifecycle.
 ///
@@ -200,7 +215,6 @@ type TnComponentAsset = Option<HashMap<String, TnAsset>>;
 /// - `state`: The current state of the component as defined by `TnComponentState`.
 /// - `children`: A vector of child components.
 /// - `parent`: A weak reference to the parent component, encapsulated in a read-write lock.
-/// - `script`: Optional custom script associated with the component.
 pub struct TnComponentBase<'a: 'static> {
     pub tag: TnElmTag,
     pub type_: TnComponentType,
@@ -213,7 +227,7 @@ pub struct TnComponentBase<'a: 'static> {
     pub state: TnComponentState,
     pub children: Vec<TnComponent<'a>>,
     pub parent: Weak<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>,
-    pub action: Option<(TnActionExecutionMethod, TnActionFn)>, // pub script: Option<String>,
+    pub action: Option<(TnActionExecutionMethod, TnActionFn)>,
 }
 
 /// Represents a service request message structure used for inter-service communication.
@@ -343,44 +357,20 @@ impl TnContextBase<'static> {
 
     /// Adds a new component to the context.
     /// Registers the component with a unique `tron_id` and an `id`, and updates the mapping.
-
     pub fn add_component(&mut self, new_component: impl TnComponentBaseTrait<'static> + 'static) {
         let tron_id = new_component.tron_id().clone();
         let id = new_component.id();
-        let ct = new_component.get_type();
+        let component_type = new_component.get_type();
 
         let mut component_guard = self.components.blocking_write();
         component_guard.insert(id, Arc::new(RwLock::new(Box::new(new_component))));
         self.tnid_to_index.insert(tron_id, id);
 
-        let e = self.scripts.entry(ct.clone()).or_default();
-        match ct {
-            TnComponentType::AudioPlayer => {
-                *e = include_str!("../javascript/audio_player.html").to_string();
-            }
-            TnComponentType::AudioRecorder => {
-                *e = include_str!("../javascript/audio_recorder.html").to_string();
-            }
-            TnComponentType::CheckList => {
-                *e = include_str!("../javascript/checklist.html").to_string();
-            }
-            TnComponentType::D3Plot => {
-                *e = include_str!("../javascript/d3_plot.html").to_string();
-            }
-            TnComponentType::DnDFileUpload => {
-                *e = include_str!("../javascript/dnd_file_upload.html").to_string();
-            }
-            TnComponentType::FileUpload => {
-                *e = include_str!("../javascript/file_upload.html").to_string();
-            }
-            TnComponentType::RadioGroup => {
-                *e = include_str!("../javascript/radio_group.html").to_string();
-            }
-            TnComponentType::StreamTextArea => {
-                *e = include_str!("../javascript/stream_textarea.html").to_string();
-            }
-            _ => (),
-        };
+        if let Some(script) = component_type.get_script() {
+            self.scripts
+            .entry(component_type.clone())
+            .or_insert_with(|| script);
+        }
     }
 
     /// Retrieves the component index using its `tron_id`.

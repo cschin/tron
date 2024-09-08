@@ -12,9 +12,9 @@ pub struct TnTextArea<'a: 'static> {
 
 impl TnTextAreaBuilder<'static> {
     /// Creates a new TextArea component with the specified ID, name, and value.
-    pub fn init(mut self, id: TnComponentIndex, name: String, value: String) -> Self {
+    pub fn init(mut self, name: TnComponentId, value: String) -> Self {
         self.base
-            .init("textarea".into(), id, name, TnComponentType::TextArea);
+            .init("textarea".into(), name, TnComponentType::TextArea);
         self.base.set_value(TnComponentValue::String(value));
         self.base.set_attribute("disabled".into(), "".into());
         self.base
@@ -148,13 +148,13 @@ pub struct SseStreamTextAreaTriggerMsg {
 ///
 /// A new instance of TnStreamTextArea.
 impl TnStreamTextAreaBuilder<'static> {
-    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: Vec<String>) -> Self {
+    pub fn init(mut self, tnid: TnComponentId, value: Vec<String>) -> Self {
         let component_type = TnComponentType::StreamTextArea;
         TnComponentType::register_script(
             component_type.clone(),
             include_str!("../javascript/stream_textarea.html"),
         );
-        self.base.init("textarea".into(), idx, tnid, component_type);
+        self.base.init("textarea".into(), tnid, component_type);
         self.base.set_value(TnComponentValue::VecString(value));
         // stream textarea is totally passive!!
         self.base.remove_attribute("hx-trigger".into());
@@ -307,9 +307,9 @@ pub struct TnTextInput<'a: 'static> {
 ///
 /// A new `TnTextInput` instance.
 impl TnTextInputBuilder<'static> {
-    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
+    pub fn init(mut self, tnid: TnComponentId, value: String) -> Self {
         self.base
-            .init("input".into(), idx, tnid, TnComponentType::TextInput);
+            .init("input".into(), tnid, TnComponentType::TextInput);
         self.base
             .set_value(TnComponentValue::String(value.to_string()));
 

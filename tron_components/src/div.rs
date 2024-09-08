@@ -11,9 +11,9 @@ pub struct TnDiv<'a: 'static> {
 
 impl TnDivBuilder<'static> {
     /// Creates a new Div component with the specified ID, name, and value.
-    pub fn init(mut self, id: TnComponentIndex, name: String, value: String) -> Self {
+    pub fn init(mut self, name: String, value: String) -> Self {
         self.base = TnComponentBase::builder(self.base)
-            .init("div".into(), id, name, TnComponentType::Div)
+            .init("div".into(), name, TnComponentType::Div)
             .set_value(TnComponentValue::String(value))
             .set_attribute("disabled".into(), "".into())
             .set_attribute("hx-trigger".into(), "server_side_trigger".into())

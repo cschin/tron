@@ -95,9 +95,9 @@ static GS_SERVICE: &str = "gs_service";
 fn build_context() -> TnContext {
     let mut context = TnContextBase::default();
 
-    add_dnd_file_upload(context.next_index(), &mut context, DND_FILE_UPLOAD);
-    add_image_output_area(context.next_index(), &mut context, IMAGE_OUTPUT_AREA);
-    add_input_image_area(context.next_index(), &mut context, INPUT_IMAGE_AREA);
+    add_dnd_file_upload(&mut context, DND_FILE_UPLOAD);
+    add_image_output_area( &mut context, IMAGE_OUTPUT_AREA);
+    add_input_image_area(&mut context, INPUT_IMAGE_AREA);
 
     // add service
 
@@ -119,7 +119,7 @@ fn build_context() -> TnContext {
     context
 }
 
-fn add_dnd_file_upload(component_index: u32, context: &mut TnContextBase, tnid: &str) {
+fn add_dnd_file_upload(context: &mut TnContextBase, tnid: &str) {
     let button_attributes = vec![(
         "class".into(),
         "btn btn-sm btn-outline btn-primary flex-1".into(),
@@ -129,7 +129,6 @@ fn add_dnd_file_upload(component_index: u32, context: &mut TnContextBase, tnid: 
 
     let dnd_file_upload = TnDnDFileUpload::builder()
         .init(
-            component_index,
             tnid.into(),
             "Drop A File".into(),
             button_attributes,
@@ -140,13 +139,13 @@ fn add_dnd_file_upload(component_index: u32, context: &mut TnContextBase, tnid: 
     context.add_component(dnd_file_upload);
 }
 
-fn add_image_output_area(component_index: u32, context: &mut TnContextBase, tnid: &str) {
-    let image_output = TnDiv::builder().init(component_index, tnid.into(), "".into()).build();
+fn add_image_output_area(context: &mut TnContextBase, tnid: &str) {
+    let image_output = TnDiv::builder().init( tnid.into(), "".into()).build();
     context.add_component(image_output);
 }
 
-fn add_input_image_area(component_index: u32, context: &mut TnContextBase, tnid: &str) {
-    let input_image = TnDiv::builder().init(component_index, tnid.into(), "".into()).build();
+fn add_input_image_area(context: &mut TnContextBase, tnid: &str) {
+    let input_image = TnDiv::builder().init(tnid.into(), "".into()).build();
     context.add_component(input_image);
 }
 

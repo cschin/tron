@@ -87,7 +87,6 @@ fn build_session_context() -> TnContext {
         // add a recorder button
         let btn = TnButton::builder()
             .init(
-                context.next_index(),
                 RECORDING_BUTTON.into(),
                 "Start Conversation".into(),
             )
@@ -103,7 +102,6 @@ fn build_session_context() -> TnContext {
         // add a recorder
         let recorder = TnAudioRecorder::builder()
             .init(
-                context.next_index(),
                 RECORDER.to_string(),
                 "Paused".to_string(),
             )
@@ -118,7 +116,6 @@ fn build_session_context() -> TnContext {
         // add a player
         let player = TnAudioPlayer::builder()
             .init(
-                context.next_index(),
                 PLAYER.to_string(),
                 "Paused".to_string(),
             )
@@ -135,7 +132,6 @@ fn build_session_context() -> TnContext {
         // add a reset button
         let btn = TnButton::builder()
             .init(
-                context.next_index(),
                 RESET_BUTTON.into(),
                 "Reset The Conversation".into(),
             )
@@ -150,7 +146,7 @@ fn build_session_context() -> TnContext {
     {
         // add a chatbox
         let transcript_output = TnChatBox::builder()
-            .init(context.next_index(), TRANSCRIPT_OUTPUT.to_string(), vec![])
+            .init(TRANSCRIPT_OUTPUT.to_string(), vec![])
             .set_attribute(
                 "class".to_string(),
                 "flex flex-col overflow-auto flex-1 p-2".to_string(),
@@ -163,7 +159,6 @@ fn build_session_context() -> TnContext {
         // add a textarea showing partial stream content
         let llm_stream_output = TnStreamTextArea::builder()
             .init(
-                context.next_index(),
                 LLM_STREAM_OUTPUT.to_string(),
                 Vec::new(),
             )
@@ -178,7 +173,7 @@ fn build_session_context() -> TnContext {
     {
         // add a status box
         let status_output = TnStreamTextArea::builder()
-            .init(context.next_index(), STATUS.to_string(), Vec::new())
+            .init(STATUS.to_string(), Vec::new())
             .set_attribute(
                 "class".to_string(),
                 "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),
@@ -192,7 +187,7 @@ fn build_session_context() -> TnContext {
     {
         let prompt = include_str!("../templates/drunk-bioinformatist.txt");
         let mut prompt_box =
-            TnTextArea::builder().init(context.next_index(), PROMPT.into(), prompt.into())
+            TnTextArea::builder().init(PROMPT.into(), prompt.into())
                 .set_attribute("hx-trigger".into(), "change, server_side_trigger".into()) // change will update the value one the textarea is out of focus
                 .set_attribute(
                     "class".into(),
@@ -224,7 +219,6 @@ fn build_session_context() -> TnContext {
             ("aura-zeus-en".into(), "Zeus (M)".into()),
         ];
         let tts_model_select = TnSelect::builder().init(
-            context.next_index(),
             TTS_MODEL_SELECT.into(),
             default_model,
             model_options,
@@ -245,7 +239,6 @@ fn build_session_context() -> TnContext {
             ("poet".into(), "Poet".into()),
         ];
         let preset_prompt_select = TnSelect::builder().init(
-            context.next_index(),
             PRESET_PROMPT_SELECT.into(),
             default_prompt,
             prompt_options,
@@ -965,11 +958,6 @@ async fn transcript_post_processing_service(
 ) {
     let assets = context.read().await.assets.clone();
     let components = context.read().await.components.clone();
-    let transcript_area_id = context
-        .clone()
-        .read()
-        .await
-        .get_component_index(TRANSCRIPT_OUTPUT);
 
     while let Some(response) = response_rx.recv().await {
         match response.response.as_str() {
@@ -1001,7 +989,7 @@ async fn transcript_post_processing_service(
                         {
                             let components_guard = components.write().await;
                             let transcript_area =
-                                components_guard.get(&transcript_area_id).unwrap();
+                                components_guard.get(TRANSCRIPT_OUTPUT).unwrap();
                             chatbox::append_chatbox_value(
                                 transcript_area.clone(),
                                 ("user".into(), transcript.clone()),

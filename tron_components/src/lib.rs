@@ -41,9 +41,6 @@ use rand::{thread_rng, Rng};
 use axum::{body::Bytes, http::HeaderMap, response::Html};
 use bytes::BytesMut;
 use serde::Deserialize;
-
-/// Each component is index by a u32 number
-pub type TnComponentIndex = u32;
 /// This for the HTML element attributes
 pub type TnElmAttributes = HashMap<String, String>;
 /// For adding extra header for the HTTP responses
@@ -218,7 +215,6 @@ type TnComponentAsset = Option<HashMap<String, TnAsset>>;
 pub struct TnComponentBase<'a: 'static> {
     pub tag: TnElmTag,
     pub type_: TnComponentType,
-    pub id: TnComponentIndex,
     pub tron_id: TnComponentId,
     pub attributes: TnElmAttributes,
     pub value: TnComponentValue,
@@ -287,7 +283,7 @@ pub type TnServiceName = String;
 
 /// Alias for a thread-safe, reference-counted hash map that maps component indices
 /// to their corresponding `TnComponent` instances.
-pub type TnComponentMap<'a> = Arc<RwLock<HashMap<TnComponentIndex, TnComponent<'a>>>>;
+pub type TnComponentMap<'a> = Arc<RwLock<HashMap<TnComponentId, TnComponent<'a>>>>;
 
 /// Alias for a thread-safe, reference-counted hash map mapping stream identifiers
 /// to their protocol and data.
@@ -319,7 +315,6 @@ pub type TnService = (
 /// - `stream_data`: A `TnStreamMap` that manages the streaming data associated with various components.
 /// - `assets`: A `TnContextAssets`, which is a thread-safe map storing assets linked to the context.
 /// - `sse_channel`: A `TnSseChannel` for managing server-sent events communication.
-/// - `tnid_to_index`: A hash map mapping component IDs (`TnComponentId`) to their indices (`TnComponentIndex`).
 /// - `service_handles`: A vector of `JoinHandle`s for managing service threads.
 /// - `services`: A hash map that maps service names (`TnServiceName`) to their corresponding service handlers (`TnService`).
 /// - `next_index`: A `u32` value used to generate the next component index.
@@ -329,7 +324,6 @@ pub struct TnContextBase<'a: 'static> {
     pub stream_data: TnStreamMap,
     pub assets: TnContextAssets,
     pub sse_channel: TnSseChannel,
-    pub tnid_to_index: HashMap<TnComponentId, TnComponentIndex>,
     pub service_handles: Vec<JoinHandle<()>>,
     pub services: HashMap<TnServiceName, TnService>,
     next_index: u32,
@@ -347,7 +341,6 @@ impl TnContextBase<'static> {
             scripts: HashMap::new(),
             service_handles: Vec::new(),
             assets: Arc::new(RwLock::new(HashMap::default())),
-            tnid_to_index: HashMap::default(),
             stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
             sse_channel: Arc::new(RwLock::new(None)),
@@ -359,44 +352,34 @@ impl TnContextBase<'static> {
     /// Registers the component with a unique `tron_id` and an `id`, and updates the mapping.
     pub fn add_component(&mut self, new_component: impl TnComponentBaseTrait<'static> + 'static) {
         let tron_id = new_component.tron_id().clone();
-        let id = new_component.id();
         let component_type = new_component.get_type();
 
         let mut component_guard = self.components.blocking_write();
-        component_guard.insert(id, Arc::new(RwLock::new(Box::new(new_component))));
-        self.tnid_to_index.insert(tron_id, id);
+        component_guard.insert(
+            tron_id.clone(),
+            Arc::new(RwLock::new(Box::new(new_component))),
+        );
 
         if let Some(script) = component_type.get_script() {
             self.scripts
-            .entry(component_type.clone())
-            .or_insert_with(|| script);
+                .entry(component_type.clone())
+                .or_insert_with(|| script);
         }
-    }
-
-    /// Retrieves the component index using its `tron_id`.
-    /// Panics if the `tron_id` is not found, ensuring that calling code handles missing components.
-    pub fn get_component_index(&self, tron_id: &str) -> u32 {
-        *self
-            .tnid_to_index
-            .get(tron_id)
-            .unwrap_or_else(|| panic!("component tron_id:{} not found", tron_id))
     }
 
     /// Renders the specified component to a string based on its `tron_id`.
     /// This method accesses the component by index, reads its state, and calls its render function.
     pub fn render_to_string(&self, tron_id: &str) -> String {
-        let id = self.get_component_index(tron_id);
         let components_guard = self.components.blocking_read();
-        let component = components_guard.get(&id).unwrap().blocking_read();
+        let component = components_guard.get(tron_id).unwrap().blocking_read();
         component.render()
     }
 
     /// Performs the initial rendering of a specified component to a string based on its `tron_id`.
     /// Similar to `render_to_string`, but specifically calls the component's first rendering logic.
     pub fn first_render_to_string(&self, tron_id: &str) -> String {
-        let id = self.get_component_index(tron_id);
         let component_guard = self.components.blocking_read();
-        let component = component_guard.get(&id).unwrap().blocking_read();
+        let component = component_guard.get(tron_id).unwrap().blocking_read();
         component.first_render()
     }
 
@@ -449,31 +432,28 @@ impl TnContext {
     pub async fn get_component(&self, tron_id: &str) -> TnComponent<'static> {
         let context_guard = self.write().await;
         let components_guard = context_guard.components.read().await;
-        let comp_id = context_guard.get_component_index(tron_id);
-        components_guard.get(&comp_id).unwrap().clone()
+        components_guard.get(tron_id).unwrap().clone()
     }
 
     /// Asynchronously retrieves a component by its `id`.
-    pub async fn get_component_by_id(&self, id: u32) -> TnComponent<'static> {
+    pub async fn get_component_by_id(&self, id: &String) -> TnComponent<'static> {
         let context_guard = self.write().await;
         let components_guard = context_guard.components.read().await;
-        components_guard.get(&id).unwrap().clone()
+        components_guard.get(id).unwrap().clone()
     }
 
     /// Synchronously retrieves a component by its `tron_id`.
     pub fn blocking_get_component(&self, tron_id: &str) -> TnComponent<'static> {
         let context_guard = self.blocking_write();
         let components_guard = context_guard.components.blocking_write();
-        let comp_id = context_guard.get_component_index(tron_id);
-        components_guard.get(&comp_id).unwrap().clone()
+        components_guard.get(tron_id).unwrap().clone()
     }
 
     /// Asynchronously renders a component to a string by its `tron_id`.
     pub async fn render_component(&self, tron_id: &str) -> String {
         let context_guard = self.read().await;
         let components_guard = context_guard.components.read().await;
-        let comp_id = context_guard.get_component_index(tron_id);
-        let comp = components_guard.get(&comp_id).unwrap().read().await;
+        let comp = components_guard.get(tron_id).unwrap().read().await;
         comp.render()
     }
 
@@ -482,8 +462,7 @@ impl TnContext {
         let value = {
             let context_guard = self.read().await;
             let components_guard = context_guard.components.read().await;
-            let component_id = context_guard.get_component_index(tron_id);
-            let components_guard = components_guard.get(&component_id).unwrap().read().await;
+            let components_guard = components_guard.get(tron_id).unwrap().read().await;
             components_guard.value().clone()
         };
         value
@@ -493,12 +472,7 @@ impl TnContext {
     pub async fn set_value_for_component(&self, tron_id: &str, v: TnComponentValue) {
         let context_guard = self.read().await;
         let mut components_guard = context_guard.components.write().await;
-        let component_id = context_guard.get_component_index(tron_id);
-        let mut component = components_guard
-            .get_mut(&component_id)
-            .unwrap()
-            .write()
-            .await;
+        let mut component = components_guard.get_mut(tron_id).unwrap().write().await;
         component.set_value(v);
     }
 
@@ -506,12 +480,7 @@ impl TnContext {
     pub async fn set_state_for_component(&self, tron_id: &str, s: TnComponentState) {
         let context_guard = self.read().await;
         let mut components_guard = context_guard.components.write().await;
-        let component_id = context_guard.get_component_index(tron_id);
-        let mut component = components_guard
-            .get_mut(&component_id)
-            .unwrap()
-            .write()
-            .await;
+        let mut component = components_guard.get_mut(tron_id).unwrap().write().await;
         component.set_state(s);
     }
 
@@ -519,11 +488,7 @@ impl TnContext {
     pub fn set_value_for_component_blocking(&self, tron_id: &str, v: TnComponentValue) {
         let context_guard = self.blocking_read();
         let mut components_guard = context_guard.components.blocking_write();
-        let component_id = context_guard.get_component_index(tron_id);
-        let mut component = components_guard
-            .get_mut(&component_id)
-            .unwrap()
-            .blocking_write();
+        let mut component = components_guard.get_mut(tron_id).unwrap().blocking_write();
         component.set_value(v);
     }
 
@@ -531,11 +496,7 @@ impl TnContext {
     pub fn set_state_for_component_blocking(&self, tron_id: &str, s: TnComponentState) {
         let context_guard = self.blocking_read();
         let mut components_guard = context_guard.components.blocking_write();
-        let component_id = context_guard.get_component_index(tron_id);
-        let mut component = components_guard
-            .get_mut(&component_id)
-            .unwrap()
-            .blocking_write();
+        let mut component = components_guard.get_mut(tron_id).unwrap().blocking_write();
         component.set_state(s);
     }
 
@@ -608,7 +569,6 @@ impl Default for TnContextBase<'static> {
 /// and setting actions.
 
 pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
-    fn id(&self) -> TnComponentIndex;
     fn tron_id(&self) -> &TnComponentId;
     fn get_type(&self) -> TnComponentType;
 
@@ -657,16 +617,10 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 /// such as its ID, type, attributes, headers, value, state, assets, children, parent, and script.
 /// Implementors of this trait must provide concrete implementations for these methods.
 impl TnComponentBase<'static> {
-    pub fn init(
-        &mut self,
-        tag: String,
-        index: TnComponentIndex,
-        tron_id: TnComponentId,
-        type_: TnComponentType,
-    ) {
+    pub fn init(&mut self, tag: String, tron_id: TnComponentId, type_: TnComponentType) {
         let mut attributes = HashMap::<String, String>::default();
         attributes.insert("id".into(), tron_id.clone());
-        attributes.insert("hx-post".to_string(), format!("/tron/{}", index));
+        attributes.insert("hx-post".to_string(), format!("/tron/{}", tron_id.clone()));
         attributes.insert("hx-target".to_string(), format!("#{}", tron_id));
         attributes.insert("hx-swap".to_string(), "outerHTML".into());
 
@@ -678,7 +632,6 @@ impl TnComponentBase<'static> {
         attributes.insert("state".to_string(), "ready".to_string());
         self.tag = tag;
         self.type_ = type_;
-        self.id = index;
         self.tron_id = tron_id;
         self.attributes = attributes;
     }
@@ -719,7 +672,6 @@ impl Default for TnComponentBase<'static> {
         TnComponentBase {
             tag: "div".into(),
             type_: TnComponentType::Base,
-            id,
             tron_id,
             attributes: HashMap::default(),
             extra_response_headers: HashMap::default(),
@@ -749,11 +701,6 @@ impl Default for TnComponentBase<'static> {
 /// - Action setting and retrieval
 /// - Placeholder methods for rendering and lifecycle operations (first_render, pre_render, render, post_render)
 impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
-    /// Returns the component's unique identifier
-    fn id(&self) -> u32 {
-        self.id
-    }
-
     /// Returns a reference to the component's Tron identifier
     fn tron_id(&self) -> &TnComponentId {
         &self.tron_id
@@ -932,11 +879,10 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
     pub fn init(
         mut self,
         tag: String,
-        index: TnComponentIndex,
         tron_id: TnComponentId,
         type_: TnComponentType,
     ) -> TnComponentBaseBuilder<'a> {
-        self.base.init(tag, index, tron_id, type_);
+        self.base.init(tag, tron_id, type_);
         self
     }
 
@@ -1024,10 +970,10 @@ mod tests {
 
     #[test]
     fn test_simple_button() {
-        let mut btn = TnButton::builder()
-            .init(12, "12".into(), "12".into())
+        let btn = TnButton::builder()
+            .init("12".into(), "12".into())
+            .set_attribute("hx-get".to_string(), format!("/tron/{}", 12))
             .build();
-        btn.set_attribute("hx-get".to_string(), format!("/tron/{}", 12));
-        //println!("{}", btn.generate_hx_attr_string());
+        println!("{}", btn.generate_attr_string());
     }
 }

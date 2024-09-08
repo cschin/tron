@@ -29,7 +29,7 @@ impl TnAudioRecorderBuilder<'static> {
     /// # Returns
     ///
     /// A new instance of `TnAudioRecorder`.
-    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
+    pub fn init(mut self, tnid: String, value: String) -> Self {
         let component_type = TnComponentType::AudioRecorder;
         TnComponentType::register_script(
             component_type.clone(),
@@ -37,7 +37,7 @@ impl TnAudioRecorderBuilder<'static> {
         );
 
         self.base = TnComponentBase::builder(self.base)
-            .init("div".to_string(), idx, tnid, component_type)
+            .init("div".to_string(), tnid, component_type)
             .set_value(TnComponentValue::String(value))
             .set_attribute("hx-trigger".into(), "streaming, server_side_trigger".into())
             .set_attribute(

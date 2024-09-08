@@ -11,19 +11,14 @@ pub struct TnCheckList<'a: 'static> {
 
 impl TnCheckListBuilder<'static> {
     /// Creates a new checklist component with the specified ID, name, and values.
-    pub fn init(
-        mut self,
-        id: TnComponentIndex,
-        name: String,
-        value: HashMap<String, bool>,
-    ) -> Self {
+    pub fn init(mut self, name: String, value: HashMap<String, bool>) -> Self {
         let component_type = TnComponentType::CheckList;
         TnComponentType::register_script(
             component_type.clone(),
             include_str!("../javascript/checklist.html"),
         );
         self.base = TnComponentBase::builder(self.base)
-            .init("div".into(), id, name, component_type)
+            .init("div".into(), name, component_type)
             .set_value(TnComponentValue::CheckItems(value))
             .set_attribute("hx-trigger".into(), "server_side_trigger".into())
             .set_attribute("type".into(), "checklist".into())
@@ -82,9 +77,9 @@ pub struct TnCheckBox<'a: 'static> {
 
 impl TnCheckBoxBuilder<'static> {
     /// Creates a new checkbox component.
-    pub fn init(mut self, id: TnComponentIndex, name: String, value: bool) -> Self {
+    pub fn init(mut self, name: String, value: bool) -> Self {
         self.base = TnComponentBase::builder(self.base)
-            .init("input".into(), id, name.clone(), TnComponentType::CheckBox)
+            .init("input".into(), name.clone(), TnComponentType::CheckBox)
             .set_value(TnComponentValue::CheckItem(value))
             .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
             .set_attribute("hx-target".into(), format!("#{}-container", name))
@@ -178,10 +173,9 @@ pub fn add_checklist_to_context(
 ) {
     let children_ids = checklist_items
         .into_iter()
-        .map(|(child_trod_id, label)| {
-            let checkbox_index = context.next_index();
+        .map(|(child_tron_id, label)| {
             let mut checkbox = TnCheckBox::builder()
-                .init(checkbox_index, child_trod_id.clone(), false)
+                .init(child_tron_id.clone(), false)
                 .build();
             let asset = checkbox.get_mut_assets().unwrap();
             asset.insert(
@@ -190,24 +184,16 @@ pub fn add_checklist_to_context(
             );
             asset.insert("label".into(), TnAsset::String(label));
             context.add_component(checkbox);
-            context
-                .tnid_to_index
-                .insert(format!("{child_trod_id}-container"), checkbox_index);
-            checkbox_index
+            child_tron_id
         })
         .collect::<Vec<_>>();
 
-    let component_index = context.next_index();
     let checklist = TnCheckList::builder()
-        .init(
-            component_index,
-            checklist_tron_id.to_string(),
-            HashMap::default(),
-        )
+        .init(checklist_tron_id.to_string(), HashMap::default())
         .build();
     context.add_component(checklist);
     let components = context.components.blocking_read();
-    let checklist = components.get(&component_index).unwrap();
+    let checklist = components.get(&checklist_tron_id.to_string()).unwrap();
     children_ids.iter().for_each(|child_id| {
         {
             let mut checklist = checklist.blocking_write();
@@ -271,9 +257,12 @@ pub fn toggle_checkbox(
         // println!("paylod value {payload}");
         if let Value::String(checked) = &payload["event_data"]["e_value"] {
             let context_guard = context.read().await;
-            let checkbox_id = context_guard.get_component_index(&event.e_trigger);
             let components_guard = context_guard.components.write().await;
-            let mut checkbox = components_guard.get(&checkbox_id).unwrap().write().await;
+            let mut checkbox = components_guard
+                .get(&event.e_trigger)
+                .unwrap()
+                .write()
+                .await;
 
             if checked.as_str() == "true" {
                 // println!("set true");

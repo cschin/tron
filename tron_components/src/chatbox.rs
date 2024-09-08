@@ -21,9 +21,9 @@ impl TnChatBoxBuilder<'static> {
     /// # Returns
     ///
     /// A new instance of `TnChatBox`.
-    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: Vec<(String, String)>) -> Self {
+    pub fn init(mut self,  tnid: String, value: Vec<(String, String)>) -> Self {
         self.base = TnComponentBase::builder(self.base)
-            .init("div".into(), idx, tnid, TnComponentType::ChatBox)
+            .init("div".into(), tnid, TnComponentType::ChatBox)
             .set_value(TnComponentValue::VecString2(value))
             .set_attribute("hx-trigger".into(), "server_side_trigger".into())
             .set_attribute(

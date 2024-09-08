@@ -19,13 +19,12 @@ impl TnSelectBuilder<'static> {
     /// * `options` - A vector of tuples representing the options of the select, where each tuple contains the value and label of an option.
     pub fn init(
         mut self,
-        idx: TnComponentIndex,
-        tnid: String,
+        tnid: TnComponentId,
         value: String,
         options: Vec<(String, String)>,
     ) -> Self {
         self.base = TnComponentBase::builder(self.base)
-            .init("select".into(), idx, tnid, TnComponentType::Select)
+            .init("select".into(), tnid, TnComponentType::Select)
             .set_value(TnComponentValue::String(value))
             .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
             .set_attribute("type".into(), "select".into())

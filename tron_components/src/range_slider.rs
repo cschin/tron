@@ -22,16 +22,9 @@ impl TnRangeSliderBuilder<'static> {
     /// # Returns
     ///
     /// A new instance of `TnRangeSlider`.
-    pub fn init(
-        mut self,
-        idx: TnComponentIndex,
-        tnid: String,
-        value: f32,
-        min: f32,
-        max: f32,
-    ) -> Self {
+    pub fn init(mut self, tnid: TnComponentId, value: f32, min: f32, max: f32) -> Self {
         self.base = TnComponentBase::builder(self.base)
-            .init("input".into(), idx, tnid, TnComponentType::Slider)
+            .init("input".into(), tnid, TnComponentType::Slider)
             .set_value(TnComponentValue::String(format!("{}", value)))
             .set_attribute("type".into(), "range".into())
             .set_attribute("min".into(), format!("{}", min))

@@ -24,16 +24,17 @@ impl TnRadioGroupBuilder<'static> {
     /// A new instance of `TnRadioGroup`.
     pub fn init(
         mut self,
-        idx: TnComponentIndex,
         tnid: String,
         value: String,
         radio_group_items: Vec<(String, String)>,
     ) -> Self {
         let component_type = TnComponentType::RadioGroup;
-        TnComponentType::register_script(component_type.clone(), 
-            include_str!("../javascript/radio_group.html"));
+        TnComponentType::register_script(
+            component_type.clone(),
+            include_str!("../javascript/radio_group.html"),
+        );
         self.base = TnComponentBase::builder(self.base)
-            .init("div".into(), idx, tnid, component_type)
+            .init("div".into(), tnid, component_type)
             .set_value(TnComponentValue::String(value))
             .set_attribute("hx-trigger".into(), "server_side_trigger".into())
             .set_attribute("type".into(), "radio_group".into())
@@ -114,14 +115,9 @@ pub struct TnRadioItem<'a: 'static> {
 ///
 /// A new `TnRadioItem` instance.
 impl TnRadioItemBuilder<'static> {
-    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: bool) -> Self {
+    pub fn init(mut self, tnid: TnComponentId, value: bool) -> Self {
         self.base = TnComponentBase::builder(self.base)
-            .init(
-                "input".into(),
-                idx,
-                tnid.clone(),
-                TnComponentType::RadioItem,
-            )
+            .init("input".into(), tnid.clone(), TnComponentType::RadioItem)
             .set_value(TnComponentValue::RadioItem(value))
             .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
             .set_attribute("hx-target".into(), format!("#{}-container", tnid))
@@ -218,11 +214,10 @@ pub fn add_radio_group_to_context(
 ) {
     let children_ids = radio_group_items
         .iter()
-        .map(|(child_trod_id, label)| {
-            let radio_item_index = context.next_index();
-            let is_default_item = *child_trod_id == default_item;
+        .map(|(child_tron_id, label)| {
+            let is_default_item = *child_tron_id == default_item;
             let mut radio_item = TnRadioItem::builder()
-                .init(radio_item_index, child_trod_id.clone(), is_default_item)
+                .init(child_tron_id.clone(), is_default_item)
                 .build();
 
             let asset = radio_item.get_mut_assets().unwrap();
@@ -232,18 +227,13 @@ pub fn add_radio_group_to_context(
             );
             asset.insert("label".into(), TnAsset::String(label.clone()));
             context.add_component(radio_item);
-            context
-                .tnid_to_index
-                .insert(format!("{}-container", child_trod_id), radio_item_index);
 
-            radio_item_index
+            child_tron_id.clone()
         })
         .collect::<Vec<_>>();
 
-    let component_index = context.next_index();
     let radio_group = TnRadioGroup::builder()
         .init(
-            component_index,
             radio_group_tron_id.to_string(),
             default_item,
             radio_group_items,
@@ -251,7 +241,7 @@ pub fn add_radio_group_to_context(
         .build();
     context.add_component(radio_group);
     let components = context.components.blocking_read();
-    let radio_group = components.get(&component_index).unwrap();
+    let radio_group = components.get(&radio_group_tron_id.to_string()).unwrap();
     children_ids.iter().for_each(|child_id| {
         {
             let mut radio_group = radio_group.blocking_write();

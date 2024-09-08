@@ -54,7 +54,6 @@ fn build_session_context() -> TnContext {
     loop {
         let btn = TnButton::builder()
             .init(
-                context.next_index(),
                 format!("btn-{:02}", btn_idx),
                 format!("{:02}", btn_idx),
             )
@@ -75,7 +74,6 @@ fn build_session_context() -> TnContext {
 
     let stream_textarea = text::TnStreamTextArea::builder()
         .init(
-            context.next_index(),
             "stream_textarea".into(),
             vec!["This is a streamable textarea\n".to_string()],
         )
@@ -89,7 +87,6 @@ fn build_session_context() -> TnContext {
 
     let textarea = text::TnTextArea::builder()
         .init(
-            context.next_index(),
             "textarea".into(),
             "This is a textarea\n".to_string(),
         )
@@ -118,9 +115,8 @@ fn build_session_context() -> TnContext {
         container_attributes,
     );
     {
-        let component_index = context.get_component_index(&checklist_tron_id);
         let component_guard = context.components.blocking_read();
-        let checklist_guard = component_guard.get(&component_index).unwrap();
+        let checklist_guard = component_guard.get(&checklist_tron_id).unwrap();
         checklist_guard
             .blocking_write()
             .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
@@ -142,15 +138,13 @@ fn build_session_context() -> TnContext {
         "radio-1".into(),
     );
     {
-        let component_index = context.get_component_index(&radio_group_tron_id);
         let component_guard = context.components.blocking_read();
-        let radio_group_guard = component_guard.get(&component_index).unwrap();
+        let radio_group_guard = component_guard.get(&radio_group_tron_id).unwrap();
         radio_group_guard
             .blocking_write()
             .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
     }
     {
-        let component_index = context.next_index();
         let select_options = vec![
             ("one".into(), "One".into()),
             ("two".into(), "Two".into()),
@@ -159,7 +153,6 @@ fn build_session_context() -> TnContext {
 
         let select = TnSelect::builder()
             .init(
-                component_index,
                 "select_one".into(),
                 "one".into(),
                 select_options,
@@ -169,7 +162,7 @@ fn build_session_context() -> TnContext {
     }
     {
         let slider = TnRangeSlider::builder()
-            .init(context.next_index(), "slider".into(), 0.0, 0.0, 100.0)
+            .init("slider".into(), 0.0, 0.0, 100.0)
             .set_attribute("class".to_string(), "flex-1".to_string())
             .set_action(TnActionExecutionMethod::Await, slider_value_update)
             .build();
@@ -178,7 +171,6 @@ fn build_session_context() -> TnContext {
     {
         let clean_button = TnButton::builder()
             .init(
-                context.next_index(),
                 "clean_stream_textarea".into(),
                 "clean_stream_textarea".into(),
             )
@@ -194,7 +186,6 @@ fn build_session_context() -> TnContext {
     {
         let clean_button = TnButton::builder()
             .init(
-                context.next_index(),
                 "clean_textarea".into(),
                 "clean_textarea".into(),
             )
@@ -209,7 +200,6 @@ fn build_session_context() -> TnContext {
     {
         let clean_button = TnButton::builder()
             .init(
-                context.next_index(),
                 "clean_textinput".into(),
                 "clean_textinput".into(),
             )
@@ -223,7 +213,7 @@ fn build_session_context() -> TnContext {
     }
     {
         let textinput = text::TnTextInput::builder()
-            .init(context.next_index(), "textinput".into(), "".into())
+            .init("textinput".into(), "".into())
             .set_attribute("class".into(), "input input-bordered w-full".into())
             .build();
 
@@ -238,7 +228,6 @@ fn build_session_context() -> TnContext {
         .collect::<HashMap<String, String>>();
         let file_upload = TnFileUpload::builder()
             .init(
-                context.next_index(),
                 "file_upload".into(),
                 "Upload File".into(),
                 button_attributes,
@@ -258,7 +247,6 @@ fn build_session_context() -> TnContext {
 
         let dnd_file_upload = TnDnDFileUpload::builder()
             .init(
-                context.next_index(),
                 "dnd_file_upload".into(),
                 "Drop A File".into(),
                 button_attributes,
@@ -329,17 +317,16 @@ fn test_event_actions(
                 let context_guard = context.write().await;
                 let v;
                 {
-                    let id = context_guard.get_component_index(&event.e_trigger.clone());
                     let mut components_guard = context_guard.components.write().await;
                     {
-                        let btn = components_guard.get_mut(&id).unwrap().read().await;
+                        let btn = components_guard.get_mut(&event.e_trigger.clone()).unwrap().read().await;
                         v = match btn.value() {
                             TnComponentValue::String(s) => s.parse::<u32>().unwrap(),
                             _ => 0,
                         };
                     }
                     {
-                        let mut btn = components_guard.get_mut(&id).unwrap().write().await;
+                        let mut btn = components_guard.get_mut(&event.e_trigger.clone()).unwrap().write().await;
 
                         btn.set_value(TnComponentValue::String(format!("{:02}", v + 1)));
                         btn.set_state(TnComponentState::Updating);
@@ -347,9 +334,8 @@ fn test_event_actions(
                 }
 
                 {
-                    let id = context_guard.get_component_index("textarea");
                     let mut components_guard = context_guard.components.write().await;
-                    let textarea = components_guard.get_mut(&id).unwrap().clone();
+                    let textarea = components_guard.get_mut("textarea").unwrap().clone();
                     let new_str = format!("{} -- {:02};", event.e_trigger, v);
                     append_textarea_value(textarea, &new_str, Some("\n")).await;
                 };
@@ -391,9 +377,8 @@ fn test_event_actions(
         }
         {
             let context_guard = context.write().await;
-            let id = context_guard.get_component_index(&event.e_trigger.clone());
             let mut components_guard = context_guard.components.write().await;
-            let mut btn = components_guard.get_mut(&id).unwrap().write().await;
+            let mut btn = components_guard.get_mut(&event.e_trigger.clone()).unwrap().write().await;
             btn.set_state(TnComponentState::Ready);
             let data = format!(
                 r##"{{"server_side_trigger_data": {{ "target":"{}", "new_state":"{}" }} }}"##,

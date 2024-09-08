@@ -17,8 +17,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
-    TnActionExecutionMethod, TnAsset, TnComponent, TnComponentIndex, TnComponentValue, TnContext,
-    TnEvent, TnSseMsgChannel,
+    TnActionExecutionMethod, TnAsset, TnComponent, TnComponentId, TnComponentValue, TnContext, TnEvent, TnSseMsgChannel
 };
 //use std::sync::Mutex;
 use std::{
@@ -432,7 +431,7 @@ async fn tron_entry(
     State(app_data): State<Arc<AppData>>,
     session: Session,
     headers: HeaderMap,
-    Path(tron_index): Path<TnComponentIndex>,
+    Path(tron_index): Path<TnComponentId>,
     Json(payload): Json<Value>,
     //request: Request,
 ) -> impl IntoResponse {
@@ -479,7 +478,7 @@ async fn tron_entry(
         let has_event_action = {
             let context_guard = app_data.context.read().await;
             let context = context_guard.get(&session_id).unwrap().clone();
-            let c = context.get_component_by_id(tron_index).await;
+            let c = context.get_component_by_id(&tron_index).await;
             let c = c.read().await;
             c.get_action().is_some()
         };
@@ -488,7 +487,7 @@ async fn tron_entry(
             let (action_exec_method, action_generator) = {
                 let context_guard = app_data.context.read().await;
                 let context = context_guard.get(&session_id).unwrap().clone();
-                let c = context.get_component_by_id(tron_index).await;
+                let c = context.get_component_by_id(&tron_index).await;
                 let c = c.read().await;
                 c.get_action().as_ref().unwrap().clone()
             };
@@ -519,11 +518,11 @@ async fn tron_entry(
         let context_guard = app_data.context.read().await;
         let context = &context_guard.get(&session_id).unwrap().read().await;
 
-        let tron_index = if let Some(hx_target) = hx_target {
-            context.get_component_index(&hx_target)
-        } else {
-            tron_index
-        };
+        // let tron_index = if let Some(hx_target) = hx_target {
+        //     context.get_component_index(&hx_target)
+        // } else {
+        //     tron_index
+        // };
 
         let mut component_guard = context.components.write().await;
 
@@ -608,7 +607,7 @@ async fn tron_entry(
 async fn get_session_component_from_app_data(
     app_data: Arc<AppData>,
     session_id: tower_sessions::session::Id,
-    tron_idx: TnComponentIndex,
+    tron_idx: TnComponentId,
 ) -> TnComponent<'static> {
     let guard = app_data.context.read().await;
     let session_context = guard.get(&session_id).unwrap();
@@ -658,7 +657,7 @@ async fn get_session_component_from_app_data(
 async fn upload(
     State(app_data): State<Arc<AppData>>,
     session: Session,
-    Path(tron_index): Path<TnComponentIndex>,
+    Path(tron_index): Path<TnComponentId>,
     mut multipart: Multipart,
 ) -> StatusCode {
     let mut response_headers = HeaderMap::new();

@@ -198,17 +198,16 @@ fn build_context() -> TnContext {
     let mut context = TnContextBase::default();
 
     let d3_plot_script = include_str!("../templates/d3_plot_script.html").to_string();
-    let d3_plot = TnD3Plot::builder()
+    TnD3Plot::builder()
         .init(D3PLOT.into(), d3_plot_script)
         .set_attribute(
             "hx-vals".into(),
             r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##.into(),
         )
         .set_action(TnActionExecutionMethod::Await, d3_plot_clicked)
-        .build();
-    context.add_component(d3_plot);
+        .add_to_context(&mut context);
 
-    let reset_btn = TnButton::builder()
+    TnButton::builder()
         .init(RESET_BUTTON.into(), "Reset".into())
         .set_attribute(
             "class".to_string(),
@@ -217,11 +216,9 @@ fn build_context() -> TnContext {
         .set_attribute("hx-target".to_string(), format!("#{D3PLOT}"))
         .set_attribute("hx-swap".to_string(), "none".to_string())
         .set_action(TnActionExecutionMethod::Await, reset_button_clicked)
-        .build();
+        .add_to_context(&mut context);
 
-    context.add_component(reset_btn);
-
-    let top_hit_div = TnDiv::builder()
+    TnDiv::builder()
         .init(TOP_HIT_DIV.into(), "".into())
         .set_attribute(
             "class".to_string(),
@@ -231,8 +228,7 @@ fn build_context() -> TnContext {
             "style".to_string(),
             "resize:none; overflow-y: auto;".to_string(),
         )
-        .build();
-    context.add_component(top_hit_div);
+        .add_to_context(&mut context);
 
     {
         let mut asset = context.assets.blocking_write();
@@ -242,44 +238,32 @@ fn build_context() -> TnContext {
         );
     }
 
-    let context_query_btn = TnButton::builder()
-        .init(
-            CONTEXT_QUERY_BUTTON.into(),
-            "Query With The Hits".into(),
-        )
+    TnButton::builder()
+        .init(CONTEXT_QUERY_BUTTON.into(), "Query With The Hits".into())
         .set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
         )
         .set_action(TnActionExecutionMethod::Await, query_with_hits)
-        .build();
-    context.add_component(context_query_btn);
+        .add_to_context(&mut context);
 
-    let query_btn = TnButton::builder()
-        .init(
-            QUERY_BUTTON.into(),
-            "General Query".into(),
-        )
+    TnButton::builder()
+        .init(QUERY_BUTTON.into(), "General Query".into())
         .set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
         )
         .set_action(TnActionExecutionMethod::Await, query_button_clicked)
-        .build();
-    context.add_component(query_btn);
+        .add_to_context(&mut context);
 
-    let find_related_btn = TnButton::builder()
-        .init(
-            FIND_RELATED_BUTTON.into(),
-            "Find Related Text".into(),
-        )
+    TnButton::builder()
+        .init(FIND_RELATED_BUTTON.into(), "Find Related Text".into())
         .set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
         )
         .set_action(TnActionExecutionMethod::Await, find_related_button_clicked)
-        .build();
-    context.add_component(find_related_btn);
+        .add_to_context(&mut context);
 
     let mut query_text_input = TnTextArea::builder()
         .init(QUERY_TEXT_INPUT.into(), "".into())
@@ -294,29 +278,20 @@ fn build_context() -> TnContext {
     query_text_input.remove_attribute("disabled".into());
     context.add_component(query_text_input);
 
-    let query_stream_textarea = TnStreamTextArea::builder()
-        .init(
-            QUERY_STREAM_TEXTAREA.into(),
-            Vec::new(),
-        )
+    TnStreamTextArea::builder()
+        .init(QUERY_STREAM_TEXTAREA.into(), Vec::new())
         .set_attribute("class".to_string(), "min-h-24 w-full".to_string())
         .set_attribute("style".to_string(), r#"resize:none"#.to_string())
-        .build();
-    context.add_component(query_stream_textarea);
+        .add_to_context(&mut context);
 
     // add a chatbox
-    let query_result_textarea = TnChatBox::builder()
-        .init(
-            QUERY_RESULT_TEXTAREA.to_string(),
-            vec![],
-        )
+    TnChatBox::builder()
+        .init(QUERY_RESULT_TEXTAREA.to_string(), vec![])
         .set_attribute(
             "class".to_string(),
             "min-h-96 max-h-96 overflow-auto flex-1 p-2".to_string(),
         )
-        .build();
-
-    context.add_component(query_result_textarea);
+        .add_to_context(&mut context);
 
     {
         // fill in the plot stream data

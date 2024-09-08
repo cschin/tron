@@ -48,7 +48,7 @@ fn build_context() -> TnContext {
     let mut context = TnContextBase::default();
 
     let btn = TnButton::builder()
-        .init(context.next_index(), BUTTON.into(), "click me".into())
+        .init( BUTTON.into(), "click me".into())
         .set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary flex-1".to_string(),

@@ -199,7 +199,7 @@ fn build_context() -> TnContext {
 
     let d3_plot_script = include_str!("../templates/d3_plot_script.html").to_string();
     let d3_plot = TnD3Plot::builder()
-        .init(context.next_index(), D3PLOT.into(), d3_plot_script)
+        .init(D3PLOT.into(), d3_plot_script)
         .set_attribute(
             "hx-vals".into(),
             r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##.into(),
@@ -209,7 +209,7 @@ fn build_context() -> TnContext {
     context.add_component(d3_plot);
 
     let reset_btn = TnButton::builder()
-        .init(context.next_index(), RESET_BUTTON.into(), "Reset".into())
+        .init(RESET_BUTTON.into(), "Reset".into())
         .set_attribute(
             "class".to_string(),
             "btn btn-sm btn-outline btn-primary w-full h-min p-1".to_string(),
@@ -222,7 +222,7 @@ fn build_context() -> TnContext {
     context.add_component(reset_btn);
 
     let top_hit_div = TnDiv::builder()
-        .init(context.next_index(), TOP_HIT_DIV.into(), "".into())
+        .init(TOP_HIT_DIV.into(), "".into())
         .set_attribute(
             "class".to_string(),
             "flex flex-col w-full h-full".to_string(),
@@ -244,7 +244,6 @@ fn build_context() -> TnContext {
 
     let context_query_btn = TnButton::builder()
         .init(
-            context.next_index(),
             CONTEXT_QUERY_BUTTON.into(),
             "Query With The Hits".into(),
         )
@@ -258,7 +257,6 @@ fn build_context() -> TnContext {
 
     let query_btn = TnButton::builder()
         .init(
-            context.next_index(),
             QUERY_BUTTON.into(),
             "General Query".into(),
         )
@@ -272,7 +270,6 @@ fn build_context() -> TnContext {
 
     let find_related_btn = TnButton::builder()
         .init(
-            context.next_index(),
             FIND_RELATED_BUTTON.into(),
             "Find Related Text".into(),
         )
@@ -285,7 +282,7 @@ fn build_context() -> TnContext {
     context.add_component(find_related_btn);
 
     let mut query_text_input = TnTextArea::builder()
-        .init(context.next_index(), QUERY_TEXT_INPUT.into(), "".into())
+        .init(QUERY_TEXT_INPUT.into(), "".into())
         .set_attribute("class".to_string(), "min-h-32 w-full".to_string())
         .set_attribute("style".to_string(), "resize:none".to_string())
         .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
@@ -299,7 +296,6 @@ fn build_context() -> TnContext {
 
     let query_stream_textarea = TnStreamTextArea::builder()
         .init(
-            context.next_index(),
             QUERY_STREAM_TEXTAREA.into(),
             Vec::new(),
         )
@@ -311,7 +307,6 @@ fn build_context() -> TnContext {
     // add a chatbox
     let query_result_textarea = TnChatBox::builder()
         .init(
-            context.next_index(),
             QUERY_RESULT_TEXTAREA.to_string(),
             vec![],
         )

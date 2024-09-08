@@ -87,7 +87,7 @@ impl AppData {
         build_layout: fn(TnContext) -> String,
     ) -> AppDataBuilder {
         AppDataBuilder {
-            head: Some(r#"<link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.1/dist/full.min.css" rel="stylesheet" type="text/css" /><script src="https://cdn.tailwindcss.com"></script>"#.to_string()),
+            head: Some(include_str!("../templates/head.html").to_string()),
             context: RwLock::new(HashMap::default()),
             session_expiry: RwLock::new(HashMap::default()),
             build_context,

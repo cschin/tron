@@ -37,8 +37,8 @@ impl TnAudioRecorderBuilder<'static> {
                 "hx-vals".into(),
                 r##"js:{event_data:get_audio_event(event)}"##.into(),
             )
+            .create_assets()
             .build();
-        self.base.asset = Some(HashMap::<String, TnAsset>::default());
         self.base
             .asset
             .as_mut()

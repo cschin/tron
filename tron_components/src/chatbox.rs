@@ -30,8 +30,9 @@ impl TnChatBoxBuilder<'static> {
                 "hx-swap".into(),
                 "beforeend scroll:bottom focus-scroll:true ".into(),
             )
-            .set_attribute("class".into(), "flex-col".into()).build();
-        self.base.asset = Some(HashMap::default());
+            .set_attribute("class".into(), "flex-col".into())
+            .create_assets()
+            .build();
         let class = HashMap::from_iter(vec![
             // ("user".to_string(), "max-w-fill flex flex-row justify-end p-1 > bg-green-100 rounded-lg p-2 mb-1 text-right".to_string()),
             // ("bot".to_string(), "max-w-fill flex flex-row justify-start p-1 > bg-blue-100 rounded-lg p-2 mb-1 text-left".to_string()),

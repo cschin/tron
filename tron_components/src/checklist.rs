@@ -88,11 +88,9 @@ impl TnCheckBoxBuilder<'static> {
                 r##"js:{event_data: get_checkbox_event(event)}"##.into(),
             )
             .set_attribute("hx-swap".into(), "none".into())
+            .create_assets()
+            .set_action(TnActionExecutionMethod::Await, toggle_checkbox)
             .build();
-        //component_self.base.set_attribute("type".into(), "checkbox".into());
-        self.base.asset = Some(HashMap::default());
-        self.base
-            .set_action(TnActionExecutionMethod::Await, toggle_checkbox);
         self
     }
 }

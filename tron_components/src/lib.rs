@@ -978,6 +978,22 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
         self
     }
 
+    /// Sets the action for the component
+    fn set_action(
+        mut self,
+        m: TnActionExecutionMethod,
+        f: TnActionFn,
+    ) -> TnComponentBaseBuilder<'a> {
+        self.base.action = Some((m, f));
+        self
+    }
+
+    /// Creates the assets HashMap for the component
+    fn create_assets(mut self) -> TnComponentBaseBuilder<'a> {
+        self.base.asset = Some(HashMap::default());
+        self
+    }
+
     fn build(self) -> TnComponentBase<'a> {
         self.base
     }

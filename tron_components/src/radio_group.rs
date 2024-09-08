@@ -34,13 +34,12 @@ impl TnRadioGroupBuilder<'static> {
             .set_value(TnComponentValue::String(value))
             .set_attribute("hx-trigger".into(), "server_side_trigger".into())
             .set_attribute("type".into(), "radio_group".into())
+            .create_assets()
             .build();
-        let mut asset = HashMap::default();
-        asset.insert(
+        self.base.asset.as_mut().unwrap().insert(
             "radio_group_items".into(),
             TnAsset::VecString2(radio_group_items),
         );
-        self.base.asset = Some(asset);
         self
     }
 }
@@ -128,11 +127,10 @@ impl TnRadioItemBuilder<'static> {
                 r##"js:{event_data: get_radio_group_event(event)}"##.into(),
             )
             .set_attribute("hx-swap".into(), "none".into())
+            .set_action(TnActionExecutionMethod::Await, set_radio_item)
+            .create_assets()
             .build();
         //component_self.base.set_attribute("type".into(), "checkbox".into());
-        self.base.asset = Some(HashMap::default());
-        self.base
-            .set_action(TnActionExecutionMethod::Await, set_radio_item);
         self
     }
 }

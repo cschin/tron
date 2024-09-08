@@ -34,8 +34,8 @@ impl TnSelectBuilder<'static> {
                 "hx-vals".into(),
                 r##"js:{event_data:get_input_event(event)}"##.into(),
             )
+            .create_assets()
             .build(); //over-ride the default as we need the value of the input text
-        self.base.asset = Some(HashMap::default());
         self.base
             .asset
             .as_mut()

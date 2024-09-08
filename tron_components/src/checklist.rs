@@ -11,12 +11,19 @@ pub struct TnCheckList<'a: 'static> {
 
 impl TnCheckListBuilder<'static> {
     /// Creates a new checklist component with the specified ID, name, and values.
-    pub fn new(id: TnComponentIndex, name: String, value: HashMap<String, bool>) -> Self {
-        let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::CheckList);
-        base.set_value(TnComponentValue::CheckItems(value));
-        base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        base.set_attribute("type".into(), "checklist".into());
-        Self { base }
+    pub fn init(
+        mut self,
+        id: TnComponentIndex,
+        name: String,
+        value: HashMap<String, bool>,
+    ) -> Self {
+        self.base
+            .init("div".into(), id, name, TnComponentType::CheckList);
+        self.base.set_value(TnComponentValue::CheckItems(value));
+        self.base
+            .set_attribute("hx-trigger".into(), "server_side_trigger".into());
+        self.base.set_attribute("type".into(), "checklist".into());
+        self
     }
 }
 
@@ -70,21 +77,24 @@ pub struct TnCheckBox<'a: 'static> {
 
 impl TnCheckBoxBuilder<'static> {
     /// Creates a new checkbox component.
-    pub fn new(id: TnComponentIndex, name: String, value: bool) -> Self {
-        let mut base =
-            TnComponentBase::new("input".into(), id, name.clone(), TnComponentType::CheckBox);
-        base.set_value(TnComponentValue::CheckItem(value));
-        base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        base.set_attribute("hx-target".into(), format!("#{}-container", name));
-        base.set_attribute(
+    pub fn init(mut self, id: TnComponentIndex, name: String, value: bool) -> Self {
+        self.base
+            .init("input".into(), id, name.clone(), TnComponentType::CheckBox);
+        self.base.set_value(TnComponentValue::CheckItem(value));
+        self.base
+            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
+        self.base
+            .set_attribute("hx-target".into(), format!("#{}-container", name));
+        self.base.set_attribute(
             "hx-vals".into(),
             r##"js:{event_data: get_checkbox_event(event)}"##.into(),
         );
-        base.set_attribute("hx-swap".into(), "none".into());
-        //component_base.set_attribute("type".into(), "checkbox".into());
-        base.asset = Some(HashMap::default());
-        base.set_action(TnActionExecutionMethod::Await, toggle_checkbox);
-        Self { base }
+        self.base.set_attribute("hx-swap".into(), "none".into());
+        //component_self.base.set_attribute("type".into(), "checkbox".into());
+        self.base.asset = Some(HashMap::default());
+        self.base
+            .set_action(TnActionExecutionMethod::Await, toggle_checkbox);
+        self
     }
 }
 
@@ -168,8 +178,9 @@ pub fn add_checklist_to_context(
         .into_iter()
         .map(|(child_trod_id, label)| {
             let checkbox_index = context.next_index();
-            let mut checkbox =
-                TnCheckBoxBuilder::new(checkbox_index, child_trod_id.clone(), false).build();
+            let mut checkbox = TnCheckBox::builder()
+                .init(checkbox_index, child_trod_id.clone(), false)
+                .build();
             let asset = checkbox.get_mut_assets().unwrap();
             asset.insert(
                 "container_attributes".into(),
@@ -185,8 +196,13 @@ pub fn add_checklist_to_context(
         .collect::<Vec<_>>();
 
     let component_index = context.next_index();
-    let checklist =
-        TnCheckListBuilder::new(component_index, checklist_tron_id.to_string(), HashMap::default()).build();
+    let checklist = TnCheckList::builder()
+        .init(
+            component_index,
+            checklist_tron_id.to_string(),
+            HashMap::default(),
+        )
+        .build();
     context.add_component(checklist);
     let components = context.components.blocking_read();
     let checklist = components.get(&component_index).unwrap();

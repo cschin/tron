@@ -319,6 +319,10 @@ pub struct TnContextBase<'a: 'static> {
     next_index: u32,
 }
 
+
+
+
+
 /// Provides the implementation for `TnContextBase`, a context management structure for handling
 /// UI components and their interaction in an application.
 impl TnContextBase<'static> {
@@ -696,6 +700,32 @@ impl TnComponentBase<'static> {
             ..Default::default()
         }
     }
+
+    pub fn init(
+        &mut self,
+        tag: String,
+        index: TnComponentIndex,
+        tron_id: TnComponentId,
+        type_: TnComponentType,
+    ) {
+        let mut attributes = HashMap::<String, String>::default();
+        attributes.insert("id".into(), tron_id.clone());
+        attributes.insert("hx-post".to_string(), format!("/tron/{}", index));
+        attributes.insert("hx-target".to_string(), format!("#{}", tron_id));
+        attributes.insert("hx-swap".to_string(), "outerHTML".into());
+
+        attributes.insert(
+            "hx-vals".into(),
+            r##"js:{event_data:get_event(event)}"##.into(),
+        );
+        attributes.insert("hx-ext".into(), "json-enc".into());
+        attributes.insert("state".to_string(), "ready".to_string());
+        self.tag = tag;
+        self.type_ = type_;
+        self.id = index;
+        self.tron_id = tron_id;
+        self.attributes = attributes;
+    }
 }
 
 /// Creates a default instance of `TnComponentBase`.
@@ -931,6 +961,7 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
         &self.action
     }
 }
+
 /// Represents a Tron event.
 ///
 /// This struct encapsulates various properties of a Tron event, including its trigger, type, state, target, and header target.
@@ -978,11 +1009,11 @@ pub enum TnActionExecutionMethod {
 
 #[cfg(test)]
 mod tests {
-    use crate::{button::TnButtonBuilder, TnComponentBaseTrait};
+    use crate::{button::TnButton, TnComponentBaseTrait};
 
     #[test]
     fn test_simple_button() {
-        let mut btn = TnButtonBuilder::new(12, "12".into(), "12".into()).build();
+        let mut btn = TnButton::builder().init(12, "12".into(), "12".into()).build();
         btn.set_attribute("hx-get".to_string(), format!("/tron/{}", 12));
         //println!("{}", btn.generate_hx_attr_string());
     }

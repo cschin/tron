@@ -127,25 +127,26 @@ fn add_dnd_file_upload(component_index: u32, context: &mut TnContextBase, tnid: 
     .into_iter()
     .collect::<HashMap<String, String>>();
 
-    let dnd_file_upload = TnDnDFileUploadBuilder::new(
-        component_index,
-        tnid.into(),
-        "Drop A File".into(),
-        button_attributes,
-    )
-    .set_action(TnActionExecutionMethod::Await, handle_file_upload)
-    .build();
+    let dnd_file_upload = TnDnDFileUpload::builder()
+        .init(
+            component_index,
+            tnid.into(),
+            "Drop A File".into(),
+            button_attributes,
+        )
+        .set_action(TnActionExecutionMethod::Await, handle_file_upload)
+        .build();
 
     context.add_component(dnd_file_upload);
 }
 
 fn add_image_output_area(component_index: u32, context: &mut TnContextBase, tnid: &str) {
-    let image_output = TnDivBuilder::new(component_index, tnid.into(), "".into()).build();
+    let image_output = TnDiv::builder().init(component_index, tnid.into(), "".into()).build();
     context.add_component(image_output);
 }
 
 fn add_input_image_area(component_index: u32, context: &mut TnContextBase, tnid: &str) {
-    let input_image = TnDivBuilder::new(component_index, tnid.into(), "".into()).build();
+    let input_image = TnDiv::builder().init(component_index, tnid.into(), "".into()).build();
     context.add_component(input_image);
 }
 

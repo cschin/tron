@@ -40,19 +40,18 @@ impl<'a: 'static> TnAudioPlayerBuilder<'a> {
     /// # Returns
     ///
     /// A new instance of `TnAudioPlayer`.
-    pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
-        let mut base = TnComponentBase::new(
+    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
+        self.base.init(
             "audio".to_string(),
             idx,
             tnid.clone(),
             TnComponentType::AudioPlayer,
         );
-        base.set_value(TnComponentValue::String(value));
-        base.set_attribute("src".into(), format!("/tron_streaming/{}", tnid));
-        // component_base.set_attribute("type".into(), "audio/webm".into());
-        base.set_attribute("type".into(), "audio/mp3".into());
-        base.set_attribute("hx-trigger".into(), "server_side_trigger, ended".into());
-        Self { base }
+        self.base.set_value(TnComponentValue::String(value));
+        self.base.set_attribute("src".into(), format!("/tron_streaming/{}", tnid));
+        self.base.set_attribute("type".into(), "audio/mp3".into());
+        self.base.set_attribute("hx-trigger".into(), "server_side_trigger, ended".into());
+        self
     }
 }
 

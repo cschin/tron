@@ -1,9 +1,5 @@
 mod dg_service;
 mod llm_service;
-use audio_player::TnAudioPlayerBuilder;
-use audio_recorder::TnAudioRecorderBuilder;
-use button::TnButtonBuilder;
-use chatbox::TnChatBoxBuilder;
 use http::HeaderMap;
 use llm_service::simulate_dialog;
 
@@ -13,7 +9,6 @@ use futures_util::Future;
 
 use axum::{body::Bytes, response::Html};
 use data_encoding::BASE64;
-use select::TnSelectBuilder;
 use serde::Deserialize;
 
 use serde_json::Value;
@@ -23,7 +18,6 @@ use std::{
     sync::Arc,
     time::SystemTime,
 };
-use text::{TnStreamTextAreaBuilder, TnTextAreaBuilder};
 use tokio::sync::oneshot;
 use tokio::sync::{
     mpsc::{Receiver, Sender},
@@ -91,115 +85,124 @@ fn build_session_context() -> TnContext {
 
     {
         // add a recorder button
-        let btn = TnButtonBuilder::new(
-            context.next_index(),
-            RECORDING_BUTTON.into(),
-            "Start Conversation".into(),
-        )
-        .set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        )
-        .set_action(TnActionExecutionMethod::Await, toggle_recording)
-        .build();
+        let btn = TnButton::builder()
+            .init(
+                context.next_index(),
+                RECORDING_BUTTON.into(),
+                "Start Conversation".into(),
+            )
+            .set_attribute(
+                "class".to_string(),
+                "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+            )
+            .set_action(TnActionExecutionMethod::Await, toggle_recording)
+            .build();
         context.add_component(btn);
     }
     {
         // add a recorder
-        let recorder = TnAudioRecorderBuilder::new(
-            context.next_index(),
-            RECORDER.to_string(),
-            "Paused".to_string(),
-        )
-        .set_action(
-            TnActionExecutionMethod::Await,
-            audio_input_stream_processing,
-        )
-        .build();
+        let recorder = TnAudioRecorder::builder()
+            .init(
+                context.next_index(),
+                RECORDER.to_string(),
+                "Paused".to_string(),
+            )
+            .set_action(
+                TnActionExecutionMethod::Await,
+                audio_input_stream_processing,
+            )
+            .build();
         context.add_component(recorder);
     }
     {
         // add a player
-        let player =
-            TnAudioPlayerBuilder::new(context.next_index(), PLAYER.to_string(), "Paused".to_string())
-                .set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string())
-                .set_action(
-                    TnActionExecutionMethod::Await,
-                    audio_player::stop_audio_playing_action,
-                )
-                .build();
+        let player = TnAudioPlayer::builder()
+            .init(
+                context.next_index(),
+                PLAYER.to_string(),
+                "Paused".to_string(),
+            )
+            .set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string())
+            .set_action(
+                TnActionExecutionMethod::Await,
+                audio_player::stop_audio_playing_action,
+            )
+            .build();
         context.add_component(player);
     }
 
     {
         // add a reset button
-        let btn = TnButtonBuilder::new(
-            context.next_index(),
-            RESET_BUTTON.into(),
-            "Reset The Conversation".into(),
-        )
-        .set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary flex-1".to_string(),
-        )
-        .set_action(TnActionExecutionMethod::Await, reset_conversation)
-        .build();
+        let btn = TnButton::builder()
+            .init(
+                context.next_index(),
+                RESET_BUTTON.into(),
+                "Reset The Conversation".into(),
+            )
+            .set_attribute(
+                "class".to_string(),
+                "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+            )
+            .set_action(TnActionExecutionMethod::Await, reset_conversation)
+            .build();
         context.add_component(btn);
     }
     {
         // add a chatbox
-        let transcript_output =
-            TnChatBoxBuilder::new(context.next_index(), TRANSCRIPT_OUTPUT.to_string(), vec![])
-                .set_attribute(
-                    "class".to_string(),
-                    "flex flex-col overflow-auto flex-1 p-2".to_string(),
-                )
-                .build();
+        let transcript_output = TnChatBox::builder()
+            .init(context.next_index(), TRANSCRIPT_OUTPUT.to_string(), vec![])
+            .set_attribute(
+                "class".to_string(),
+                "flex flex-col overflow-auto flex-1 p-2".to_string(),
+            )
+            .build();
 
         context.add_component(transcript_output);
     }
     {
         // add a textarea showing partial stream content
-        let llm_stream_output = TnStreamTextAreaBuilder::new(
-            context.next_index(),
-            LLM_STREAM_OUTPUT.to_string(),
-            Vec::new(),
-        )
-        .set_attribute(
-            "class".to_string(),
-            "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19".to_string(),
-        )
-        .build();
+        let llm_stream_output = TnStreamTextArea::builder()
+            .init(
+                context.next_index(),
+                LLM_STREAM_OUTPUT.to_string(),
+                Vec::new(),
+            )
+            .set_attribute(
+                "class".to_string(),
+                "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19".to_string(),
+            )
+            .build();
         context.add_component(llm_stream_output);
     }
 
     {
         // add a status box
-        let status_output =
-            TnStreamTextAreaBuilder::new(context.next_index(), STATUS.to_string(), Vec::new())
-                .set_attribute(
-                    "class".to_string(),
-                    "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),
-                )
-                .set_attribute("hx-trigger".into(), "server_side_trigger".into())
-                .build();
+        let status_output = TnStreamTextArea::builder()
+            .init(context.next_index(), STATUS.to_string(), Vec::new())
+            .set_attribute(
+                "class".to_string(),
+                "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),
+            )
+            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
+            .build();
 
         context.add_component(status_output);
     }
 
     {
         let prompt = include_str!("../templates/drunk-bioinformatist.txt");
-        let mut prompt_box = TnTextAreaBuilder::new(context.next_index(), PROMPT.into(), prompt.into())
-            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into()) // change will update the value one the textarea is out of focus
-            .set_attribute(
-                "class".into(),
-                "flex-1 p-2 textarea textarea-bordered mx-auto h-96 max-h-96 min-h-96".into(),
-            )
-            .set_attribute(
-                "hx-vals".into(),
-                r##"js:{event_data:get_input_event(event)}"##.into(),
-            )
-            .build();
+        let mut prompt_box =
+            TnTextArea::builder().init(context.next_index(), PROMPT.into(), prompt.into())
+                .set_attribute("hx-trigger".into(), "change, server_side_trigger".into()) // change will update the value one the textarea is out of focus
+                .set_attribute(
+                    "class".into(),
+                    "flex-1 p-2 textarea textarea-bordered mx-auto h-96 max-h-96 min-h-96".into(),
+                )
+                .set_attribute(
+                    "hx-vals".into(),
+                    r##"js:{event_data:get_input_event(event)}"##.into(),
+                )
+                .build();
         prompt_box.remove_attribute("disabled".into());
 
         context.add_component(prompt_box);
@@ -220,7 +223,7 @@ fn build_session_context() -> TnContext {
             ("aura-helios-en".into(), "Helios (M)".into()),
             ("aura-zeus-en".into(), "Zeus (M)".into()),
         ];
-        let tts_model_select = TnSelectBuilder::new(
+        let tts_model_select = TnSelect::builder().init(
             context.next_index(),
             TTS_MODEL_SELECT.into(),
             default_model,
@@ -241,7 +244,7 @@ fn build_session_context() -> TnContext {
             ("socrat".into(), "Socrat".into()),
             ("poet".into(), "Poet".into()),
         ];
-        let preset_prompt_select = TnSelectBuilder::new(
+        let preset_prompt_select = TnSelect::builder().init(
             context.next_index(),
             PRESET_PROMPT_SELECT.into(),
             default_prompt,

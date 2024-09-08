@@ -15,19 +15,19 @@ pub struct TnD3Plot<'a: 'static> {
 }
 
 impl<'a:'static> TnD3PlotBuilder<'a>  {
-    pub fn new(idx: TnComponentIndex, tnid: String, d3_plot_script: String) -> TnD3PlotBuilder<'a> {
-        let mut base = TnComponentBase::new("div".into(), idx, tnid, TnComponentType::D3Plot);
-        base.set_value(TnComponentValue::String(d3_plot_script));
-        base.set_attribute("type".into(), "d3_simple_scatter_plot".into());
+    pub fn init(mut self, idx: TnComponentIndex, tnid: String, d3_plot_script: String) -> TnD3PlotBuilder<'a> {
+        self.base.init("div".into(), idx, tnid, TnComponentType::D3Plot);
+        self.base.set_value(TnComponentValue::String(d3_plot_script));
+        self.base.set_attribute("type".into(), "d3_simple_scatter_plot".into());
 
-        base.set_attribute("hx-trigger".into(), "click, server_side_trigger".into());
-        base.set_attribute("hx-swap".into(), "none".into());
+        self.base.set_attribute("hx-trigger".into(), "click, server_side_trigger".into());
+        self.base.set_attribute("hx-swap".into(), "none".into());
 
-        base.set_attribute(
+        self.base.set_attribute(
             "hx-vals".into(),
             r##"js:{event_data:get_event_with_coordinate(event)}"##.into(),
         );
-        TnD3PlotBuilder {base}
+        self
     }    
 }
 

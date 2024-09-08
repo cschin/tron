@@ -22,23 +22,26 @@ impl TnRadioGroupBuilder<'static> {
     /// # Returns
     ///
     /// A new instance of `TnRadioGroup`.
-    pub fn new(
+    pub fn init(
+        mut self,
         idx: TnComponentIndex,
         tnid: String,
         value: String,
         radio_group_items: Vec<(String, String)>,
     ) -> Self {
-        let mut base = TnComponentBase::new("div".into(), idx, tnid, TnComponentType::RadioGroup);
-        base.set_value(TnComponentValue::String(value));
-        base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        base.set_attribute("type".into(), "radio_group".into());
+        self.base
+            .init("div".into(), idx, tnid, TnComponentType::RadioGroup);
+        self.base.set_value(TnComponentValue::String(value));
+        self.base
+            .set_attribute("hx-trigger".into(), "server_side_trigger".into());
+        self.base.set_attribute("type".into(), "radio_group".into());
         let mut asset = HashMap::default();
         asset.insert(
             "radio_group_items".into(),
             TnAsset::VecString2(radio_group_items),
         );
-        base.asset = Some(asset);
-        Self { base }
+        self.base.asset = Some(asset);
+        self
     }
 }
 
@@ -108,26 +111,29 @@ pub struct TnRadioItem<'a: 'static> {
 /// # Returns
 ///
 /// A new `TnRadioItem` instance.
-impl TnRadioItem<'static> {
-    pub fn new(idx: TnComponentIndex, tnid: String, value: bool) -> Self {
-        let mut base = TnComponentBase::new(
+impl TnRadioItemBuilder<'static> {
+    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: bool) -> Self {
+        self.base.init(
             "input".into(),
             idx,
             tnid.clone(),
             TnComponentType::RadioItem,
         );
-        base.set_value(TnComponentValue::RadioItem(value));
-        base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        base.set_attribute("hx-target".into(), format!("#{}-container", tnid));
-        base.set_attribute(
+        self.base.set_value(TnComponentValue::RadioItem(value));
+        self.base
+            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
+        self.base
+            .set_attribute("hx-target".into(), format!("#{}-container", tnid));
+        self.base.set_attribute(
             "hx-vals".into(),
             r##"js:{event_data: get_radio_group_event(event)}"##.into(),
         );
-        base.set_attribute("hx-swap".into(), "none".into());
-        //component_base.set_attribute("type".into(), "checkbox".into());
-        base.asset = Some(HashMap::default());
-        base.set_action(TnActionExecutionMethod::Await, set_radio_item);
-        Self { base }
+        self.base.set_attribute("hx-swap".into(), "none".into());
+        //component_self.base.set_attribute("type".into(), "checkbox".into());
+        self.base.asset = Some(HashMap::default());
+        self.base
+            .set_action(TnActionExecutionMethod::Await, set_radio_item);
+        self
     }
 }
 
@@ -214,8 +220,9 @@ pub fn add_radio_group_to_context(
         .map(|(child_trod_id, label)| {
             let radio_item_index = context.next_index();
             let is_default_item = *child_trod_id == default_item;
-            let mut radio_item =
-                TnRadioItem::new(radio_item_index, child_trod_id.clone(), is_default_item);
+            let mut radio_item = TnRadioItem::builder()
+                .init(radio_item_index, child_trod_id.clone(), is_default_item)
+                .build();
 
             let asset = radio_item.get_mut_assets().unwrap();
             asset.insert(
@@ -233,13 +240,14 @@ pub fn add_radio_group_to_context(
         .collect::<Vec<_>>();
 
     let component_index = context.next_index();
-    let radio_group = TnRadioGroupBuilder::new(
-        component_index,
-        radio_group_tron_id.to_string(),
-        default_item,
-        radio_group_items,
-    )
-    .build();
+    let radio_group = TnRadioGroup::builder()
+        .init(
+            component_index,
+            radio_group_tron_id.to_string(),
+            default_item,
+            radio_group_items,
+        )
+        .build();
     context.add_component(radio_group);
     let components = context.components.blocking_read();
     let radio_group = components.get(&component_index).unwrap();

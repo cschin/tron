@@ -169,13 +169,16 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
 
         #[derive(Default)]
         #builder_ast
+
+        impl<'a> #name <'a> where 'a:'static {
+            // This method will help users to discover the builder
+            pub fn builder() -> #builder_name<'static>  {
+                 #builder_name::default()
+            }
+        }
         
         impl<'a:'static> #builder_name<'a>  {
-            // This method will help users to discover the builder
-            // pub fn builder() -> #builder_name<'static>  {
-            //     #builder_name::default()
-            // }
-
+   
             pub fn set_action(mut self, m: TnActionExecutionMethod, f: TnActionFn) -> #builder_name<'static> {
                 self.base.set_action(m, f);
                 self

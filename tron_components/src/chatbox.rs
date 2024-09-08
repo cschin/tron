@@ -21,17 +21,17 @@ impl TnChatBoxBuilder<'static> {
     /// # Returns
     ///
     /// A new instance of `TnChatBox`.
-    pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<(String, String)>) -> Self {
-        let mut base = TnComponentBase::new("div".into(), idx, tnid, TnComponentType::ChatBox);
-        base.set_value(TnComponentValue::VecString2(value));
+    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: Vec<(String, String)>) -> Self {
+        self.base.init("div".into(), idx, tnid, TnComponentType::ChatBox);
+        self.base.set_value(TnComponentValue::VecString2(value));
 
-        base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        base.set_attribute(
+        self.base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
+        self.base.set_attribute(
             "hx-swap".into(),
             "beforeend scroll:bottom focus-scroll:true ".into(),
         );
-        base.set_attribute("class".into(), "flex-col".into());
-        base.asset = Some(HashMap::default());
+        self.base.set_attribute("class".into(), "flex-col".into());
+        self.base.asset = Some(HashMap::default());
         let class = HashMap::from_iter(vec![
             // ("user".to_string(), "max-w-fill flex flex-row justify-end p-1 > bg-green-100 rounded-lg p-2 mb-1 text-right".to_string()),
             // ("bot".to_string(), "max-w-fill flex flex-row justify-start p-1 > bg-blue-100 rounded-lg p-2 mb-1 text-left".to_string()),
@@ -44,10 +44,10 @@ impl TnChatBoxBuilder<'static> {
                 "chat chat-start > bg-blue-900 chat-bubble".to_string(),
             ),
         ]);
-        let assets: &mut HashMap<String, TnAsset> = base.asset.as_mut().unwrap();
+        let assets: &mut HashMap<String, TnAsset> = self.base.asset.as_mut().unwrap();
         assets.insert("class".into(), TnAsset::HashMapString(class));
 
-        Self { base }
+        self
     }
 }
 

@@ -11,14 +11,14 @@ pub struct TnDiv<'a: 'static> {
 
 impl TnDivBuilder<'static> {
     /// Creates a new Div component with the specified ID, name, and value.
-    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
-        let mut base = TnComponentBase::new("div".into(), id, name, TnComponentType::Div);
-        base.set_value(TnComponentValue::String(value));
-        base.set_attribute("disabled".into(), "".into());
-        base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        base.set_attribute("type".into(), "container".into());
+    pub fn init(mut self, id: TnComponentIndex, name: String, value: String) -> Self {
+        self.base.init("div".into(), id, name, TnComponentType::Div);
+        self.base.set_value(TnComponentValue::String(value));
+        self.base.set_attribute("disabled".into(), "".into());
+        self.base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
+        self.base.set_attribute("type".into(), "container".into());
 
-        Self { base }
+        self
     }
 }
 

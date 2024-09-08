@@ -12,14 +12,13 @@ pub struct TnTextArea<'a: 'static> {
 
 impl TnTextAreaBuilder<'static> {
     /// Creates a new TextArea component with the specified ID, name, and value.
-    pub fn new(id: TnComponentIndex, name: String, value: String) -> Self {
-        let mut base = TnComponentBase::new("textarea".into(), id, name, TnComponentType::TextArea);
-        base.set_value(TnComponentValue::String(value));
-        base.set_attribute("disabled".into(), "".into());
-        base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
-        base.set_attribute("type".into(), "text".into());
-
-        Self { base }
+    pub fn init(mut self, id: TnComponentIndex, name: String, value: String) -> Self {
+        self.base.init("textarea".into(), id, name, TnComponentType::TextArea);
+        self.base.set_value(TnComponentValue::String(value));
+        self.base.set_attribute("disabled".into(), "".into());
+        self.base.set_attribute("hx-trigger".into(), "server_side_trigger".into());
+        self.base.set_attribute("type".into(), "text".into());
+        self
     }
 }
 
@@ -147,24 +146,24 @@ pub struct SseStreamTextAreaTriggerMsg {
 ///
 /// A new instance of TnStreamTextArea.
 impl TnStreamTextAreaBuilder<'static> {
-    pub fn new(idx: TnComponentIndex, tnid: String, value: Vec<String>) -> Self {
-        let mut base = TnComponentBase::new(
+    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: Vec<String>) -> Self {
+        self.base.init(
             "textarea".into(),
             idx,
             tnid,
             TnComponentType::StreamTextArea,
         );
-        base.set_value(TnComponentValue::VecString(value));
+        self.base.set_value(TnComponentValue::VecString(value));
         // stream textarea is totally passive!!
-        base.remove_attribute("hx-trigger".into());
-        base.remove_attribute("hx-swap".into());
-        base.remove_attribute("hx-post".into());
-        base.remove_attribute("hx-target".into());
-        base.remove_attribute("hx-vals".into());
-        base.remove_attribute("hx-ext".into());
-        base.set_attribute("type".into(), "text".into());
-        base.set_attribute("disabled".into(), "".into());
-        Self { base }
+        self.base.remove_attribute("hx-trigger".into());
+        self.base.remove_attribute("hx-swap".into());
+        self.base.remove_attribute("hx-post".into());
+        self.base.remove_attribute("hx-target".into());
+        self.base.remove_attribute("hx-vals".into());
+        self.base.remove_attribute("hx-ext".into());
+        self.base.set_attribute("type".into(), "text".into());
+        self.base.set_attribute("disabled".into(), "".into());
+        self
     }
 }
 
@@ -306,19 +305,18 @@ pub struct TnTextInput<'a: 'static> {
 ///
 /// A new `TnTextInput` instance.
 impl TnTextInputBuilder<'static> {
-    pub fn new(idx: TnComponentIndex, tnid: String, value: String) -> Self {
-        let mut base = TnComponentBase::new("input".into(), idx, tnid, TnComponentType::TextInput);
-        base.set_value(TnComponentValue::String(value.to_string()));
+    pub fn init(mut self, idx: TnComponentIndex, tnid: String, value: String) -> Self {
+        self.base.init("input".into(), idx, tnid, TnComponentType::TextInput);
+        self.base.set_value(TnComponentValue::String(value.to_string()));
 
-        base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        base.set_attribute("type".into(), "text".into());
-        base.set_attribute(
+        self.base.set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
+        self.base.set_attribute("type".into(), "text".into());
+        self.base.set_attribute(
             "hx-vals".into(),
             r##"js:{event_data:get_input_event(event)}"##.into(),
         ); //over-ride the default as we need the value of the input text
-        base.set_attribute("hx-swap".into(), "outerHTML".into());
-
-        Self { base }
+        self.base.set_attribute("hx-swap".into(), "outerHTML".into());
+        self
     }
 }
 

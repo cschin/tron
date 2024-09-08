@@ -42,15 +42,15 @@ fn build_context() -> TnContext {
     TnContext { base: context }
 }
 
-fn layout(context: TnContext) -> String {
+fn layout(_context: TnContext) -> String {
     "This is an template, please fill in the components and how to layout them.".into()
 }
 
 
 
 fn test_event_action(
-    context: TnContext,
-    event: TnEvent,
+    _context: TnContext,
+    _event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     todo!()

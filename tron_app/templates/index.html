@@ -1,15 +1,16 @@
 <!DOCTYPE html>
+<head>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.1/dist/full.min.css" rel="stylesheet" type="text/css" />
-<script src="https://cdn.tailwindcss.com"></script>
-
-<html lang="en">
+<!-- <link href="https://cdn.jsdelivr.net/npm/daisyui@4.10.1/dist/full.min.css" rel="stylesheet" type="text/css" />
+<script src="https://cdn.tailwindcss.com"></script> -->
 
 <script src="https://unpkg.com/htmx.org@2.0.2/dist/htmx.js" 
         integrity="sha384-yZq+5izaUBKcRgFbxgkRYwpHhHHCpp5nseXp0MEQ1A4MTWVMnqkmcuFez8x5qfxr" 
         crossorigin="anonymous"></script>
 <script src="https://unpkg.com/htmx-ext-json-enc@2.0.1/json-enc.js"></script>
 <script src="https://unpkg.com/htmx-ext-multi-swap@2.0.0/multi-swap.js"></script>
+
+{{ head }}
 
 <script>
   window.process_special_events = { "empty": () => { } };
@@ -108,6 +109,10 @@
 
 </script>
 {{ script }}
+</head>
+
+<html lang="en">
+
 <body>
   <div hx-get="/load_page" hx-swap="outerHTML" hx-trigger="load">Loading Page</div>
 </body>

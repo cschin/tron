@@ -296,9 +296,9 @@ fn test_event_actions(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
-        tracing::info!(target:"tron_app", "{:?}", event);
+        tracing::debug!(target:"tron_app", "{:?}", event);
         if event.e_type == "server_side_trigger" {
-            tracing::info!(target:"tron_app", "in server_side_trigger");
+            tracing::debug!(target:"tron_app", "in server_side_trigger");
             let html = context.render_component(&event.e_trigger).await;
             return Some((HeaderMap::new(), Html::from(html)));
         };
@@ -423,7 +423,6 @@ fn clean_stream_textarea(
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
-        tracing::info!(target: "tron_app", "event: {:?}", event);
         if let Some(target) = event.h_target {
             text::clean_stream_textarea_with_context(&context, &target).await;
             None

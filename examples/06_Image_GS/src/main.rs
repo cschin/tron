@@ -105,14 +105,13 @@ fn build_context() -> TnContext {
         .init(INPUT_IMAGE_AREA.into(), "".into())
         .add_to_context(&mut context);
 
-    // add service
-
     let context = TnContext {
         base: Arc::new(RwLock::new(context)),
     };
 
+    // add service
     {
-        // service handling the LLM and TTS at once
+        // service for generating the 2d image gaussian splatter output
         let (gs_request_tx, gs_request_rx) = tokio::sync::mpsc::channel::<TnServiceRequestMsg>(1);
         context
             .blocking_write()
@@ -133,12 +132,10 @@ fn add_dnd_file_upload(context: &mut TnContextBase, tnid: &str) {
     .into_iter()
     .collect::<HashMap<String, String>>();
 
-    let dnd_file_upload = TnDnDFileUpload::builder()
+    TnDnDFileUpload::builder()
         .init(tnid.into(), "Drop A File".into(), button_attributes)
         .set_action(TnActionExecutionMethod::Await, handle_file_upload)
-        .build();
-
-    context.add_component(dnd_file_upload);
+        .add_to_context(context);
 }
 
 #[derive(Template)] // this will generate the code...

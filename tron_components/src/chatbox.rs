@@ -25,12 +25,12 @@ impl TnChatBoxBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), tnid, TnComponentType::ChatBox)
             .set_value(TnComponentValue::VecString2(value))
-            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
+            .set_attribute("hx-trigger", "server_side_trigger")
             .set_attribute(
-                "hx-swap".into(),
-                "beforeend scroll:bottom focus-scroll:true ".into(),
+                "hx-swap",
+                "beforeend scroll:bottom focus-scroll:true ",
             )
-            .set_attribute("class".into(), "flex-col".into())
+            .set_attribute("class", "flex-col")
             .create_assets()
             .build();
         let class = HashMap::from_iter(vec![
@@ -204,7 +204,7 @@ pub async fn clean_chatbox_with_context(context: &TnContext, tron_id: &str) {
         {
             let mut guard = comp.write().await;
             guard.set_state(TnComponentState::Ready);
-            guard.set_header("hx-reswap".into(), ("innerHTML".into(), true));
+            guard.set_header("hx-reswap", ("innerHTML".into(), true));
 
             let msg = TnSseTriggerMsg {
                 server_side_trigger_data: TnServerSideTriggerData {

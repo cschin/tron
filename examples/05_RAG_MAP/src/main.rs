@@ -269,7 +269,7 @@ fn build_context() -> TnContext {
             r##"js:{event_data:get_input_event(event)}"##,
         )
         .build(); //over-ride the default as we need the value of the input text
-    query_text_input.remove_attribute("disabled".into());
+    query_text_input.remove_attribute("disabled");
     context.add_component(query_text_input);
 
     TnStreamTextArea::builder()

@@ -191,7 +191,7 @@ fn build_session_context() -> TnContext {
                     r##"js:{event_data:get_input_event(event)}"##,
                 )
                 .build();
-        prompt_box.remove_attribute("disabled".into());
+        prompt_box.remove_attribute("disabled");
 
         context.add_component(prompt_box);
     }

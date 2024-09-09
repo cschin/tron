@@ -15,9 +15,9 @@ impl TnDivBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), name, TnComponentType::Div)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("disabled".into(), "".into())
-            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
-            .set_attribute("type".into(), "container".into())
+            .set_attribute("disabled", "")
+            .set_attribute("hx-trigger", "server_side_trigger")
+            .set_attribute("type", "container")
             .build();
 
         self

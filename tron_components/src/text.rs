@@ -16,9 +16,9 @@ impl TnTextAreaBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("textarea".into(), name, TnComponentType::TextArea)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("disabled".into(), "".into())
-            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
-            .set_attribute("type".into(), "text".into())
+            .set_attribute("disabled", "")
+            .set_attribute("hx-trigger", "server_side_trigger")
+            .set_attribute("type", "text")
             .build();
         self
     }
@@ -157,16 +157,16 @@ impl TnStreamTextAreaBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("textarea".into(), tnid, component_type)
             .set_value(TnComponentValue::VecString(value))
-            .set_attribute("type".into(), "text".into())
-            .set_attribute("disabled".into(), "".into())
+            .set_attribute("type", "text")
+            .set_attribute("disabled", "")
             .build();
         // stream textarea is totally passive!!
-        self.base.remove_attribute("hx-trigger".into());
-        self.base.remove_attribute("hx-swap".into());
-        self.base.remove_attribute("hx-post".into());
-        self.base.remove_attribute("hx-target".into());
-        self.base.remove_attribute("hx-vals".into());
-        self.base.remove_attribute("hx-ext".into());
+        self.base.remove_attribute("hx-trigger");
+        self.base.remove_attribute("hx-swap");
+        self.base.remove_attribute("hx-post");
+        self.base.remove_attribute("hx-target");
+        self.base.remove_attribute("hx-vals");
+        self.base.remove_attribute("hx-ext");
 
         self
     }
@@ -317,14 +317,14 @@ impl TnTextInputBuilder<'static> {
             .set_value(TnComponentValue::String(value.to_string()));
 
         self.base
-            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into());
-        self.base.set_attribute("type".into(), "text".into());
+            .set_attribute("hx-trigger", "change, server_side_trigger");
+        self.base.set_attribute("type", "text");
         self.base.set_attribute(
-            "hx-vals".into(),
-            r##"js:{event_data:get_input_event(event)}"##.into(),
+            "hx-vals",
+            r##"js:{event_data:get_input_event(event)}"##,
         ); //over-ride the default as we need the value of the input text
         self.base
-            .set_attribute("hx-swap".into(), "outerHTML".into());
+            .set_attribute("hx-swap", "outerHTML");
         self
     }
 }

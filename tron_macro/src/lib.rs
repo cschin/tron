@@ -81,32 +81,32 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.base.attributes()
             }
 
-            fn set_attribute(&mut self, key: String, val: String) {
+            fn set_attribute(&mut self, key: &str, val: &str) {
                 self.base
                     .attributes
-                    .insert(key, val);
+                    .insert(key.into(), val.into());
             }
 
-            fn remove_attribute(&mut self, key: String) {
+            fn remove_attribute(&mut self, key: &str) {
                 self.base
                     .attributes
-                    .remove(&key);
+                    .remove(key);
             }
 
             fn extra_headers(&self) -> &TnExtraResponseHeader {
                 self.base.extra_headers()
             }
 
-            fn set_header(&mut self, key: String, val: (String, bool)) {
+            fn set_header(&mut self, key: &str, val: (String, bool)) {
                 self.base
                     .extra_response_headers
-                    .insert(key, val);
+                    .insert(key.into(), val);
             }
 
-            fn remove_header(&mut self, key: String) {
+            fn remove_header(&mut self, key: &str) {
                 self.base
                     .extra_response_headers
-                    .remove(&key);
+                    .remove(key.into());
             }
 
             fn clear_header(&mut self) {

@@ -573,13 +573,13 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn get_type(&self) -> TnComponentType;
 
     fn attributes(&self) -> &TnElmAttributes;
-    fn set_attribute(&mut self, key: String, value: String);
-    fn remove_attribute(&mut self, key: String);
+    fn set_attribute(&mut self, key: &str, value: &str);
+    fn remove_attribute(&mut self, key: &str);
     fn generate_attr_string(&self) -> String;
 
     fn extra_headers(&self) -> &TnExtraResponseHeader;
-    fn set_header(&mut self, key: String, value: (String, bool));
-    fn remove_header(&mut self, key: String);
+    fn set_header(&mut self, key: &str, value: (String, bool));
+    fn remove_header(&mut self, key: &str);
     fn clear_header(&mut self);
 
     fn value(&self) -> &TnComponentValue;
@@ -717,13 +717,13 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
     }
 
     /// Sets an attribute for the component
-    fn set_attribute(&mut self, key: String, val: String) {
-        self.attributes.insert(key, val);
+    fn set_attribute(&mut self, key: &str, val: &str ) {
+        self.attributes.insert(key.into(), val.into());
     }
 
     /// Removes an attribute from the component
-    fn remove_attribute(&mut self, key: String) {
-        self.attributes.remove(&key);
+    fn remove_attribute(&mut self, key: &str) {
+        self.attributes.remove(key);
     }
 
     /// Returns a reference to the component's extra response headers
@@ -732,13 +732,13 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
     }
 
     /// Sets an extra response header for the component
-    fn set_header(&mut self, key: String, val: (String, bool)) {
-        self.extra_response_headers.insert(key, val);
+    fn set_header(&mut self, key: &str, val: (String, bool)) {
+        self.extra_response_headers.insert(key.into(), val);
     }
 
     /// Removes an extra response header from the component
-    fn remove_header(&mut self, key: String) {
-        self.extra_response_headers.remove(&key);
+    fn remove_header(&mut self, key: &str) {
+        self.extra_response_headers.remove(key);
     }
 
     /// Clears all extra response headers from the component
@@ -893,8 +893,8 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
     }
 
     /// Sets an attribute for the component
-    pub fn set_attribute(mut self, key: String, val: String) -> TnComponentBaseBuilder<'a> {
-        self.base.attributes.insert(key, val);
+    pub fn set_attribute(mut self, key: &str, val: &str) -> TnComponentBaseBuilder<'a> {
+        self.base.attributes.insert(key.into(), val.into());
         self
     }
 

@@ -36,8 +36,8 @@ impl TnRadioGroupBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), tnid, component_type)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
-            .set_attribute("type".into(), "radio_group".into())
+            .set_attribute("hx-trigger", "server_side_trigger")
+            .set_attribute("type", "radio_group")
             .create_assets()
             .build();
         self.base.asset.as_mut().unwrap().insert(
@@ -119,17 +119,17 @@ impl TnRadioItemBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("input".into(), tnid.clone(), TnComponentType::RadioItem)
             .set_value(TnComponentValue::Bool(value))
-            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
-            .set_attribute("hx-target".into(), format!("#{}-container", tnid))
+            .set_attribute("hx-trigger", "change, server_side_trigger")
+            .set_attribute("hx-target", &format!("#{}-container", tnid))
             .set_attribute(
-                "hx-vals".into(),
-                r##"js:{event_data: get_radio_group_event(event)}"##.into(),
+                "hx-vals",
+                r##"js:{event_data: get_radio_group_event(event)}"##,
             )
-            .set_attribute("hx-swap".into(), "none".into())
+            .set_attribute("hx-swap", "none")
             .set_action(TnActionExecutionMethod::Await, set_radio_item)
             .create_assets()
             .build();
-        //component_self.base.set_attribute("type".into(), "checkbox".into());
+        //component_self.base.set_attribute("type", "checkbox");
         self
     }
 }

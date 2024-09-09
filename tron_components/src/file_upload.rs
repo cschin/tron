@@ -25,13 +25,13 @@ impl TnFileUploadBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), tnid.clone(), component_type)
             .set_value(TnComponentValue::None)
-            .set_attribute("type".into(), "file_upload".into())
-            .set_attribute("id".into(), tnid.clone())
-            .set_attribute("hx-swap".into(), "none".into())
-            .set_attribute("hx-trigger".into(), "finished".into())
+            .set_attribute("type", "file_upload")
+            .set_attribute("id", &tnid)
+            .set_attribute("hx-swap", "none")
+            .set_attribute("hx-trigger", "finished")
             .set_attribute(
-                "hx-vals".into(),
-                "js:{event_data:get_event_with_files(event)}".into(),
+                "hx-vals",
+                "js:{event_data:get_event_with_files(event)}",
             )
             .build();
         self
@@ -137,13 +137,13 @@ impl TnDnDFileUploadBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), tnid.clone(), component_type)
             .set_value(TnComponentValue::None)
-            .set_attribute("type".into(), "file_dnd_upload".into())
-            .set_attribute("id".into(), tnid.clone())
-            .set_attribute("hx-swap".into(), "none".into())
-            .set_attribute("hx-trigger".into(), "finished".into())
+            .set_attribute("type", "file_dnd_upload")
+            .set_attribute("id", &tnid)
+            .set_attribute("hx-swap", "none")
+            .set_attribute("hx-trigger", "finished")
             .set_attribute(
-                "hx-vals".into(),
-                "js:{event_data:get_event_with_files_dnd(event)}".into(),
+                "hx-vals",
+                "js:{event_data:get_event_with_files_dnd(event)}",
             )
             .build();
         

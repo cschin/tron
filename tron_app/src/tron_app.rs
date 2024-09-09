@@ -642,7 +642,7 @@ async fn tron_entry(
 
         // remove the header items that we only want to use it once
         for k in header_to_be_removed {
-            target_guard.write().await.remove_header(k);
+            target_guard.write().await.remove_header(&k);
         }
 
         (StatusCode::OK, response_headers, body)

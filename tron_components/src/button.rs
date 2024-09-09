@@ -13,7 +13,7 @@ impl<'a: 'static> TnButtonBuilder<'a> {
         self.base = TnComponentBase::builder(self.base)
             .init("button".into(), tnid, TnComponentType::Button)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("hx-trigger".into(), "click, server_side_trigger".into())
+            .set_attribute("hx-trigger", "click, server_side_trigger")
             .build();
         self
     }

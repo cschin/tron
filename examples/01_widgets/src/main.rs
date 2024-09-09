@@ -68,16 +68,16 @@ fn build_session_context() -> TnContext {
             vec!["This is a streamable textarea\n".to_string()],
         )
         .set_attribute(
-            "class".into(),
-            "textarea textarea-bordered flex-1 h-20".into(),
+            "class",
+            "textarea textarea-bordered flex-1 h-20",
         )
         .add_to_context(&mut context);
 
     text::TnTextArea::builder()
         .init("textarea".into(), "This is a textarea\n".to_string())
         .set_attribute(
-            "class".into(),
-            "textarea textarea-bordered flex-1 h-20".into(),
+            "class",
+            "textarea textarea-bordered flex-1 h-20",
         )
         .add_to_context(&mut context);
 
@@ -102,7 +102,7 @@ fn build_session_context() -> TnContext {
         let checklist_guard = component_guard.get(&checklist_tron_id).unwrap();
         checklist_guard
             .blocking_write()
-            .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
+            .set_attribute("class", "flex flex-row p-1 flex-1");
     }
 
     let radio_group_items = vec![
@@ -125,7 +125,7 @@ fn build_session_context() -> TnContext {
         let radio_group_guard = component_guard.get(&radio_group_tron_id).unwrap();
         radio_group_guard
             .blocking_write()
-            .set_attribute("class".into(), "flex flex-row p-1 flex-1".into());
+            .set_attribute("class", "flex flex-row p-1 flex-1");
     }
     {
         let select_options = vec![

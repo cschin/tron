@@ -24,12 +24,12 @@ impl<'a: 'static> TnD3PlotBuilder<'a> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), tnid, component_type)
             .set_value(TnComponentValue::String(d3_plot_script))
-            .set_attribute("type".into(), "d3_simple_scatter_plot".into())
-            .set_attribute("hx-trigger".into(), "click, server_side_trigger".into())
-            .set_attribute("hx-swap".into(), "none".into())
+            .set_attribute("type", "d3_simple_scatter_plot")
+            .set_attribute("hx-trigger", "click, server_side_trigger")
+            .set_attribute("hx-swap", "none")
             .set_attribute(
-                "hx-vals".into(),
-                r##"js:{event_data:get_event_with_coordinate(event)}"##.into(),
+                "hx-vals",
+                r##"js:{event_data:get_event_with_coordinate(event)}"##,
             )
             .build();
         self

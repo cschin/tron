@@ -49,9 +49,9 @@ impl<'a: 'static> TnAudioPlayerBuilder<'a> {
         self.base = TnComponentBase::builder(self.base)
             .init("audio".to_string(), tnid.clone(), component_type)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("src".into(), format!("/tron_streaming/{}", tnid))
-            .set_attribute("type".into(), "audio/mp3".into())
-            .set_attribute("hx-trigger".into(), "server_side_trigger, ended".into())
+            .set_attribute("src", &format!("/tron_streaming/{}", tnid))
+            .set_attribute("type", "audio/mp3")
+            .set_attribute("hx-trigger", "server_side_trigger, ended")
             .build();
         self
     }
@@ -135,7 +135,7 @@ pub async fn start_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
         let mut comp = comp.write().await;
         assert!(comp.get_type() == TnComponentType::AudioPlayer);
         // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
-        comp.remove_header("HX-Reswap".into());
+        comp.remove_header("HX-Reswap");
         comp.set_state(TnComponentState::Updating);
     }
 
@@ -180,7 +180,7 @@ pub fn stop_audio_playing_action(
             let guard = context.get_component(&event.e_trigger.clone()).await;
             let mut player = guard.write().await;
             // we don't want to swap the element, or it will replay the audio. the "false" make the header persist until next play event
-            player.set_header("HX-Reswap".into(), ("none".into(), false));
+            player.set_header("HX-Reswap", ("none".into(), false));
             player.set_state(TnComponentState::Ready);
         }
         {
@@ -209,7 +209,7 @@ pub async fn stop_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
         let mut comp = comp.write().await;
         assert!(comp.get_type() == TnComponentType::AudioPlayer);
         // HX-Reswap was set to "none" when the audio play stop, need to remove it to play audio
-        comp.remove_header("HX-Reswap".into());
+        comp.remove_header("HX-Reswap");
         comp.set_state(TnComponentState::Ready);
     }
 

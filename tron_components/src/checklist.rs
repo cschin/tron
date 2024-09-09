@@ -20,8 +20,8 @@ impl TnCheckListBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), name, component_type)
             .set_value(TnComponentValue::CheckItems(value))
-            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
-            .set_attribute("type".into(), "checklist".into())
+            .set_attribute("hx-trigger", "server_side_trigger")
+            .set_attribute("type", "checklist")
             .build();
         self
     }
@@ -81,13 +81,13 @@ impl TnCheckBoxBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("input".into(), name.clone(), TnComponentType::CheckBox)
             .set_value(TnComponentValue::Bool(value))
-            .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
-            .set_attribute("hx-target".into(), format!("#{}-container", name))
+            .set_attribute("hx-trigger", "change, server_side_trigger")
+            .set_attribute("hx-target", &format!("#{}-container", name))
             .set_attribute(
-                "hx-vals".into(),
-                r##"js:{event_data: get_checkbox_event(event)}"##.into(),
+                "hx-vals",
+                r##"js:{event_data: get_checkbox_event(event)}"##,
             )
-            .set_attribute("hx-swap".into(), "none".into())
+            .set_attribute("hx-swap", "none")
             .create_assets()
             .set_action(TnActionExecutionMethod::Await, toggle_checkbox)
             .build();

@@ -1,0 +1,17 @@
+[package]
+name = "webcomponent_test"
+version.workspace = true
+authors.workspace = true
+description.workspace = true
+edition.workspace = true
+
+[dependencies]
+axum = "0.7.5"
+serde = { version = "1.0.197", features = ["derive"] }
+tokio = { version = "1.37.0", features = ["full"] }
+tracing = "0.1.40"
+serde_json = "1.0.115"
+tron_app = {path = "../../tron_app"}
+askama = "0.12.1"
+futures-util = "0.3.30"
+futures = "0.3.30"

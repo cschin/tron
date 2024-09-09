@@ -17,7 +17,7 @@ use tron_app::tron_components::{
     self, button::TnButtonBuilder, TnActionExecutionMethod, TnAsset, TnHtmlResponse,
 };
 use tron_components::{
-    text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
+    text::TnTextInput, TnButton, TnComponentState, TnComponentValue,
     TnContext, TnContextBase, TnEvent, TnTextArea,
 };
 //use std::sync::Mutex;

@@ -46,7 +46,7 @@ use tron_app::{
     AppData, TnServerSideTriggerData, TnSseTriggerMsg, TRON_APP,
 };
 use tron_components::{
-    text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
+    text::TnTextInput, TnButton, TnComponentState, TnComponentValue,
     TnContext, TnContextBase, TnEvent, TnTextArea,
 };
 

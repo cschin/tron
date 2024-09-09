@@ -13,7 +13,7 @@ use serde_json::Value;
 use tracing::debug;
 use tron_app::tron_components;
 use tron_components::{
-    text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
+    text::TnTextInput, TnButton, TnComponentState, TnComponentValue,
     TnContext, TnContextBase, TnEvent, TnTextArea,
 };
 //use std::sync::Mutex;

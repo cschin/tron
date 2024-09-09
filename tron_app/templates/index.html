@@ -111,7 +111,7 @@
 {{ script }}
 </head>
 
-<html lang="en">
+<html {{ html_attributes }}>
 
 <body>
   <div hx-get="/load_page" hx-swap="outerHTML" hx-trigger="load">Loading Page</div>

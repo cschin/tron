@@ -67,6 +67,7 @@ type SessionExpiry = RwLock<HashMap<SessionId, time::OffsetDateTime>>;
 /// action function template, and layout function.
 pub struct AppData {
     pub head: Option<String>, // for inject head section to the html index page
+    pub html_attributes: Option<String>,
     pub context: SessionContext,
     pub session_expiry: SessionExpiry,
     pub build_context: ContextBuilder,
@@ -75,6 +76,7 @@ pub struct AppData {
 
 pub struct AppDataBuilder {
     pub head: Option<String>, // for inject head section to the html index page
+    pub html_attributes: Option<String>,
     pub context: SessionContext,
     pub session_expiry: RwLock<HashMap<SessionId, time::OffsetDateTime>>,
     pub build_context: fn() -> TnContext,
@@ -88,34 +90,40 @@ impl AppData {
     ) -> AppDataBuilder {
         AppDataBuilder {
             head: Some(include_str!("../templates/head.html").to_string()),
+            html_attributes: Some(r#"leng="en""#.into()),
             context: RwLock::new(HashMap::default()),
             session_expiry: RwLock::new(HashMap::default()),
             build_context,
-            build_layout
+            build_layout,
         }
     }
 }
 
 impl AppDataBuilder {
     pub fn set_head(mut self, head: &str) -> Self {
-        self.head = Some(head.to_string());
+        self.head = Some(head.into());
+        self
+    }
+    pub fn set_html_attributes(mut self, html_attributes: &str) -> Self {
+        self.html_attributes = Some(html_attributes.into());
         self
     }
     pub fn set_context(mut self, context: SessionContext) -> Self {
         self.context = context;
         self
     }
-    pub fn session_expiry(mut self, session_expiry: SessionExpiry ) -> Self {
+    pub fn session_expiry(mut self, session_expiry: SessionExpiry) -> Self {
         self.session_expiry = session_expiry;
         self
     }
     pub fn build(self) -> AppData {
         AppData {
             head: self.head,
+            html_attributes: self.html_attributes,
             context: self.context,
             session_expiry: self.session_expiry,
             build_context: Arc::new(Box::new(self.build_context)),
-            build_layout: Arc::new(Box::new(self.build_layout))
+            build_layout: Arc::new(Box::new(self.build_layout)),
         }
     }
 }
@@ -316,6 +324,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
 struct IndexPageTemplate {
     head: String,
     script: String,
+    html_attributes: String,
 }
 
 /// Handles requests to the index route.
@@ -365,7 +374,16 @@ async fn index(
         } else {
             "".into()
         };
-        let html = IndexPageTemplate { head, script };
+        let html_attributes = if let Some(html_attributes) = &app_data.html_attributes {
+            html_attributes.clone()
+        } else {
+            "".into()
+        };
+        let html = IndexPageTemplate {
+            head,
+            script,
+            html_attributes,
+        };
         let html = html.render().unwrap();
 
         Html::from(html).into_response()

@@ -50,7 +50,7 @@ use tron_app::{
         TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnD3PlotBuilder, TnDiv,
         TnHtmlResponse, TnServiceRequestMsg, TnStreamTextArea,
     },
-    AppData, TnServerSideTriggerData, TnSseTriggerMsg,
+    AppData, TnServerEventData, TnSseTriggerMsg,
 };
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentBaseTrait, TnComponentState, TnComponentValue,
@@ -509,7 +509,7 @@ async fn update_plot_and_top_k<'a>(
     }
     let sse_tx = context.get_sse_tx().await;
     let msg = SseD3PlotTriggerMsg {
-        server_event_data: TnServerSideTriggerData {
+        server_event_data: TnServerEventData {
             target: D3PLOT.into(),
             new_state: "ready".into(),
         },
@@ -654,7 +654,7 @@ fn reset_button_clicked(
             {
                 let sse_tx = context.get_sse_tx().await;
                 let msg = SseD3PlotTriggerMsg {
-                    server_event_data: TnServerSideTriggerData {
+                    server_event_data: TnServerEventData {
                         target: D3PLOT.into(),
                         new_state: "ready".into(),
                     },
@@ -956,7 +956,7 @@ async fn api_test(
     {
         let sse_tx = context.get_sse_tx().await;
         let msg = SseD3PlotTriggerMsg {
-            server_event_data: TnServerSideTriggerData {
+            server_event_data: TnServerEventData {
                 target: D3PLOT.into(),
                 new_state: "ready".into(),
             },

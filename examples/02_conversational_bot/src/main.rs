@@ -26,7 +26,7 @@ use tokio::sync::{
 #[allow(unused_imports)]
 use tracing::{debug, info};
 use tron_app::tron_components;
-use tron_app::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
+use tron_app::{send_sse_msg_to_client, TnServerEventData, TnSseTriggerMsg};
 use tron_components::audio_recorder::SseAudioRecorderTriggerMsg;
 use tron_components::{text::append_and_update_stream_textarea_with_context, *};
 
@@ -405,7 +405,7 @@ fn _do_nothing(
             .await;
         let sse_tx = context.get_sse_tx().await;
         let msg = TnSseTriggerMsg {
-            server_event_data: TnServerSideTriggerData {
+            server_event_data: TnServerEventData {
                 target: event.e_trigger.clone(),
                 new_state: "ready".into(),
             },
@@ -577,7 +577,7 @@ fn toggle_recording(
                             delay.tick().await; //The first tick completes immediately.
                             delay.tick().await; //wait a bit for all data stream transferred
                             let msg = SseAudioRecorderTriggerMsg {
-                                server_event_data: TnServerSideTriggerData {
+                                server_event_data: TnServerEventData {
                                     target: RECORDER.into(),
                                     new_state: "updating".into(),
                                 },
@@ -626,7 +626,7 @@ fn toggle_recording(
                         }
 
                         let msg = SseAudioRecorderTriggerMsg {
-                            server_event_data: TnServerSideTriggerData {
+                            server_event_data: TnServerEventData {
                                 target: RECORDER.into(),
                                 new_state: "ready".into(),
                             },
@@ -640,7 +640,7 @@ fn toggle_recording(
         }
 
         let msg = TnSseTriggerMsg {
-            server_event_data: TnServerSideTriggerData {
+            server_event_data: TnServerEventData {
                 target: event.e_trigger,
                 new_state: "ready".into(),
             },
@@ -719,7 +719,7 @@ fn audio_input_stream_processing(
                             .await;
 
                         let msg = TnSseTriggerMsg {
-                            server_event_data: TnServerSideTriggerData {
+                            server_event_data: TnServerEventData {
                                 target: RECORDER.into(),
                                 new_state: "ready".into(),
                             },

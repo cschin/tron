@@ -1,12 +1,12 @@
 use super::*;
 use serde::Serialize;
 use tron_macro::*;
-use tron_utils::TnServerSideTriggerData;
+use tron_utils::TnServerEventData;
 
 /// Represents a server-sent event (SSE) message for controlling an audio recorder component.
 #[derive(Serialize)]
 pub struct SseAudioRecorderTriggerMsg {
-    pub server_event_data: TnServerSideTriggerData,
+    pub server_event_data: TnServerEventData,
     pub audio_recorder_control: String,
 }
 

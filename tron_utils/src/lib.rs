@@ -7,7 +7,7 @@ use tracing::debug;
 /// This struct is used to encapsulate data required for triggering server-side events in Tron,
 /// including the target component ID and the new state to set.
 #[derive(Serialize)]
-pub struct TnServerSideTriggerData {
+pub struct TnServerEventData {
     pub target: String,
     pub new_state: String,
 }
@@ -15,12 +15,12 @@ pub struct TnServerSideTriggerData {
 /// Represents a message for triggering server-side events in Tron.
 ///
 /// This struct is used to encapsulate a message for triggering server-side events in Tron.
-/// It contains a field `server_event_data` of type `TnServerSideTriggerData`,
+/// It contains a field `server_event_data` of type `TnServerEventData`,
 /// which holds the data required for triggering the event.
 
 #[derive(Serialize)]
 pub struct TnSseTriggerMsg {
-    pub server_event_data: TnServerSideTriggerData,
+    pub server_event_data: TnServerEventData,
 }
 
 /// Sends a server-sent event (SSE) message to the client.

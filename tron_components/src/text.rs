@@ -1,7 +1,7 @@
 use super::*;
 use serde::Serialize;
 use tron_macro::*;
-use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
+use tron_utils::{send_sse_msg_to_client, TnServerEventData, TnSseTriggerMsg};
 
 /// Represents a TextArea component.
 #[non_exhaustive]
@@ -112,7 +112,7 @@ pub async fn update_and_send_textarea_with_context(
             guard.set_state(TnComponentState::Ready);
             let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
-                server_event_data: TnServerSideTriggerData {
+                server_event_data: TnServerEventData {
                     target: tron_id.to_string(),
                     new_state: "ready".into(),
                 },
@@ -136,7 +136,7 @@ pub struct TnStreamTextArea<'a: 'static> {
 
 #[derive(Serialize)]
 pub struct SseStreamTextAreaTriggerMsg {
-    pub server_event_data: TnServerSideTriggerData,
+    pub server_event_data: TnServerEventData,
     pub stream_textarea_control: String,
     pub payload: String,
 }
@@ -261,7 +261,7 @@ pub async fn update_all_stream_textarea_with_context(context: &TnContext, tron_i
         let sse_tx = context.get_sse_tx().await;
 
         let msg = SseStreamTextAreaTriggerMsg {
-            server_event_data: TnServerSideTriggerData {
+            server_event_data: TnServerEventData {
                 target: tron_id.to_string(),
                 new_state: "ready".into(),
             },
@@ -289,7 +289,7 @@ pub async fn clean_stream_textarea_with_context(context: &TnContext, tron_id: &s
     let sse_tx = context.get_sse_tx().await;
 
     let msg = SseStreamTextAreaTriggerMsg {
-        server_event_data: TnServerSideTriggerData {
+        server_event_data: TnServerEventData {
             target: tron_id.to_string(),
             new_state: "ready".into(),
         },
@@ -397,7 +397,7 @@ pub async fn clean_textinput_with_context(context: TnContext, tron_id: &str) {
             guard.set_state(TnComponentState::Ready);
             let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
-                server_event_data: TnServerSideTriggerData {
+                server_event_data: TnServerEventData {
                     target: tron_id.to_string(),
                     new_state: "ready".into(),
                 },

@@ -1,6 +1,6 @@
 use super::*;
 use tron_macro::*;
-use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
+use tron_utils::{send_sse_msg_to_client, TnServerEventData, TnSseTriggerMsg};
 
 /// A component representing a chat box.
 #[non_exhaustive]
@@ -210,7 +210,7 @@ pub async fn clean_chatbox_with_context(context: &TnContext, tron_id: &str) {
             guard.set_header("hx-reswap", ("innerHTML".into(), true));
 
             let msg = TnSseTriggerMsg {
-                server_event_data: TnServerSideTriggerData {
+                server_event_data: TnServerEventData {
                     target: tron_id.into(),
                     new_state: "ready".into(),
                 },

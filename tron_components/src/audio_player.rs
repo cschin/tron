@@ -10,11 +10,11 @@ use tron_utils::*;
 /// Represents a message used to trigger audio player actions in Server-Sent Events (SSE).
 ///
 /// This struct contains data necessary to trigger actions related to audio playback
-/// in Server-Sent Events. It includes server-side trigger data (`TnServerSideTriggerData`)
+/// in Server-Sent Events. It includes server-side trigger data (`TnServerEventData`)
 /// and an audio player control command.
 #[derive(Serialize)]
 pub struct SseAudioPlayerTriggerMsg {
-    pub server_event_data: TnServerSideTriggerData,
+    pub server_event_data: TnServerEventData,
     pub audio_player_control: String,
 }
 
@@ -142,7 +142,7 @@ pub async fn start_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
 
     let comp = comp.read().await;
     let msg = TnSseTriggerMsg {
-        server_event_data: TnServerSideTriggerData {
+        server_event_data: TnServerEventData {
             target: comp.tron_id().clone(),
             new_state: "updating".into(),
         },
@@ -187,7 +187,7 @@ pub fn stop_audio_playing_action(
         {
             let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
-                server_event_data: TnServerSideTriggerData {
+                server_event_data: TnServerEventData {
                     target: event.e_trigger.clone(),
                     new_state: "ready".into(),
                 },
@@ -216,7 +216,7 @@ pub async fn stop_audio(comp: TnComponent<'static>, sse_tx: Sender<String>) {
 
     let comp = comp.read().await;
     let msg = SseAudioPlayerTriggerMsg {
-        server_event_data: TnServerSideTriggerData {
+        server_event_data: TnServerEventData {
             target: comp.tron_id().clone(),
             new_state: "ready".into(),
         },

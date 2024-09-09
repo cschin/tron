@@ -4,7 +4,7 @@ use tron_macro::*;
 
 #[derive(Serialize)]
 pub struct SseD3PlotTriggerMsg {
-    pub server_event_data: TnServerSideTriggerData,
+    pub server_event_data: TnServerEventData,
     pub d3_plot: String,
 }
 

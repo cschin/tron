@@ -1,6 +1,6 @@
 use super::*;
 use tron_macro::*;
-use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
+use tron_utils::{send_sse_msg_to_client, TnServerEventData, TnSseTriggerMsg};
 
 /// Represents a TextArea component.
 #[non_exhaustive]
@@ -106,7 +106,7 @@ pub async fn update_and_send_div_with_context(context: &TnContext, tron_id: &str
             guard.set_state(TnComponentState::Ready);
             let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
-                server_event_data: TnServerSideTriggerData {
+                server_event_data: TnServerEventData {
                     target: tron_id.to_string(),
                     new_state: "ready".into(),
                 },

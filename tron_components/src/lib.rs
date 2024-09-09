@@ -535,7 +535,7 @@ impl TnContext {
                 .await;
             let msg = TnSseTriggerMsg {
                 // update the button state
-                server_event_data: TnServerSideTriggerData {
+                server_event_data: TnServerEventData {
                     target: tron_id.into(),
                     new_state: "ready".into(),
                 },
@@ -949,7 +949,7 @@ pub struct TnEvent {
 }
 
 use tokio::sync::{mpsc::Sender, RwLock};
-use tron_utils::{send_sse_msg_to_client, TnServerSideTriggerData, TnSseTriggerMsg};
+use tron_utils::{send_sse_msg_to_client, TnServerEventData, TnSseTriggerMsg};
 
 /// Represents an HTML response along with its headers, wrapped in an optional tuple.
 

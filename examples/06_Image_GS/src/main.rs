@@ -43,7 +43,7 @@ use tron_app::{
         TnActionExecutionMethod, TnActionFn, TnAsset, TnChatBox, TnD3Plot, TnDiv, TnDnDFileUpload,
         TnHtmlResponse, TnServiceRequestMsg, TnStreamTextArea,
     },
-    AppData, TnServerSideTriggerData, TnSseTriggerMsg, TRON_APP,
+    AppData, TnServerEventData, TnSseTriggerMsg, TRON_APP,
 };
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentState, TnComponentValue,

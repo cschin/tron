@@ -870,7 +870,7 @@ pub struct TnComponentBaseBuilder<'a: 'static> {
 }
 
 impl<'a: 'static> TnComponentBase<'a> {
-    fn builder(base: TnComponentBase) -> TnComponentBaseBuilder<'a> {
+    pub fn builder(base: TnComponentBase) -> TnComponentBaseBuilder<'a> {
         TnComponentBaseBuilder { base }
     }
 }
@@ -887,19 +887,19 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
     }
 
     /// Sets the component's value
-    fn set_value(mut self, new_value: TnComponentValue) -> TnComponentBaseBuilder<'a> {
+    pub fn set_value(mut self, new_value: TnComponentValue) -> TnComponentBaseBuilder<'a> {
         self.base.value = new_value;
         self
     }
 
     /// Sets an attribute for the component
-    fn set_attribute(mut self, key: String, val: String) -> TnComponentBaseBuilder<'a> {
+    pub fn set_attribute(mut self, key: String, val: String) -> TnComponentBaseBuilder<'a> {
         self.base.attributes.insert(key, val);
         self
     }
 
     /// Sets the action for the component
-    fn set_action(
+    pub fn set_action(
         mut self,
         m: TnActionExecutionMethod,
         f: TnActionFn,
@@ -909,12 +909,12 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
     }
 
     /// Creates the assets HashMap for the component
-    fn create_assets(mut self) -> TnComponentBaseBuilder<'a> {
+    pub fn create_assets(mut self) -> TnComponentBaseBuilder<'a> {
         self.base.asset = Some(HashMap::default());
         self
     }
 
-    fn build(self) -> TnComponentBase<'a> {
+    pub fn build(self) -> TnComponentBase<'a> {
         self.base
     }
 }
@@ -972,7 +972,7 @@ mod tests {
     fn test_simple_button() {
         let btn = TnButton::builder()
             .init("12".into(), "12".into())
-            .set_attribute("hx-get".to_string(), format!("/tron/{}", 12))
+            .set_attribute("hx-get", &format!("/tron/{}", 12))
             .build();
         println!("{}", btn.generate_attr_string());
     }

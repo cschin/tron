@@ -70,8 +70,8 @@ pub enum TnComponentValue {
     VecString2(Vec<(String, String)>),
     VecDequeString(VecDeque<String>),
     CheckItems(HashMap<String, bool>),
-    CheckItem(bool),
-    RadioItem(bool),
+    Bool(bool),
+    Value(Value),
 }
 
 /// Represents different types of assets that can be associated with a component.

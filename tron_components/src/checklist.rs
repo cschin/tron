@@ -80,7 +80,7 @@ impl TnCheckBoxBuilder<'static> {
     pub fn init(mut self, name: String, value: bool) -> Self {
         self.base = TnComponentBase::builder(self.base)
             .init("input".into(), name.clone(), TnComponentType::CheckBox)
-            .set_value(TnComponentValue::CheckItem(value))
+            .set_value(TnComponentValue::Bool(value))
             .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
             .set_attribute("hx-target".into(), format!("#{}-container", name))
             .set_attribute(
@@ -110,7 +110,7 @@ impl Default for TnCheckBox<'static> {
 impl TnCheckBox<'static> {
     /// Renders the checkbox component internally.
     pub fn internal_render(&self) -> String {
-        let checked = if let &TnComponentValue::CheckItem(v) = self.value() {
+        let checked = if let &TnComponentValue::Bool(v) = self.value() {
             if v {
                 "checked"
             } else {
@@ -226,7 +226,7 @@ pub async fn checklist_update_value(comp: TnComponent<'static>) {
     for child in children {
         let child = child.read().await;
         if let TnComponentValue::CheckItems(ref mut value) = comp_guard.get_mut_value() {
-            if let TnComponentValue::CheckItem(b) = child.value() {
+            if let TnComponentValue::Bool(b) = child.value() {
                 value.insert(child.tron_id().clone(), *b);
             }
         }
@@ -266,7 +266,7 @@ pub fn toggle_checkbox(
 
             if checked.as_str() == "true" {
                 // println!("set true");
-                checkbox.set_value(TnComponentValue::CheckItem(true));
+                checkbox.set_value(TnComponentValue::Bool(true));
                 let parent_guard = checkbox.get_parent().clone();
                 let mut parent_guard = parent_guard.write().await;
                 if let TnComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {
@@ -274,7 +274,7 @@ pub fn toggle_checkbox(
                 };
             } else {
                 // println!("set false");
-                checkbox.set_value(TnComponentValue::CheckItem(false));
+                checkbox.set_value(TnComponentValue::Bool(false));
                 let parent_guard = checkbox.get_parent().clone();
                 let mut parent_guard = parent_guard.write().await;
                 if let TnComponentValue::CheckItems(ref mut value) = parent_guard.get_mut_value() {

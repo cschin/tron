@@ -118,7 +118,7 @@ impl TnRadioItemBuilder<'static> {
     pub fn init(mut self, tnid: TnComponentId, value: bool) -> Self {
         self.base = TnComponentBase::builder(self.base)
             .init("input".into(), tnid.clone(), TnComponentType::RadioItem)
-            .set_value(TnComponentValue::RadioItem(value))
+            .set_value(TnComponentValue::Bool(value))
             .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
             .set_attribute("hx-target".into(), format!("#{}-container", tnid))
             .set_attribute(
@@ -150,7 +150,7 @@ impl Default for TnRadioItem<'static> {
 impl TnRadioItem<'static> {
     /// Renders the `TnRadioItem` component into HTML.
     pub fn internal_render(&self) -> String {
-        let checked = if let &TnComponentValue::RadioItem(v) = self.value() {
+        let checked = if let &TnComponentValue::Bool(v) = self.value() {
             if v {
                 "checked"
             } else {
@@ -323,11 +323,11 @@ pub fn set_radio_item(
         for k in keys {
             if *k.0 == event.e_trigger {
                 context
-                    .set_value_for_component(&k.0, TnComponentValue::RadioItem(true))
+                    .set_value_for_component(&k.0, TnComponentValue::Bool(true))
                     .await;
             } else {
                 context
-                    .set_value_for_component(&k.0, TnComponentValue::RadioItem(false))
+                    .set_value_for_component(&k.0, TnComponentValue::Bool(false))
                     .await;
             }
         }

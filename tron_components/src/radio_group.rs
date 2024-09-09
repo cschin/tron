@@ -66,13 +66,16 @@ impl<'a: 'static> Default for TnRadioGroup<'a> {
 }
 
 /// Implements methods for rendering `TnRadioGroup`.
-impl TnRadioGroup<'static> {
+impl<'a> TnComponentRenderTrait<'a> for TnRadioGroup<'a>
+where
+    'a: 'static
+{
     /// Renders the internal structure of the `TnRadioGroup`.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         let children_render_results = self
             .get_children()
             .iter()
-            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>| {
+            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>| {
                 c.blocking_read().render()
             })
             .collect::<Vec<String>>()
@@ -87,13 +90,13 @@ impl TnRadioGroup<'static> {
     }
 
     /// Renders the internal structure of the `TnRadioGroup` for the first time.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
 
 /// Represents a radio item component within a radio group.
@@ -147,9 +150,12 @@ impl Default for TnRadioItem<'static> {
     }
 }
 
-impl TnRadioItem<'static> {
+impl<'a> TnComponentRenderTrait<'a> for TnRadioItem<'a>
+where
+    'a: 'static
+{
     /// Renders the `TnRadioItem` component into HTML.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         let checked = if let &TnComponentValue::Bool(v) = self.value() {
             if v {
                 "checked"
@@ -196,13 +202,13 @@ impl TnRadioItem<'static> {
     }
     /// Renders the first instance of the `TnRadioItem` component into HTML.
 
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
 
 pub fn add_radio_group_to_context(

@@ -75,7 +75,7 @@ impl<'a: 'static> Default for TnAudioPlayer<'a> {
     }
 }
 
-impl<'a: 'static> TnAudioPlayer<'a>
+impl<'a> TnComponentRenderTrait<'a> for TnAudioPlayer<'a>
 where
     'a: 'static,
 {
@@ -89,7 +89,7 @@ where
     ///
     /// A string containing the HTML representation of the audio player component.
 
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         format!(
             r##"<{} {} controls autoplay>"##,
             self.base.tag,
@@ -106,14 +106,15 @@ where
     /// # Returns
     ///
     /// A string containing the initial HTML representation of the audio player component.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
+
 
 /// Asynchronously starts playing audio associated with a given component and sends an SSE message.
 ///

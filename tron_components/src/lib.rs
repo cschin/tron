@@ -47,8 +47,15 @@ pub type TnElmAttributes = HashMap<String, String>;
 pub type TnExtraResponseHeader = HashMap<String, (String, bool)>; // (String, bool) = (value, remove after use?)
 /// Simple alias
 pub type TnElmTag = String;
+
 /// The type representing a component
-pub type TnComponent<'a> = Arc<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>;
+pub trait TnComponentBaseRenderTrait<'a>: TnComponentBaseTrait<'a> + TnComponentRenderTrait<'a>
+where
+    'a: 'static,
+{
+}
+
+pub type TnComponent<'a> = Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'a>>>>;
 
 /// Represents different types of values that can be associated with a component.
 ///
@@ -222,7 +229,7 @@ pub struct TnComponentBase<'a: 'static> {
     pub asset: TnComponentAsset,
     pub state: TnComponentState,
     pub children: Vec<TnComponent<'a>>,
-    pub parent: Weak<RwLock<Box<dyn TnComponentBaseTrait<'a>>>>,
+    pub parent: Weak<RwLock<Box<dyn TnComponentBaseRenderTrait<'a>>>>,
     pub action: Option<(TnActionExecutionMethod, TnActionFn)>,
 }
 
@@ -350,7 +357,10 @@ impl TnContextBase<'static> {
 
     /// Adds a new component to the context.
     /// Registers the component with a unique `tron_id` and an `id`, and updates the mapping.
-    pub fn add_component(&mut self, new_component: impl TnComponentBaseTrait<'static> + 'static) {
+    pub fn add_component(
+        &mut self,
+        new_component: impl TnComponentBaseRenderTrait<'static> + 'static,
+    ) {
         let tron_id = new_component.tron_id().clone();
         let component_type = new_component.get_type();
 
@@ -593,11 +603,6 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn get_assets(&self) -> Option<&HashMap<String, TnAsset>>;
     fn get_mut_assets(&mut self) -> Option<&mut HashMap<String, TnAsset>>;
 
-    fn first_render(&self) -> String;
-    fn pre_render(&mut self);
-    fn render(&self) -> String;
-    fn post_render(&mut self);
-
     fn get_children(&self) -> &Vec<TnComponent<'a>>;
     fn get_mut_children(&mut self) -> &mut Vec<TnComponent<'a>>;
     fn add_child(&mut self, child: TnComponent<'a>);
@@ -717,7 +722,7 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
     }
 
     /// Sets an attribute for the component
-    fn set_attribute(&mut self, key: &str, val: &str ) {
+    fn set_attribute(&mut self, key: &str, val: &str) {
         self.attributes.insert(key.into(), val.into());
     }
 
@@ -834,26 +839,6 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
         Weak::upgrade(&self.parent).unwrap()
     }
 
-    /// Performs the first render of the component (unimplemented)
-    fn first_render(&self) -> String {
-        unimplemented!()
-    }
-
-    /// Performs pre-render operations (unimplemented)
-    fn pre_render(&mut self) {
-        unimplemented!()
-    }
-
-    /// Renders the component (unimplemented)
-    fn render(&self) -> String {
-        unimplemented!()
-    }
-
-    /// Performs post-render operations (unimplemented)
-    fn post_render(&mut self) {
-        unimplemented!()
-    }
-
     /// Sets the action for the component
     fn set_action(&mut self, m: TnActionExecutionMethod, f: TnActionFn) {
         self.action = Some((m, f));
@@ -917,6 +902,33 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
     pub fn build(self) -> TnComponentBase<'a> {
         self.base
     }
+}
+
+pub trait TnComponentRenderTrait<'a: 'static>: Send + Sync {
+    fn first_render(&self) -> String;
+    fn pre_render(&mut self);
+    fn render(&self) -> String;
+    fn post_render(&mut self);
+
+    // /// Performs the first render of the component (unimplemented)
+    // fn first_render(&self) -> String {
+    //     unimplemented!()
+    // }
+
+    // /// Performs pre-render operations (unimplemented)
+    // fn pre_render(&mut self) {
+    //     unimplemented!()
+    // }
+
+    // /// Renders the component (unimplemented)
+    // fn render(&self) -> String {
+    //     unimplemented!()
+    // }
+
+    // /// Performs post-render operations (unimplemented)
+    // fn post_render(&mut self) {
+    //     unimplemented!()
+    // }
 }
 
 /// Represents a Tron event.

@@ -31,9 +31,12 @@ impl Default for TnButton<'static> {
     }
 }
 
-impl TnButton<'static> {
+
+impl<'a> TnComponentRenderTrait<'a> for TnButton<'a>
+where
+    'a: 'static,{
     /// Generates the internal HTML representation of the button component.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -47,11 +50,11 @@ impl TnButton<'static> {
     }
 
     /// Generates the initial HTML representation of the button component.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }

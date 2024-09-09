@@ -40,10 +40,7 @@ impl TnAudioRecorderBuilder<'static> {
             .init("div".to_string(), tnid, component_type)
             .set_value(TnComponentValue::String(value))
             .set_attribute("hx-trigger", "streaming, server_side_trigger")
-            .set_attribute(
-                "hx-vals",
-                r##"js:{event_data:get_audio_event(event)}"##,
-            )
+            .set_attribute("hx-vals", r##"js:{event_data:get_audio_event(event)}"##)
             .create_assets()
             .build();
         self.base
@@ -67,9 +64,12 @@ impl Default for TnAudioRecorder<'static> {
     }
 }
 
-impl TnAudioRecorder<'static> {
+impl<'a> TnComponentRenderTrait<'a> for TnAudioRecorder<'a>
+where
+    'a: 'static,
+{
     /// Generates the internal HTML representation of the audio recorder component.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -83,13 +83,13 @@ impl TnAudioRecorder<'static> {
     }
 
     /// Generates the initial HTML representation of the audio recorder component.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
 
 /// Appends new audio data to the specified audio recorder component.

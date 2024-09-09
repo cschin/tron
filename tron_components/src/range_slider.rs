@@ -54,9 +54,13 @@ impl Default for TnRangeSlider<'static> {
     }
 }
 
-impl TnRangeSlider<'static> {
+
+impl<'a> TnComponentRenderTrait<'a> for TnRangeSlider<'a>
+where
+    'a: 'static
+{
     /// Renders the `TnRangeSlider` component.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         format!(
             r##"<{} type="range" {} value="{}"/>"##,
             self.base.tag,
@@ -68,11 +72,11 @@ impl TnRangeSlider<'static> {
         )
     }
     /// Renders the `TnRangeSlider` component for the first time.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }

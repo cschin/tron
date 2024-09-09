@@ -65,9 +65,12 @@ impl Default for TnChatBox<'static> {
     }
 }
 
-impl TnChatBox<'static> {
+impl<'a> TnComponentRenderTrait<'a> for TnChatBox<'a>
+where
+    'a: 'static,
+{
     /// Renders the chat box component for the first time.
-    pub fn internal_first_render(&self) -> String {
+    fn first_render(&self) -> String {
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
         {
@@ -113,7 +116,7 @@ impl TnChatBox<'static> {
     }
 
     /// Renders the chat box component.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         // Retrieve the class attribute from the component's assets
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
@@ -150,14 +153,14 @@ impl TnChatBox<'static> {
         }
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
 
 /// Appends a new tag-message pair to the chat box component's value.
 pub async fn append_chatbox_value(
-    comp: Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>,
+    comp: Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>,
     tag_msg: (String, String),
 ) {
     let mut comp = comp.write().await;

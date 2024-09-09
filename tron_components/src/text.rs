@@ -36,9 +36,14 @@ impl Default for TnTextArea<'static> {
     }
 }
 
-impl TnTextArea<'static> {
+
+
+impl<'a> TnComponentRenderTrait<'a> for TnTextArea<'a>
+where
+    'a: 'static
+{
     /// Renders the TextArea component.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -52,12 +57,12 @@ impl TnTextArea<'static> {
     }
 
     /// Renders the TextArea component for the first time.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
 
 /// Appends text to the value of a TextArea component.
@@ -186,15 +191,18 @@ impl Default for TnStreamTextArea<'static> {
     }
 }
 
-/// Implements internal rendering functions for TnStreamTextArea.
-impl<'a: 'static> TnStreamTextArea<'a> {
+
+impl<'a> TnComponentRenderTrait<'a> for TnStreamTextArea<'a>
+where
+    'a: 'static
+{
     /// Implements internal rendering functions for TnStreamTextArea.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
     /// Renders the stream text area, showing only the last appended string.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -206,9 +214,9 @@ impl<'a: 'static> TnStreamTextArea<'a> {
             self.base.tag
         )
     }
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
 
 /// Appends a new string to the stream text area component but not rendering it.
@@ -343,9 +351,13 @@ impl<'a: 'static> Default for TnTextInput<'a> {
     }
 }
 
-impl TnTextInput<'static> {
+impl<'a> TnComponentRenderTrait<'a> for TnTextInput<'a>
+where
+    'a: 'static
+{
+
     /// Renders the internal representation of the text input component.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         format!(
             r##"<{} {} value="{}">"##,
             self.base.tag,
@@ -357,13 +369,13 @@ impl TnTextInput<'static> {
         )
     }
     /// Renders the initial representation of the text input component.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
 
 /// Cleans the text input component with the given context and Tron ID.

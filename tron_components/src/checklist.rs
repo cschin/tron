@@ -39,15 +39,20 @@ impl Default for TnCheckList<'static> {
     }
 }
 
-impl TnCheckList<'static> {
+impl<'a> TnComponentRenderTrait<'a> for TnCheckList<'a>
+where
+    'a: 'static,
+{
     /// Renders the checklist component including its children.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         let children_render_results = self
             .get_children()
             .iter()
-            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseTrait<'static>>>>| {
-                c.blocking_read().render()
-            })
+            .map(
+                |c: &Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>| {
+                    c.blocking_read().render()
+                },
+            )
             .collect::<Vec<String>>()
             .join(" ");
         format!(
@@ -60,14 +65,15 @@ impl TnCheckList<'static> {
     }
 
     /// Renders the checklist component for the first time.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
+
 /// Represents a checkbox component.
 #[non_exhaustive]
 #[derive(ComponentBase)]
@@ -83,10 +89,7 @@ impl TnCheckBoxBuilder<'static> {
             .set_value(TnComponentValue::Bool(value))
             .set_attribute("hx-trigger", "change, server_side_trigger")
             .set_attribute("hx-target", &format!("#{}-container", name))
-            .set_attribute(
-                "hx-vals",
-                r##"js:{event_data: get_checkbox_event(event)}"##,
-            )
+            .set_attribute("hx-vals", r##"js:{event_data: get_checkbox_event(event)}"##)
             .set_attribute("hx-swap", "none")
             .create_assets()
             .set_action(TnActionExecutionMethod::Await, toggle_checkbox)
@@ -107,9 +110,12 @@ impl Default for TnCheckBox<'static> {
     }
 }
 
-impl TnCheckBox<'static> {
+impl<'a> TnComponentRenderTrait<'a> for TnCheckBox<'a>
+where
+    'a: 'static,
+{
     /// Renders the checkbox component internally.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         let checked = if let &TnComponentValue::Bool(v) = self.value() {
             if v {
                 "checked"
@@ -155,13 +161,13 @@ impl TnCheckBox<'static> {
         )
     }
     /// Renders the first instance of the checkbox component.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
 
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
 
 /// Adds a checklist component to the context along with its child checkboxes.

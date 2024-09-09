@@ -149,22 +149,6 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                 self.base.get_mut_assets()
             }
 
-            fn first_render(&self) -> String {
-                self.internal_first_render()
-            }
-
-            fn render(&self) -> String {
-                self.internal_render()
-            }
-
-            fn pre_render(&mut self) {
-                self.internal_pre_render()
-            }
-
-            fn post_render(&mut self) {
-                self.internal_post_render()
-            }
-
             fn get_children(&self) -> &Vec<TnComponent<'a>>  {
                 self.base.get_children()
             }
@@ -195,6 +179,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
 
         }
 
+        impl <'a:'static> TnComponentBaseRenderTrait<'a> for #name <'a> {} 
 
         #[derive(Default)]
         #builder_ast

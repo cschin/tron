@@ -36,9 +36,12 @@ impl Default for TnDiv<'static> {
     }
 }
 
-impl TnDiv<'static> {
+impl<'a> TnComponentRenderTrait<'a> for TnDiv<'a>
+where
+    'a: 'static
+{
     /// Renders the Div component.
-    pub fn internal_render(&self) -> String {
+    fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -52,12 +55,12 @@ impl TnDiv<'static> {
     }
 
     /// Renders the TextArea component for the first time.
-    pub fn internal_first_render(&self) -> String {
-        self.internal_render()
+    fn first_render(&self) -> String {
+        self.render()
     }
-    pub fn internal_pre_render(&mut self) {}
+    fn pre_render(&mut self) {}
 
-    pub fn internal_post_render(&mut self) {}
+    fn post_render(&mut self) {}
 }
 
 /// Appends text to the value of a TextArea component.

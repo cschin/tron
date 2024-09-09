@@ -27,8 +27,8 @@
     // Listen for messages from the server
     window.eventSource.onmessage = function (event) {
       const event_data = JSON.parse(event.data);
-      const state = event_data["server_side_trigger_data"]["new_state"];
-      const target = event_data["server_side_trigger_data"]["target"];
+      const state = event_data["server_event_data"]["new_state"];
+      const target = event_data["server_event_data"]["target"];
       console.log("event_data:", event_data);
       for (const key in window.process_special_events) {
         if (window.process_special_events.hasOwnProperty(key)) {
@@ -39,7 +39,7 @@
       console.log('New message from server:', event.data, target, state);
       document.getElementById(target).setAttribute("state", state);
       console.log("server side trigger:", "#" + target);
-      htmx.trigger("#" + target, "server_side_trigger", {event_data:{}});
+      htmx.trigger("#" + target, "server_event", {event_data:{}});
     };
 
     // Listen for errors

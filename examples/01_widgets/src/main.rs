@@ -231,7 +231,7 @@ fn build_session_context() -> TnContext {
 /// It performs the following actions:
 ///
 /// 1. Logs the event information to the console.
-/// 2. If the event type is "server_side_trigger", it renders the component associated with the
+/// 2. If the event type is "server_event", it renders the component associated with the
 ///    event trigger and returns the rendered HTML.
 /// 3. Otherwise, it starts a loop that runs for 10 iterations:
 ///     - Updates the value and state of the clicked button.
@@ -260,8 +260,8 @@ fn counter_btn_clicked(
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = || async move {
         tracing::debug!(target:"tron_app", "{:?}", event);
-        if event.e_type == "server_side_trigger" {
-            tracing::debug!(target:"tron_app", "in server_side_trigger");
+        if event.e_type == "server_event" {
+            tracing::debug!(target:"tron_app", "in server_event");
             let html = context.render_component(&event.e_trigger).await;
             return Some((HeaderMap::new(), Html::from(html)));
         };
@@ -314,7 +314,7 @@ fn counter_btn_clicked(
             };
 
             let msg = format!(
-                r##"{{"server_side_trigger_data": {{ "target":"{}", "new_state":"updating" }} }}"##,
+                r##"{{"server_event_data": {{ "target":"{}", "new_state":"updating" }} }}"##,
                 event.e_trigger
             );
             if sse_tx.send(msg).await.is_err() {
@@ -322,7 +322,7 @@ fn counter_btn_clicked(
             }
 
             let msg =
-                r##"{"server_side_trigger_data": { "target":"textarea", "new_state":"ready" } }"##
+                r##"{"server_event_data": { "target":"textarea", "new_state":"ready" } }"##
                     .to_string();
             if sse_tx.send(msg).await.is_err() {
                 debug!("tx dropped");
@@ -356,7 +356,7 @@ fn counter_btn_clicked(
                 .await;
             btn.set_state(TnComponentState::Ready);
             let data = format!(
-                r##"{{"server_side_trigger_data": {{ "target":"{}", "new_state":"{}" }} }}"##,
+                r##"{{"server_event_data": {{ "target":"{}", "new_state":"{}" }} }}"##,
                 event.e_trigger, "ready"
             );
             if sse_tx.send(data).await.is_err() {

@@ -6,7 +6,7 @@ use tron_utils::TnServerSideTriggerData;
 /// Represents a server-sent event (SSE) message for controlling an audio recorder component.
 #[derive(Serialize)]
 pub struct SseAudioRecorderTriggerMsg {
-    pub server_side_trigger_data: TnServerSideTriggerData,
+    pub server_event_data: TnServerSideTriggerData,
     pub audio_recorder_control: String,
 }
 
@@ -39,7 +39,7 @@ impl TnAudioRecorderBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".to_string(), tnid, component_type)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("hx-trigger", "streaming, server_side_trigger")
+            .set_attribute("hx-trigger", "streaming, server_event")
             .set_attribute("hx-vals", r##"js:{event_data:get_audio_event(event)}"##)
             .create_assets()
             .build();

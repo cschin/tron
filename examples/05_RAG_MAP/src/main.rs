@@ -263,7 +263,7 @@ fn build_context() -> TnContext {
         .init(QUERY_TEXT_INPUT.into(), "".into())
         .set_attribute("class", "min-h-32 w-full")
         .set_attribute("style", "resize:none")
-        .set_attribute("hx-trigger", "change, server_side_trigger")
+        .set_attribute("hx-trigger", "change, server_event")
         .set_attribute(
             "hx-vals",
             r##"js:{event_data:get_input_event(event)}"##,
@@ -509,7 +509,7 @@ async fn update_plot_and_top_k<'a>(
     }
     let sse_tx = context.get_sse_tx().await;
     let msg = SseD3PlotTriggerMsg {
-        server_side_trigger_data: TnServerSideTriggerData {
+        server_event_data: TnServerSideTriggerData {
             target: D3PLOT.into(),
             new_state: "ready".into(),
         },
@@ -654,7 +654,7 @@ fn reset_button_clicked(
             {
                 let sse_tx = context.get_sse_tx().await;
                 let msg = SseD3PlotTriggerMsg {
-                    server_side_trigger_data: TnServerSideTriggerData {
+                    server_event_data: TnServerSideTriggerData {
                         target: D3PLOT.into(),
                         new_state: "ready".into(),
                     },
@@ -956,7 +956,7 @@ async fn api_test(
     {
         let sse_tx = context.get_sse_tx().await;
         let msg = SseD3PlotTriggerMsg {
-            server_side_trigger_data: TnServerSideTriggerData {
+            server_event_data: TnServerSideTriggerData {
                 target: D3PLOT.into(),
                 new_state: "ready".into(),
             },

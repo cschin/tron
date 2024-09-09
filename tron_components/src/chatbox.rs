@@ -25,7 +25,7 @@ impl TnChatBoxBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), tnid, TnComponentType::ChatBox)
             .set_value(TnComponentValue::VecString2(value))
-            .set_attribute("hx-trigger", "server_side_trigger")
+            .set_attribute("hx-trigger", "server_event")
             .set_attribute(
                 "hx-swap",
                 "beforeend scroll:bottom focus-scroll:true ",
@@ -210,7 +210,7 @@ pub async fn clean_chatbox_with_context(context: &TnContext, tron_id: &str) {
             guard.set_header("hx-reswap", ("innerHTML".into(), true));
 
             let msg = TnSseTriggerMsg {
-                server_side_trigger_data: TnServerSideTriggerData {
+                server_event_data: TnServerSideTriggerData {
                     target: tron_id.into(),
                     new_state: "ready".into(),
                 },

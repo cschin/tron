@@ -15,12 +15,12 @@ pub struct TnServerSideTriggerData {
 /// Represents a message for triggering server-side events in Tron.
 ///
 /// This struct is used to encapsulate a message for triggering server-side events in Tron.
-/// It contains a field `server_side_trigger_data` of type `TnServerSideTriggerData`,
+/// It contains a field `server_event_data` of type `TnServerSideTriggerData`,
 /// which holds the data required for triggering the event.
 
 #[derive(Serialize)]
 pub struct TnSseTriggerMsg {
-    pub server_side_trigger_data: TnServerSideTriggerData,
+    pub server_event_data: TnServerSideTriggerData,
 }
 
 /// Sends a server-sent event (SSE) message to the client.

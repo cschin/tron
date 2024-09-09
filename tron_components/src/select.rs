@@ -26,7 +26,7 @@ impl TnSelectBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("select".into(), tnid, TnComponentType::Select)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("hx-trigger", "change, server_side_trigger")
+            .set_attribute("hx-trigger", "change, server_event")
             .set_attribute("type", "select")
             .set_attribute("hx-swap", "none")
             .set_attribute(

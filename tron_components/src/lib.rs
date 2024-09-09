@@ -535,7 +535,7 @@ impl TnContext {
                 .await;
             let msg = TnSseTriggerMsg {
                 // update the button state
-                server_side_trigger_data: TnServerSideTriggerData {
+                server_event_data: TnServerSideTriggerData {
                     target: tron_id.into(),
                     new_state: "ready".into(),
                 },

@@ -36,7 +36,7 @@ impl TnRadioGroupBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), tnid, component_type)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("hx-trigger", "server_side_trigger")
+            .set_attribute("hx-trigger", "server_event")
             .set_attribute("type", "radio_group")
             .create_assets()
             .build();
@@ -122,7 +122,7 @@ impl TnRadioItemBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("input".into(), tnid.clone(), TnComponentType::RadioItem)
             .set_value(TnComponentValue::Bool(value))
-            .set_attribute("hx-trigger", "change, server_side_trigger")
+            .set_attribute("hx-trigger", "change, server_event")
             .set_attribute("hx-target", &format!("#{}-container", tnid))
             .set_attribute(
                 "hx-vals",

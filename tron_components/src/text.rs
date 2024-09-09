@@ -17,7 +17,7 @@ impl TnTextAreaBuilder<'static> {
             .init("textarea".into(), name, TnComponentType::TextArea)
             .set_value(TnComponentValue::String(value))
             .set_attribute("disabled", "")
-            .set_attribute("hx-trigger", "server_side_trigger")
+            .set_attribute("hx-trigger", "server_event")
             .set_attribute("type", "text")
             .build();
         self
@@ -112,7 +112,7 @@ pub async fn update_and_send_textarea_with_context(
             guard.set_state(TnComponentState::Ready);
             let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
-                server_side_trigger_data: TnServerSideTriggerData {
+                server_event_data: TnServerSideTriggerData {
                     target: tron_id.to_string(),
                     new_state: "ready".into(),
                 },
@@ -136,7 +136,7 @@ pub struct TnStreamTextArea<'a: 'static> {
 
 #[derive(Serialize)]
 pub struct SseStreamTextAreaTriggerMsg {
-    pub server_side_trigger_data: TnServerSideTriggerData,
+    pub server_event_data: TnServerSideTriggerData,
     pub stream_textarea_control: String,
     pub payload: String,
 }
@@ -261,7 +261,7 @@ pub async fn update_all_stream_textarea_with_context(context: &TnContext, tron_i
         let sse_tx = context.get_sse_tx().await;
 
         let msg = SseStreamTextAreaTriggerMsg {
-            server_side_trigger_data: TnServerSideTriggerData {
+            server_event_data: TnServerSideTriggerData {
                 target: tron_id.to_string(),
                 new_state: "ready".into(),
             },
@@ -289,7 +289,7 @@ pub async fn clean_stream_textarea_with_context(context: &TnContext, tron_id: &s
     let sse_tx = context.get_sse_tx().await;
 
     let msg = SseStreamTextAreaTriggerMsg {
-        server_side_trigger_data: TnServerSideTriggerData {
+        server_event_data: TnServerSideTriggerData {
             target: tron_id.to_string(),
             new_state: "ready".into(),
         },
@@ -325,7 +325,7 @@ impl TnTextInputBuilder<'static> {
             .set_value(TnComponentValue::String(value.to_string()));
 
         self.base
-            .set_attribute("hx-trigger", "change, server_side_trigger");
+            .set_attribute("hx-trigger", "change, server_event");
         self.base.set_attribute("type", "text");
         self.base.set_attribute(
             "hx-vals",
@@ -397,7 +397,7 @@ pub async fn clean_textinput_with_context(context: TnContext, tron_id: &str) {
             guard.set_state(TnComponentState::Ready);
             let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
-                server_side_trigger_data: TnServerSideTriggerData {
+                server_event_data: TnServerSideTriggerData {
                     target: tron_id.to_string(),
                     new_state: "ready".into(),
                 },

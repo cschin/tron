@@ -171,7 +171,7 @@ fn build_session_context() -> TnContext {
                 "class",
                 "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40",
             )
-            .set_attribute("hx-trigger", "server_side_trigger")
+            .set_attribute("hx-trigger", "server_event")
             .build();
 
         context.add_component(status_output);
@@ -181,7 +181,7 @@ fn build_session_context() -> TnContext {
         let prompt = include_str!("../templates/drunk-bioinformatist.txt");
         let mut prompt_box =
             TnTextArea::builder().init(PROMPT.into(), prompt.into())
-                .set_attribute("hx-trigger", "change, server_side_trigger") // change will update the value one the textarea is out of focus
+                .set_attribute("hx-trigger", "change, server_event") // change will update the value one the textarea is out of focus
                 .set_attribute(
                     "class",
                     "flex-1 p-2 textarea textarea-bordered mx-auto h-96 max-h-96 min-h-96",
@@ -405,7 +405,7 @@ fn _do_nothing(
             .await;
         let sse_tx = context.get_sse_tx().await;
         let msg = TnSseTriggerMsg {
-            server_side_trigger_data: TnServerSideTriggerData {
+            server_event_data: TnServerSideTriggerData {
                 target: event.e_trigger.clone(),
                 new_state: "ready".into(),
             },
@@ -526,14 +526,14 @@ fn reset_conversation(
 ///
 /// Returns:
 ///     A `TnHtmlResponse` containing the rendered HTML for the component that triggered the event.
-///     If the event type is not "click" or "server_side_trigger", it returns `None`.
+///     If the event type is not "click" or "server_event", it returns `None`.
 fn toggle_recording(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
 ) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
     let f = async move {
-        if event.e_type != "click" && event.e_type != "server_side_trigger" {
+        if event.e_type != "click" && event.e_type != "server_event" {
             return None;
         }
         let previous_rec_button_value;
@@ -577,7 +577,7 @@ fn toggle_recording(
                             delay.tick().await; //The first tick completes immediately.
                             delay.tick().await; //wait a bit for all data stream transferred
                             let msg = SseAudioRecorderTriggerMsg {
-                                server_side_trigger_data: TnServerSideTriggerData {
+                                server_event_data: TnServerSideTriggerData {
                                     target: RECORDER.into(),
                                     new_state: "updating".into(),
                                 },
@@ -626,7 +626,7 @@ fn toggle_recording(
                         }
 
                         let msg = SseAudioRecorderTriggerMsg {
-                            server_side_trigger_data: TnServerSideTriggerData {
+                            server_event_data: TnServerSideTriggerData {
                                 target: RECORDER.into(),
                                 new_state: "ready".into(),
                             },
@@ -640,7 +640,7 @@ fn toggle_recording(
         }
 
         let msg = TnSseTriggerMsg {
-            server_side_trigger_data: TnServerSideTriggerData {
+            server_event_data: TnServerSideTriggerData {
                 target: event.e_trigger,
                 new_state: "ready".into(),
             },
@@ -719,7 +719,7 @@ fn audio_input_stream_processing(
                             .await;
 
                         let msg = TnSseTriggerMsg {
-                            server_side_trigger_data: TnServerSideTriggerData {
+                            server_event_data: TnServerSideTriggerData {
                                 target: RECORDER.into(),
                                 new_state: "ready".into(),
                             },

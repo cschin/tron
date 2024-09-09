@@ -33,7 +33,7 @@ impl TnRangeSliderBuilder<'static> {
                 "hx-vals",
                 r##"js:{event_data:get_input_event(event)}"##,
             )
-            .set_attribute("hx-trigger", "change, server_side_trigger")
+            .set_attribute("hx-trigger", "change, server_event")
             .set_attribute("hx-swap", "none")
             .build();
         self

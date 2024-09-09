@@ -16,7 +16,7 @@ impl TnDivBuilder<'static> {
             .init("div".into(), name, TnComponentType::Div)
             .set_value(TnComponentValue::String(value))
             .set_attribute("disabled", "")
-            .set_attribute("hx-trigger", "server_side_trigger")
+            .set_attribute("hx-trigger", "server_event")
             .set_attribute("type", "container")
             .build();
 
@@ -106,7 +106,7 @@ pub async fn update_and_send_div_with_context(context: &TnContext, tron_id: &str
             guard.set_state(TnComponentState::Ready);
             let sse_tx = context.get_sse_tx().await;
             let msg = TnSseTriggerMsg {
-                server_side_trigger_data: TnServerSideTriggerData {
+                server_event_data: TnServerSideTriggerData {
                     target: tron_id.to_string(),
                     new_state: "ready".into(),
                 },

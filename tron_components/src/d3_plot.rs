@@ -4,7 +4,7 @@ use tron_macro::*;
 
 #[derive(Serialize)]
 pub struct SseD3PlotTriggerMsg {
-    pub server_side_trigger_data: TnServerSideTriggerData,
+    pub server_event_data: TnServerSideTriggerData,
     pub d3_plot: String,
 }
 
@@ -25,7 +25,7 @@ impl<'a: 'static> TnD3PlotBuilder<'a> {
             .init("div".into(), tnid, component_type)
             .set_value(TnComponentValue::String(d3_plot_script))
             .set_attribute("type", "d3_simple_scatter_plot")
-            .set_attribute("hx-trigger", "click, server_side_trigger")
+            .set_attribute("hx-trigger", "click, server_event")
             .set_attribute("hx-swap", "none")
             .set_attribute(
                 "hx-vals",

@@ -195,8 +195,8 @@ fn build_context() -> TnContext {
     TnD3Plot::builder()
         .init(D3PLOT.into(), d3_plot_script)
         .set_attribute(
-            "hx-vals".into(),
-            r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##.into(),
+            "hx-vals",
+            r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##,
         )
         .set_action(TnActionExecutionMethod::Await, d3_plot_clicked)
         .add_to_context(&mut context);
@@ -204,23 +204,23 @@ fn build_context() -> TnContext {
     TnButton::builder()
         .init(RESET_BUTTON.into(), "Reset".into())
         .set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary w-full h-min p-1".to_string(),
+            "class",
+            "btn btn-sm btn-outline btn-primary w-full h-min p-1",
         )
-        .set_attribute("hx-target".to_string(), format!("#{D3PLOT}"))
-        .set_attribute("hx-swap".to_string(), "none".to_string())
+        .set_attribute("hx-target", &format!("#{D3PLOT}"))
+        .set_attribute("hx-swap", "none")
         .set_action(TnActionExecutionMethod::Await, reset_button_clicked)
         .add_to_context(&mut context);
 
     TnDiv::builder()
         .init(TOP_HIT_DIV.into(), "".into())
         .set_attribute(
-            "class".to_string(),
-            "flex flex-col w-full h-full".to_string(),
+            "class",
+            "flex flex-col w-full h-full",
         )
         .set_attribute(
-            "style".to_string(),
-            "resize:none; overflow-y: auto;".to_string(),
+            "style",
+            "resize:none; overflow-y: auto;",
         )
         .add_to_context(&mut context);
 
@@ -235,8 +235,8 @@ fn build_context() -> TnContext {
     TnButton::builder()
         .init(CONTEXT_QUERY_BUTTON.into(), "Query With The Hits".into())
         .set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
+            "class",
+            "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item",
         )
         .set_action(TnActionExecutionMethod::Await, query_with_hits)
         .add_to_context(&mut context);
@@ -244,8 +244,8 @@ fn build_context() -> TnContext {
     TnButton::builder()
         .init(QUERY_BUTTON.into(), "General Query".into())
         .set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
+            "class",
+            "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item",
         )
         .set_action(TnActionExecutionMethod::Await, query_button_clicked)
         .add_to_context(&mut context);
@@ -253,20 +253,20 @@ fn build_context() -> TnContext {
     TnButton::builder()
         .init(FIND_RELATED_BUTTON.into(), "Find Related Text".into())
         .set_attribute(
-            "class".to_string(),
-            "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item".to_string(),
+            "class",
+            "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item",
         )
         .set_action(TnActionExecutionMethod::Await, find_related_button_clicked)
         .add_to_context(&mut context);
 
     let mut query_text_input = TnTextArea::builder()
         .init(QUERY_TEXT_INPUT.into(), "".into())
-        .set_attribute("class".to_string(), "min-h-32 w-full".to_string())
-        .set_attribute("style".to_string(), "resize:none".to_string())
-        .set_attribute("hx-trigger".into(), "change, server_side_trigger".into())
+        .set_attribute("class", "min-h-32 w-full")
+        .set_attribute("style", "resize:none")
+        .set_attribute("hx-trigger", "change, server_side_trigger")
         .set_attribute(
-            "hx-vals".into(),
-            r##"js:{event_data:get_input_event(event)}"##.into(),
+            "hx-vals",
+            r##"js:{event_data:get_input_event(event)}"##,
         )
         .build(); //over-ride the default as we need the value of the input text
     query_text_input.remove_attribute("disabled".into());
@@ -274,16 +274,16 @@ fn build_context() -> TnContext {
 
     TnStreamTextArea::builder()
         .init(QUERY_STREAM_TEXTAREA.into(), Vec::new())
-        .set_attribute("class".to_string(), "min-h-24 w-full".to_string())
-        .set_attribute("style".to_string(), r#"resize:none"#.to_string())
+        .set_attribute("class", "min-h-24 w-full")
+        .set_attribute("style", r#"resize:none"#)
         .add_to_context(&mut context);
 
     // add a chatbox
     TnChatBox::builder()
-        .init(QUERY_RESULT_TEXTAREA.to_string(), vec![])
+        .init(QUERY_RESULT_TEXTAREA.into(), vec![])
         .set_attribute(
-            "class".to_string(),
-            "min-h-96 max-h-96 overflow-auto flex-1 p-2".to_string(),
+            "class",
+            "min-h-96 max-h-96 overflow-auto flex-1 p-2",
         )
         .add_to_context(&mut context);
 

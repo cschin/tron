@@ -50,8 +50,8 @@ fn build_session_context() -> TnContext {
         TnButton::builder()
             .init(format!("btn-{:02}", btn_idx), format!("{:02}", btn_idx))
             .set_attribute(
-                "class".to_string(),
-                "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+                "class",
+                "btn btn-sm btn-outline btn-primary flex-1",
             )
             .set_action(TnActionExecutionMethod::Spawn, counter_btn_clicked)
             .add_to_context(&mut context);
@@ -141,7 +141,7 @@ fn build_session_context() -> TnContext {
     {
         TnRangeSlider::builder()
             .init("slider".into(), 0.0, 0.0, 100.0)
-            .set_attribute("class".to_string(), "flex-1".to_string())
+            .set_attribute("class", "flex-1")
             .set_action(TnActionExecutionMethod::Await, slider_value_update)
             .add_to_context(&mut context);
     }
@@ -152,10 +152,10 @@ fn build_session_context() -> TnContext {
                 "clean_stream_textarea".into(),
             )
             .set_attribute(
-                "class".to_string(),
-                "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+                "class",
+                "btn btn-sm btn-outline btn-primary flex-1",
             )
-            .set_attribute("hx-target".to_string(), "#stream_textarea".to_string())
+            .set_attribute("hx-target", "#stream_textarea")
             .set_action(TnActionExecutionMethod::Await, clean_stream_textarea)
             .add_to_context(&mut context);
     }
@@ -163,8 +163,8 @@ fn build_session_context() -> TnContext {
         TnButton::builder()
             .init("clean_textarea".into(), "clean_textarea".into())
             .set_attribute(
-                "class".to_string(),
-                "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+                "class",
+                "btn btn-sm btn-outline btn-primary flex-1",
             )
             .set_action(TnActionExecutionMethod::Await, clean_textarea)
             .add_to_context(&mut context);
@@ -173,8 +173,8 @@ fn build_session_context() -> TnContext {
         TnButton::builder()
             .init("clean_textinput".into(), "clean_textinput".into())
             .set_attribute(
-                "class".to_string(),
-                "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+                "class",
+                "btn btn-sm btn-outline btn-primary flex-1",
             )
             .set_action(TnActionExecutionMethod::Await, clean_textinput)
             .add_to_context(&mut context);
@@ -182,7 +182,7 @@ fn build_session_context() -> TnContext {
     {
         text::TnTextInput::builder()
             .init("textinput".into(), "".into())
-            .set_attribute("class".into(), "input input-bordered w-full".into())
+            .set_attribute("class", "input input-bordered w-full")
             .add_to_context(&mut context);
     }
     {

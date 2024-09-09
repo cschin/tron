@@ -60,7 +60,6 @@ async fn main() {
     // set app state
     let app_share_data = tron_app::AppData::builder(build_session_context, layout).build(); 
     // Run the application
-    //tron_app::run(app_share_data, Some("server=debug,tower_http=debug,tron_app=info")).await
     tron_app::run(app_share_data, app_configure).await
 }
 
@@ -85,8 +84,8 @@ fn build_session_context() -> TnContext {
                 "Start Conversation".into(),
             )
             .set_attribute(
-                "class".to_string(),
-                "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+                "class",
+                "btn btn-sm btn-outline btn-primary flex-1"
             )
             .set_action(TnActionExecutionMethod::Await, toggle_recording)
             .build();
@@ -113,7 +112,7 @@ fn build_session_context() -> TnContext {
                 PLAYER.to_string(),
                 "Paused".to_string(),
             )
-            .set_attribute("class".to_string(), "flex-1 p-1 h-10".to_string())
+            .set_attribute("class", "flex-1 p-1 h-10")
             .set_action(
                 TnActionExecutionMethod::Await,
                 audio_player::stop_audio_playing_action,
@@ -130,8 +129,8 @@ fn build_session_context() -> TnContext {
                 "Reset The Conversation".into(),
             )
             .set_attribute(
-                "class".to_string(),
-                "btn btn-sm btn-outline btn-primary flex-1".to_string(),
+                "class",
+                "btn btn-sm btn-outline btn-primary flex-1",
             )
             .set_action(TnActionExecutionMethod::Await, reset_conversation)
             .build();
@@ -142,8 +141,8 @@ fn build_session_context() -> TnContext {
         let transcript_output = TnChatBox::builder()
             .init(TRANSCRIPT_OUTPUT.to_string(), vec![])
             .set_attribute(
-                "class".to_string(),
-                "flex flex-col overflow-auto flex-1 p-2".to_string(),
+                "class",
+                "flex flex-col overflow-auto flex-1 p-2",
             )
             .build();
 
@@ -157,8 +156,8 @@ fn build_session_context() -> TnContext {
                 Vec::new(),
             )
             .set_attribute(
-                "class".to_string(),
-                "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19".to_string(),
+                "class",
+                "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19",
             )
             .build();
         context.add_component(llm_stream_output);
@@ -169,10 +168,10 @@ fn build_session_context() -> TnContext {
         let status_output = TnStreamTextArea::builder()
             .init(STATUS.to_string(), Vec::new())
             .set_attribute(
-                "class".to_string(),
-                "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40".to_string(),
+                "class",
+                "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40",
             )
-            .set_attribute("hx-trigger".into(), "server_side_trigger".into())
+            .set_attribute("hx-trigger", "server_side_trigger")
             .build();
 
         context.add_component(status_output);
@@ -182,14 +181,14 @@ fn build_session_context() -> TnContext {
         let prompt = include_str!("../templates/drunk-bioinformatist.txt");
         let mut prompt_box =
             TnTextArea::builder().init(PROMPT.into(), prompt.into())
-                .set_attribute("hx-trigger".into(), "change, server_side_trigger".into()) // change will update the value one the textarea is out of focus
+                .set_attribute("hx-trigger", "change, server_side_trigger") // change will update the value one the textarea is out of focus
                 .set_attribute(
-                    "class".into(),
-                    "flex-1 p-2 textarea textarea-bordered mx-auto h-96 max-h-96 min-h-96".into(),
+                    "class",
+                    "flex-1 p-2 textarea textarea-bordered mx-auto h-96 max-h-96 min-h-96",
                 )
                 .set_attribute(
-                    "hx-vals".into(),
-                    r##"js:{event_data:get_input_event(event)}"##.into(),
+                    "hx-vals",
+                    r##"js:{event_data:get_input_event(event)}"##,
                 )
                 .build();
         prompt_box.remove_attribute("disabled".into());
@@ -218,8 +217,8 @@ fn build_session_context() -> TnContext {
             model_options,
         )
         .set_attribute(
-            "class".into(),
-            "select select-bordered w-full max-w-xs".into(),
+            "class",
+            "select select-bordered w-full max-w-xs",
         )
         .build();
         context.add_component(tts_model_select);
@@ -238,8 +237,8 @@ fn build_session_context() -> TnContext {
             prompt_options,
         )
         .set_attribute(
-            "class".into(),
-            "select select-bordered w-full max-w-xs".into(),
+            "class",
+            "select select-bordered w-full max-w-xs",
         )
         .set_action(TnActionExecutionMethod::Await, preset_prompt_select_change)
         .build();

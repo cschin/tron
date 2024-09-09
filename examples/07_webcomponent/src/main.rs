@@ -1,6 +1,8 @@
 #![allow(dead_code)]
 #![allow(unused_imports)]
 
+mod sl_button;
+
 use askama::Template;
 use futures_util::Future;
 
@@ -20,6 +22,7 @@ use tron_components::{
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc, task::Context};
+use sl_button::*;
 
 static BUTTON: &str = "button";
 
@@ -33,7 +36,9 @@ async fn main() {
         ..Default::default()
     };
     // set app state
-    let app_share_data = tron_app::AppData::builder(build_context, layout).build(); 
+    let app_share_data = tron_app::AppData::builder(build_context, layout)
+    .set_head(include_str!("../templates/head.html"))
+    .set_html_attributes(r#"lang="en" class="sl-theme-dark""#).build();
     tron_app::run(app_share_data, app_config).await
 }
 
@@ -42,7 +47,7 @@ async fn main() {
 fn build_context() -> TnContext {
     let mut context = TnContextBase::default();
 
-    let btn = TnButton::builder()
+    let btn = SLButton::builder()
         .init( BUTTON.into(), "click me".into())
         .set_attribute(
             "class",

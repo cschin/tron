@@ -109,7 +109,7 @@ pub async fn simulate_dialog(context: TnContext, mut rx: Receiver<TnServiceReque
 
             let mut messages: Vec<ChatCompletionRequestMessage> =
                 vec![ChatCompletionRequestSystemMessageArgs::default()
-                    .content(&prompt)
+                    .content(prompt)
                     .build()
                     .expect("error")
                     .into()];

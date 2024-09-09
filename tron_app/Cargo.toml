@@ -9,17 +9,17 @@ edition.workspace = true
 
 [dependencies]
 axum = { version = "0.7.5", features = ["multipart"] }
-axum-server = { version = "0.6.0", features = ["tls-rustls"] }
-serde = { version = "1.0.197", features = ["derive"] }
-tokio = { version = "1.37.0", features = ["full"] }
+axum-server = { version = "0.7.1", features = ["tls-rustls"] }
+serde = { version = "1.0.210", features = ["derive"] }
+tokio = { version = "1.40.0", features = ["full"] }
 tower-http = { version = "0.5.2", features = ["full"] }
-tower = {version = "*"}
+tower = {version = "0.5.1"}
 tracing-subscriber = {version = "0.3", features = ["env-filter"]}
 tracing = "0.1.40"
-serde_json = "1.0.115"
-tower-sessions = "0.12.0"
+serde_json = "1.0.128"
+tower-sessions = "0.13.0"
 time = "0.3.30"
-tokio-stream = "0.1.15"
+tokio-stream = "0.1.16"
 futures-util = "0.3.30"
 tron_components = { path = "../tron_components" }
 tron_utils = { path = "../tron_utils" }
@@ -28,3 +28,5 @@ reqwest = { version = "0.12.4", features = ["json"] }
 jsonwebtoken = "9.3.0"
 memory-stats = "1.1.0"
 askama = "0.12.1"
+rustls = { version = "0.23.12", features=["ring"], default-feature=false }
+ring = "0.17.8"

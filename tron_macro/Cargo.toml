@@ -5,9 +5,9 @@ authors.workspace = true
 edition.workspace = true
 
 [dependencies]
-proc-macro2 = "1.0.79"
-quote = "1.0.35"
-syn = "2.0.57"
+proc-macro2 = "1.0.86"
+quote = "1.0.37"
+syn = "2.0.77"
 
 [lib]
 proc-macro = true

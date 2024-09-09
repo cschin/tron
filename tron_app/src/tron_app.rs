@@ -300,7 +300,11 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     } else {
         // optional: spawn a second server to redirect http requests to this server
         tokio::spawn(redirect_http_to_https(config.address, ports));
-
+        
+        // per https://github.com/abdolence/slack-morphism-rust/issues/286 we need the follow line to get it to work
+        // see also https://github.com/snapview/tokio-tungstenite/issues/336
+        let _ = rustls::crypto::ring::default_provider().install_default();
+        
         // configure certificate and private key used by https
         let tls_config = RustlsConfig::from_pem_file(
             PathBuf::from(".")

@@ -22,13 +22,13 @@ tokio-stream = "0.1.15"
 url = "2.5.0"
 futures = "0.3.30"
 http = "1.1.0"
-tokio-tungstenite = { version = "0.21.0", features = ["rustls-tls-webpki-roots"] }
+tokio-tungstenite = { version = "0.23", features = ["rustls-tls-webpki-roots"] }
 rand = "0.8.5"
 data-encoding = "2.5.0"
 thiserror = "1.0.59"
 reqwest = "0.12.4"
-async-openai = "0.23.0"
+async-openai = "0.24.0"
 time = "0.3.30"
 memory-stats = "1.1.0"
 # console-subscriber = "0.2.0"
-tikv-jemallocator = { version = "0.5.4" }
+tikv-jemallocator = { version = "0.6.0" }

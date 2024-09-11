@@ -11,9 +11,9 @@ pub mod range_slider;
 pub mod select;
 pub mod text;
 
-use async_trait::async_trait;
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
+use axum::async_trait;
 pub use button::TnButton;
 pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};

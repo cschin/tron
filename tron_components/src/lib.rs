@@ -625,22 +625,17 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 /// Implementors of this trait must provide concrete implementations for these methods.
 impl TnComponentBase<'static> {
     pub fn init(&mut self, tag: String, tron_id: TnComponentId, type_: TnComponentType) {
-        let mut attributes = HashMap::<String, String>::default();
-        attributes.insert("id".into(), tron_id.clone());
-        attributes.insert("hx-post".to_string(), format!("/tron/{}", tron_id.clone()));
-        attributes.insert("hx-target".to_string(), format!("#{}", tron_id));
-        attributes.insert("hx-swap".to_string(), "outerHTML".into());
-
-        attributes.insert(
-            "hx-vals".into(),
-            r##"js:{event_data:get_event(event)}"##.into(),
-        );
-        attributes.insert("hx-ext".into(), "json-enc".into());
-        attributes.insert("state".to_string(), "ready".to_string());
         self.tag = tag;
         self.type_ = type_;
-        self.tron_id = tron_id;
-        self.attributes = attributes;
+        self.tron_id = tron_id.clone();
+        self.attributes = HtmlAttributes::builder()
+            .add("id", &tron_id)
+            .add("hx-post", &format!("/tron/{}", tron_id))
+            .add("hx-target", &format!("#{}", tron_id))
+            .add("hx-swap", "outerHTML")
+            .add("hx-vals", r#"js:{event_data:get_event(event)}"#)
+            .add("hx-ext", "json-enc")
+            .add("state", "ready").build().take();
     }
 }
 
@@ -932,7 +927,7 @@ pub struct TnEvent {
 }
 
 use tokio::sync::{mpsc::Sender, RwLock};
-use tron_utils::{send_sse_msg_to_client, TnServerEventData, TnSseTriggerMsg};
+use tron_utils::{send_sse_msg_to_client, HtmlAttributes, TnServerEventData, TnSseTriggerMsg};
 
 /// Represents an HTML response along with its headers, wrapped in an optional tuple.
 

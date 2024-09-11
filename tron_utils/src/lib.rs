@@ -112,6 +112,10 @@ impl HtmlAttributes {
     pub fn builder() -> HtmlAttributesBuilder {
         HtmlAttributesBuilder::default()
     }
+
+    pub fn take(self) -> HashMap<String, String> {
+        self.attributes
+    } 
 }
 
 use std::fmt;

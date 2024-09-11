@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use serde::Serialize;
 use tokio::sync::mpsc::Sender;
 use tracing::debug;
@@ -81,4 +83,52 @@ pub fn html_escape_double_quote(input: &str) -> String {
         }
     }
     output
+}
+
+#[derive(Default)]
+pub struct HtmlAttributes {
+    pub attributes: HashMap<String, String>,
+}
+
+#[derive(Default)]
+pub struct HtmlAttributesBuilder {
+    attributes: HashMap<String, String>,
+}
+
+impl HtmlAttributesBuilder {
+
+    pub fn add_attribute(mut self, key: String, value: String) -> Self {
+        self.attributes.insert(key, value);
+        self
+    }
+
+    pub fn build(self) -> HtmlAttributes {
+        HtmlAttributes {
+            attributes: self.attributes,
+        }
+    }
+}
+
+impl HtmlAttributes {
+    pub fn builder() -> HtmlAttributesBuilder {
+        HtmlAttributesBuilder::default()
+    }
+}
+
+use std::fmt;
+impl fmt::Display for HtmlAttributes {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s =       self.attributes
+            .iter()
+            .map(|(k, v)| {
+                if v.is_empty() {
+                    k.clone()
+                } else {
+                    format!(r#"{}="{}""#, k, html_escape_double_quote(v))
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        write!(f, "{}", s)
+    }
 }

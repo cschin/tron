@@ -67,7 +67,7 @@ where
     'a: 'static,
 {
     /// Renders the chat box component for the first time.
-    async fn first_render(&self) -> String {
+    async fn initial_render(&self) -> String {
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
         {

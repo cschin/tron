@@ -332,16 +332,16 @@ fn layout(context: TnContext) -> TnFutureString {
             .await;
 
         let guard = context.read().await;
-        let btn = guard.render_to_string(RECORDING_BUTTON).await;
-        let recorder = guard.render_to_string(RECORDER).await;
-        let player = guard.render_to_string(PLAYER).await;
-        let transcript = guard.get_pre_render_string(TRANSCRIPT_OUTPUT).await;
-        let status = guard.get_pre_render_string(STATUS).await;
-        let prompt = guard.get_pre_render_string(PROMPT).await;
-        let reset_button = guard.get_pre_render_string(RESET_BUTTON).await;
-        let tts_model_select = guard.get_pre_render_string(TTS_MODEL_SELECT).await;
-        let llm_stream_output = guard.get_pre_render_string(LLM_STREAM_OUTPUT).await;
-        let preset_prompt_select = guard.get_pre_render_string(PRESET_PROMPT_SELECT).await;
+        let btn = guard.get_rendered_string(RECORDING_BUTTON).await;
+        let recorder = guard.get_rendered_string(RECORDER).await;
+        let player = guard.get_rendered_string(PLAYER).await;
+        let transcript = guard.get_initial_rendered_string(TRANSCRIPT_OUTPUT).await;
+        let status = guard.get_initial_rendered_string(STATUS).await;
+        let prompt = guard.get_initial_rendered_string(PROMPT).await;
+        let reset_button = guard.get_initial_rendered_string(RESET_BUTTON).await;
+        let tts_model_select = guard.get_initial_rendered_string(TTS_MODEL_SELECT).await;
+        let llm_stream_output = guard.get_initial_rendered_string(LLM_STREAM_OUTPUT).await;
+        let preset_prompt_select = guard.get_initial_rendered_string(PRESET_PROMPT_SELECT).await;
 
         let html = AppPageTemplate {
             btn,

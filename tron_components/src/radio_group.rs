@@ -90,7 +90,7 @@ where
     }
 
     /// Renders the internal structure of the `TnRadioGroup` for the first time.
-    async fn first_render(&self) -> String {
+    async fn initial_render(&self) -> String {
         self.render().await
     }
 
@@ -203,7 +203,7 @@ where
     }
     /// Renders the first instance of the `TnRadioItem` component into HTML.
 
-    async fn first_render(&self) -> String {
+    async fn initial_render(&self) -> String {
         self.render().await
     }
 

@@ -68,7 +68,7 @@ where
         )
     }
     /// Renders the `TnRangeSlider` component for the first time.
-    async fn first_render(&self) -> String {
+    async fn initial_render(&self) -> String {
         let d3_plot_script = if let TnComponentValue::String(s) = self.value() {
             s.clone()
         } else {

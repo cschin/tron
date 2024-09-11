@@ -71,7 +71,7 @@ struct AppPageTemplate {
 fn layout(context: TnContext) -> TnFutureString {
     tn_future! {
         let context_guard = context.read().await;
-        let button = context_guard.render_to_string(BUTTON).await;
+        let button = context_guard.get_rendered_string(BUTTON).await;
         let html = AppPageTemplate { button };
         html.render().unwrap()
     }

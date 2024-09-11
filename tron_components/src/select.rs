@@ -93,7 +93,7 @@ where
     }
 
     /// Renders the TnSelect component for the first time.
-    async fn first_render(&self) -> String {
+    async fn initial_render(&self) -> String {
         self.render().await
     }
     async fn pre_render(&mut self) {}

@@ -381,7 +381,7 @@ impl TnContextBase<'static> {
 
     /// Renders the specified component to a string based on its `tron_id`.
     /// This method accesses the component by index, reads its state, and calls its render function.
-    pub async fn render_to_string(&self, tron_id: &str) -> String {
+    pub async fn get_rendered_string(&self, tron_id: &str) -> String {
         let components_guard = self.components.read().await;
         let component = components_guard.get(tron_id).unwrap().read().await;
         component.render().await
@@ -389,10 +389,10 @@ impl TnContextBase<'static> {
 
     /// Performs the initial rendering of a specified component to a string based on its `tron_id`.
     /// Similar to `render_to_string`, but specifically calls the component's first rendering logic.
-    pub async fn get_pre_render_string(&self, tron_id: &str) -> String {
+    pub async fn get_initial_rendered_string(&self, tron_id: &str) -> String {
         let component_guard = self.components.read().await;
         let component = component_guard.get(tron_id).unwrap().read().await;
-        component.first_render().await
+        component.initial_render().await
     }
 
     /// Returns and increments the next available index.
@@ -903,7 +903,7 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
 
 #[async_trait]
 pub trait TnComponentRenderTrait<'a: 'static>: Send + Sync {
-    async fn first_render(&self) -> String;
+    async fn initial_render(&self) -> String;
     async fn pre_render(&mut self);
     async fn render(&self) -> String;
     async fn post_render(&mut self);

@@ -84,7 +84,7 @@ where
     }
 
     /// Generates the initial HTML representation of the audio recorder component.
-    async fn first_render(&self) -> String {
+    async fn initial_render(&self) -> String {
         self.render().await
     }
 

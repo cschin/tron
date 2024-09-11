@@ -142,9 +142,9 @@ struct AppPageTemplate {
 
 fn layout(context: TnContext) -> TnFutureString {
     tn_future! {let context_guard = context.read().await;
-        let input_image_area = context_guard.get_pre_render_string(INPUT_IMAGE_AREA).await;
-        let image_output_area = context_guard.get_pre_render_string(IMAGE_OUTPUT_AREA).await;
-        let dnd_file_upload = context_guard.get_pre_render_string(DND_FILE_UPLOAD).await;
+        let input_image_area = context_guard.get_initial_rendered_string(INPUT_IMAGE_AREA).await;
+        let image_output_area = context_guard.get_initial_rendered_string(IMAGE_OUTPUT_AREA).await;
+        let dnd_file_upload = context_guard.get_initial_rendered_string(DND_FILE_UPLOAD).await;
         let html = AppPageTemplate {
             input_image_area,
             image_output_area,

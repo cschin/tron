@@ -346,15 +346,15 @@ struct AppPageTemplate {
 fn layout(context: TnContext) -> TnFutureString {
     tn_future! {
         let context_guard = context.read().await;
-        let d3_plot = context_guard.get_pre_render_string(D3PLOT).await;
-        let reset_button = context_guard.render_to_string(RESET_BUTTON).await;
-        let top_hit_div = context_guard.render_to_string(TOP_HIT_DIV).await;
-        let context_query_button = context_guard.render_to_string(CONTEXT_QUERY_BUTTON).await;
-        let query_stream_textarea = context_guard.get_pre_render_string(QUERY_STREAM_TEXTAREA).await;
-        let query_result_textarea = context_guard.get_pre_render_string(QUERY_RESULT_TEXTAREA).await;
-        let query_button = context_guard.render_to_string(QUERY_BUTTON).await;
-        let query_text_input = context_guard.render_to_string(QUERY_TEXT_INPUT).await;
-        let find_related_text_button = context_guard.render_to_string(FIND_RELATED_BUTTON).await;
+        let d3_plot = context_guard.get_initial_rendered_string(D3PLOT).await;
+        let reset_button = context_guard.get_rendered_string(RESET_BUTTON).await;
+        let top_hit_div = context_guard.get_rendered_string(TOP_HIT_DIV).await;
+        let context_query_button = context_guard.get_rendered_string(CONTEXT_QUERY_BUTTON).await;
+        let query_stream_textarea = context_guard.get_initial_rendered_string(QUERY_STREAM_TEXTAREA).await;
+        let query_result_textarea = context_guard.get_initial_rendered_string(QUERY_RESULT_TEXTAREA).await;
+        let query_button = context_guard.get_rendered_string(QUERY_BUTTON).await;
+        let query_text_input = context_guard.get_rendered_string(QUERY_TEXT_INPUT).await;
+        let find_related_text_button = context_guard.get_rendered_string(FIND_RELATED_BUTTON).await;
 
         let html = AppPageTemplate {
             d3_plot,

@@ -63,7 +63,7 @@ where
     }
 
     /// Renders the checklist component for the first time.
-    async fn first_render(&self) -> String {
+    async fn initial_render(&self) -> String {
         self.render().await
     }
 
@@ -160,7 +160,7 @@ where
         )
     }
     /// Renders the first instance of the checkbox component.
-    async fn first_render(&self) -> String {
+    async fn initial_render(&self) -> String {
         self.render().await
     }
 

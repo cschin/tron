@@ -107,7 +107,7 @@ where
     /// # Returns
     ///
     /// A string containing the initial HTML representation of the audio player component.
-    async fn first_render(&self) -> String {
+    async fn initial_render(&self) -> String {
         self.render().await
     }
 

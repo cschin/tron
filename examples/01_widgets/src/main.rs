@@ -620,27 +620,27 @@ fn layout(context: TnContext) -> TnFutureString {
         let mut buttons = Vec::<String>::new();
         for i in 0..10 {
             let b = context_guard
-                .render_to_string(&format!("btn-{:02}", i))
+                .get_rendered_string(&format!("btn-{:02}", i))
                 .await;
             buttons.push(b);
         }
         let context_guard = context.read().await;
-        let textarea = context_guard.render_to_string("textarea").await;
+        let textarea = context_guard.get_rendered_string("textarea").await;
         let stream_textarea = context_guard
-            .get_pre_render_string("stream_textarea")
+            .get_initial_rendered_string("stream_textarea")
             .await;
-        let textinput = context_guard.render_to_string("textinput").await;
-        let checklist = context_guard.render_to_string("checklist").await;
-        let radio_group = context_guard.render_to_string("radio_group").await;
-        let select = context_guard.render_to_string("select_one").await;
+        let textinput = context_guard.get_rendered_string("textinput").await;
+        let checklist = context_guard.get_rendered_string("checklist").await;
+        let radio_group = context_guard.get_rendered_string("radio_group").await;
+        let select = context_guard.get_rendered_string("select_one").await;
         let clean_stream_textarea = context_guard
-            .render_to_string("clean_stream_textarea")
+            .get_rendered_string("clean_stream_textarea")
             .await;
-        let clean_textarea = context_guard.render_to_string("clean_textarea").await;
-        let clean_textinput = context_guard.render_to_string("clean_textinput").await;
-        let slider = context_guard.render_to_string("slider").await;
-        let file_upload = context_guard.render_to_string("file_upload").await;
-        let dnd_file_upload = context_guard.render_to_string("dnd_file_upload").await;
+        let clean_textarea = context_guard.get_rendered_string("clean_textarea").await;
+        let clean_textinput = context_guard.get_rendered_string("clean_textinput").await;
+        let slider = context_guard.get_rendered_string("slider").await;
+        let file_upload = context_guard.get_rendered_string("file_upload").await;
+        let dnd_file_upload = context_guard.get_rendered_string("dnd_file_upload").await;
 
         let html = AppPageTemplate {
             buttons,

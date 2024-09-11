@@ -372,6 +372,10 @@ async fn index(
         tracing::info!(target:"tron_app", "setting session");
         let mut session_expiry = app_data.session_expiry.write().await;
         session_expiry.insert(session.id().unwrap(), session.expiry_date());
+        
+        // We need to insert the "userdata" into the session or when we call session.get("userdata"),
+        // the session is reset, it maybe a bug in the library
+        session.insert("userdata", "").await.unwrap();
 
         let script = {
             let new_context = tokio::task::block_in_place(|| (*app_data.build_context)());
@@ -449,8 +453,8 @@ async fn load_page(
         }
     };
 
-    let context_guard = app_data.context_store.read().await;
-    let context = context_guard.get(&session_id).unwrap().clone();
+    let context_store_guard = app_data.context_store.read().await;
+    let context = context_store_guard.get(&session_id).unwrap().clone();
     //let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context.clone()));
     let layout = (*app_data.build_layout)(context).await;
     Ok(Html::from(layout))
@@ -581,18 +585,18 @@ async fn tron_entry(
                 c.get_action().as_ref().unwrap().clone()
             };
 
-            let context_store_guard = app_data.context_store.read().await;
             {
+                let context_store_guard = app_data.context_store.read().await;
                 let context = context_store_guard.get(&session_id).unwrap().clone();
                 let mut base = context.write().await;
-                base.user_data = Arc::new(RwLock::new(
-                    session
-                        .get("user_data")
-                        .await
-                        .expect("error on getting user data"),
-                ));
+                let userdata = session
+                    .get::<String>("user_data")
+                    .await
+                    .expect("error on getting user data");
+                base.user_data = Arc::new(RwLock::new(userdata));
             }
 
+            let context_store_guard = app_data.context_store.read().await;
             let context = context_store_guard.get(&session_id).unwrap().clone();
             let action = action_generator(context, evt, payload);
             match action_exec_method {
@@ -1079,8 +1083,8 @@ async fn logout_handler() -> Redirect {
 async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> impl IntoResponse {
     let logout_html = {
         let session_id = session.id().unwrap();
-        let context_guard = app_data.context_store.write().await;
-        let context = context_guard.get(&session_id).unwrap();
+        let context_store_guard = app_data.context_store.write().await;
+        let context = context_store_guard.get(&session_id).unwrap();
         let base = context.base.read().await;
         let logout_html = base.assets.read().await;
         if let Some(TnAsset::String(logout_html)) = logout_html.get("logout_page") {
@@ -1093,9 +1097,9 @@ async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> i
     // remove data from the session in app_data
     {
         let session_id = session.id().unwrap();
-        let mut context_guard = app_data.context_store.write().await;
+        let mut context_store_guard = app_data.context_store.write().await;
 
-        context_guard.remove(&session_id);
+        context_store_guard.remove(&session_id);
     }
     let _ = session.remove_value("token").await;
     Html::from(logout_html)
@@ -1271,14 +1275,13 @@ async fn cognito_callback(
     // let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
     // validation.validate_aud = false; // there is no audience available in cognito's JWT
 
-    let (username, email) = extract_user_info(&token_value, header_kid, &jwt_value)
-        .expect("error on get user name and email from JWT");
-
     if session.id().is_none() {
         session.insert("session_set", true).await.unwrap();
     };
-    let _ = session.insert("token", jwt_value.id_token).await;
+    let _ = session.insert("token", jwt_value.id_token.clone()).await;
     // TODO: use a proper struct to pass the user_data
+    let (username, email) = extract_user_info(&token_value, header_kid, &jwt_value)
+        .expect("error on get user name and email from JWT");
     let user_data = format!(r#"{{ "username":"{}", "email":"{}" }}"#, username, email);
     let _ = session.insert("user_data", user_data).await;
     tracing::debug!(target:"tron_app", "in congito_callback session_id: {:?}", session.id());

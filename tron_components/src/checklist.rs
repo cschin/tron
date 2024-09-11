@@ -128,7 +128,7 @@ where
         };
         let tron_id = self.tron_id();
         let parent_guard = self.get_parent().clone();
-        let parent_guard = parent_guard.blocking_read();
+        let parent_guard = parent_guard.read().await;
         let parent_tron_id = parent_guard.tron_id().clone();
         let assets = self.get_assets().unwrap();
         let container_attributes = if assets.contains_key("container_attributes") {

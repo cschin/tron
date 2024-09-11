@@ -56,7 +56,16 @@ pub type SessionContext = RwLock<HashMap<SessionId, TnContext>>;
 type ContextBuilder = Arc<Box<dyn Fn() -> TnContext + Send + Sync>>;
 
 /// Alias for a layout function, which generates HTML layout from a context.
-type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
+/// type LayoutFunction = Arc<Box<dyn Fn(TnContext) -> String + Send + Sync>>;
+use std::pin::Pin;
+
+type LayoutFunction = Arc<
+    Box<
+        dyn Fn(TnContext) -> Pin<Box<dyn futures_util::Future<Output = String> + Send>>
+            + Send
+            + Sync,
+    >,
+>;
 
 type SessionExpiry = RwLock<HashMap<SessionId, time::OffsetDateTime>>;
 
@@ -80,13 +89,13 @@ pub struct AppDataBuilder {
     pub context: SessionContext,
     pub session_expiry: RwLock<HashMap<SessionId, time::OffsetDateTime>>,
     pub build_context: fn() -> TnContext,
-    pub build_layout: fn(TnContext) -> String,
+    pub build_layout: fn(TnContext) -> Pin<Box<dyn futures_util::Future<Output = String> + Send>>,
 }
 
 impl AppData {
     pub fn builder(
         build_context: fn() -> TnContext,
-        build_layout: fn(TnContext) -> String,
+        build_layout: fn(TnContext) -> Pin<Box<dyn futures_util::Future<Output = String> + Send>>,
     ) -> AppDataBuilder {
         AppDataBuilder {
             head: Some(include_str!("../templates/head.html").to_string()),
@@ -300,11 +309,11 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
     } else {
         // optional: spawn a second server to redirect http requests to this server
         tokio::spawn(redirect_http_to_https(config.address, ports));
-        
+
         // per https://github.com/abdolence/slack-morphism-rust/issues/286 we need the follow line to get it to work
         // see also https://github.com/snapview/tokio-tungstenite/issues/336
         let _ = rustls::crypto::ring::default_provider().install_default();
-        
+
         // configure certificate and private key used by https
         let tls_config = RustlsConfig::from_pem_file(
             PathBuf::from(".")
@@ -442,7 +451,8 @@ async fn load_page(
 
     let context_guard = app_data.context.read().await;
     let context = context_guard.get(&session_id).unwrap().clone();
-    let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context.clone()));
+    //let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context.clone()));
+    let layout = (*app_data.build_layout)(context).await;
     Ok(Html::from(layout))
 }
 

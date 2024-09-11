@@ -382,16 +382,16 @@ impl TnContextBase<'static> {
     /// Renders the specified component to a string based on its `tron_id`.
     /// This method accesses the component by index, reads its state, and calls its render function.
     pub async fn render_to_string(&self, tron_id: &str) -> String {
-        let components_guard = self.components.blocking_read();
-        let component = components_guard.get(tron_id).unwrap().blocking_read();
+        let components_guard = self.components.read().await;
+        let component = components_guard.get(tron_id).unwrap().read().await;
         component.render().await
     }
 
     /// Performs the initial rendering of a specified component to a string based on its `tron_id`.
     /// Similar to `render_to_string`, but specifically calls the component's first rendering logic.
     pub async fn first_render_to_string(&self, tron_id: &str) -> String {
-        let component_guard = self.components.blocking_read();
-        let component = component_guard.get(tron_id).unwrap().blocking_read();
+        let component_guard = self.components.read().await;
+        let component = component_guard.get(tron_id).unwrap().read().await;
         component.first_render().await
     }
 

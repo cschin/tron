@@ -40,21 +40,21 @@ use tron_app::{
             append_and_update_stream_textarea_with_context, clean_stream_textarea_with_context,
             clean_textarea_with_context, update_and_send_textarea_with_context,
         },
-        TnActionExecutionMethod, TnActionFn, TnAsset, TnChatBox, TnD3Plot, TnDiv, TnDnDFileUpload,
-        TnHtmlResponse, TnServiceRequestMsg, TnStreamTextArea,
+        tn_future, TnActionExecutionMethod, TnActionFn, TnAsset, TnChatBox, TnD3Plot, TnDiv,
+        TnDnDFileUpload, TnFutureHTMLResponse, TnFutureString, TnHtmlResponse, TnServiceRequestMsg,
+        TnStreamTextArea,
     },
     AppData, TnServerEventData, TnSseTriggerMsg, TRON_APP,
 };
 use tron_components::{
-    text::TnTextInput, TnButton, TnComponentState, TnComponentValue,
-    TnContext, TnContextBase, TnEvent, TnTextArea,
+    text::TnTextInput, TnButton, TnComponentState, TnComponentValue, TnContext, TnContextBase,
+    TnEvent, TnTextArea,
 };
 
 use once_cell::sync::Lazy;
 use std::io::{BufRead, BufReader};
 use std::{
     collections::{HashMap, VecDeque},
-    pin::Pin,
     sync::Arc,
     task::Context,
     vec,
@@ -76,7 +76,7 @@ async fn main() {
         ..Default::default()
     };
     // set app state
-    let app_share_data = AppData::builder(build_context, layout).build(); 
+    let app_share_data = AppData::builder(build_context, layout).build();
 
     tron_app::run(app_share_data, app_config).await
 }
@@ -140,17 +140,18 @@ struct AppPageTemplate {
     dnd_file_upload: String,
 }
 
-fn layout(context: TnContext) -> String {
-    let context_guard = context.blocking_read();
-    let input_image_area = context_guard.first_render_to_string(INPUT_IMAGE_AREA);
-    let image_output_area = context_guard.first_render_to_string(IMAGE_OUTPUT_AREA);
-    let dnd_file_upload = context_guard.first_render_to_string(DND_FILE_UPLOAD);
-    let html = AppPageTemplate {
-        input_image_area,
-        image_output_area,
-        dnd_file_upload,
-    };
-    html.render().unwrap()
+fn layout(context: TnContext) -> TnFutureString {
+    tn_future! {let context_guard = context.read().await;
+        let input_image_area = context_guard.first_render_to_string(INPUT_IMAGE_AREA).await;
+        let image_output_area = context_guard.first_render_to_string(IMAGE_OUTPUT_AREA).await;
+        let dnd_file_upload = context_guard.first_render_to_string(DND_FILE_UPLOAD).await;
+        let html = AppPageTemplate {
+            input_image_area,
+            image_output_area,
+            dnd_file_upload,
+        };
+        html.render().unwrap()
+    }
 }
 
 async fn get_image(
@@ -173,12 +174,8 @@ async fn get_image(
     (StatusCode::OK, response_headers, body)
 }
 
-fn handle_file_upload(
-    context: TnContext,
-    _event: TnEvent,
-    payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let f = || async move {
+fn handle_file_upload(context: TnContext, _event: TnEvent, payload: Value) -> TnFutureHTMLResponse {
+    tn_future! {
         // process the "finished" event
 
         tracing::info!(target: TRON_APP, "process file_upload finish");
@@ -227,6 +224,5 @@ fn handle_file_upload(
 
         let header = HeaderMap::new();
         Some((header, Html::from("".to_string())))
-    };
-    Box::pin(f())
+    }
 }

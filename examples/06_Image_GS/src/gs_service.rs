@@ -38,7 +38,7 @@ fn render(gs: &Var, grids_xy: &[Tensor], device: &Device) -> Result<Vec<Tensor>>
             Ok((ux0, uy0, a0, b0, c0, red0, green0, blue0, alpha0))
         })
         .collect::<Vec<_>>();
-    
+
     // the par_iter does not help much. some lock issue?
     let res = gs_vec
         .into_par_iter()

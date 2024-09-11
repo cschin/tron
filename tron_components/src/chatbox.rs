@@ -21,15 +21,12 @@ impl TnChatBoxBuilder<'static> {
     /// # Returns
     ///
     /// A new instance of `TnChatBox`.
-    pub fn init(mut self,  tnid: String, value: Vec<(String, String)>) -> Self {
+    pub fn init(mut self, tnid: String, value: Vec<(String, String)>) -> Self {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), tnid, TnComponentType::ChatBox)
             .set_value(TnComponentValue::VecString2(value))
             .set_attribute("hx-trigger", "server_event")
-            .set_attribute(
-                "hx-swap",
-                "beforeend scroll:bottom focus-scroll:true ",
-            )
+            .set_attribute("hx-swap", "beforeend scroll:bottom focus-scroll:true ")
             .set_attribute("class", "flex-col")
             .create_assets()
             .build();
@@ -51,7 +48,6 @@ impl TnChatBoxBuilder<'static> {
         self
     }
 }
-
 
 impl Default for TnChatBox<'static> {
     /// Creates a default instance of `TnChatBox` with an empty message list.
@@ -93,8 +89,8 @@ where
                     if class_str.is_some() {
                         let class_str = class_str.unwrap().clone();
                         let mut class_strs = class_str.split('>');
-                        let class_parent = class_strs.next().unwrap(); 
-                        let class_str = class_strs.next().unwrap(); 
+                        let class_parent = class_strs.next().unwrap();
+                        let class_str = class_strs.next().unwrap();
                         format!(r#"<div class="{class_parent}"><div class="{class_str}">{msg}</div></div>"#)
                     } else {
                         format!(r#"<div><div>{msg}</div></div>"#)

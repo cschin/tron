@@ -29,10 +29,7 @@ impl TnFileUploadBuilder<'static> {
             .set_attribute("id", &tnid)
             .set_attribute("hx-swap", "none")
             .set_attribute("hx-trigger", "finished")
-            .set_attribute(
-                "hx-vals",
-                "js:{event_data:get_event_with_files(event)}",
-            )
+            .set_attribute("hx-vals", "js:{event_data:get_event_with_files(event)}")
             .build();
         self
     }
@@ -55,7 +52,7 @@ impl Default for TnFileUpload<'static> {
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnFileUpload<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     async fn render(&self) -> String {
         let tron_id = self.tron_id();
@@ -129,7 +126,7 @@ impl TnDnDFileUploadBuilder<'static> {
         mut self,
         tnid: String,
         title: String,
-        button_attributes: HashMap<String, String>
+        button_attributes: HashMap<String, String>,
     ) -> Self {
         let component_type = TnComponentType::DnDFileUpload;
         TnComponentType::register_script(
@@ -144,12 +141,9 @@ impl TnDnDFileUploadBuilder<'static> {
             .set_attribute("id", &tnid)
             .set_attribute("hx-swap", "none")
             .set_attribute("hx-trigger", "finished")
-            .set_attribute(
-                "hx-vals",
-                "js:{event_data:get_event_with_files_dnd(event)}",
-            )
+            .set_attribute("hx-vals", "js:{event_data:get_event_with_files_dnd(event)}")
             .build();
-        
+
         self.title = title;
         self.button_attributes = button_attributes;
 
@@ -174,7 +168,7 @@ impl Default for TnDnDFileUpload<'static> {
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnDnDFileUpload<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     /// Renders the `TnScatterPlot` component.
     async fn render(&self) -> String {

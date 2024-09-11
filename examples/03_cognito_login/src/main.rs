@@ -13,8 +13,8 @@ use serde_json::Value;
 use tracing::debug;
 use tron_app::tron_components;
 use tron_components::{
-    text::TnTextInput, TnButton, TnComponentState, TnComponentValue,
-    TnContext, TnContextBase, TnEvent, TnTextArea,
+    text::TnTextInput, TnButton, TnComponentState, TnComponentValue, TnContext, TnContextBase,
+    TnEvent, TnFutureString, TnTextArea,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -26,7 +26,7 @@ async fn main() {
         ..Default::default()
     };
     // set app state
-    let app_share_data = tron_app::AppData::builder(build_context, layout).build(); 
+    let app_share_data = tron_app::AppData::builder(build_context, layout).build();
     tron_app::run(app_share_data, app_configure).await
 }
 
@@ -48,11 +48,12 @@ fn build_context() -> TnContext {
 #[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
 struct AppPageTemplate {}
 
-fn layout(_context: TnContext) -> String {
-    let html = AppPageTemplate {};
-    html.render().unwrap()
+fn layout(_context: TnContext) -> TnFutureString {
+    Box::pin(async {
+        let html = AppPageTemplate {};
+        html.render().unwrap()
+    })
 }
-
 
 // fn test_event_action(
 //     context: TnContext,

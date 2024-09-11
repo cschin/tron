@@ -116,7 +116,6 @@ where
     async fn post_render(&mut self) {}
 }
 
-
 /// Asynchronously starts playing audio associated with a given component and sends an SSE message.
 ///
 /// This function asynchronously starts playing audio associated with the provided component.

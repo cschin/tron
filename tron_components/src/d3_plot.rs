@@ -51,7 +51,7 @@ impl Default for TnD3Plot<'static> {
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnD3Plot<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     /// Renders the `TnScatterPlot` component.
     async fn render(&self) -> String {

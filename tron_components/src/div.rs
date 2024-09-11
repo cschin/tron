@@ -39,7 +39,7 @@ impl Default for TnDiv<'static> {
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnDiv<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     /// Renders the Div component.
     async fn render(&self) -> String {

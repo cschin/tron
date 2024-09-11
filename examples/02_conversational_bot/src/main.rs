@@ -5,7 +5,6 @@ use llm_service::simulate_dialog;
 
 use askama::Template;
 use dg_service::{deepgram_transcript_service, tts_service, DeepgramError, StreamResponse};
-use futures_util::Future;
 
 use axum::{body::Bytes, response::Html};
 use data_encoding::BASE64;
@@ -14,7 +13,6 @@ use serde::Deserialize;
 use serde_json::Value;
 use std::{
     collections::{HashMap, VecDeque},
-    pin::Pin,
     sync::Arc,
     time::SystemTime,
 };
@@ -58,7 +56,7 @@ async fn main() {
         ..Default::default()
     };
     // set app state
-    let app_share_data = tron_app::AppData::builder(build_session_context, layout).build(); 
+    let app_share_data = tron_app::AppData::builder(build_session_context, layout).build();
     // Run the application
     tron_app::run(app_share_data, app_configure).await
 }
@@ -79,14 +77,8 @@ fn build_session_context() -> TnContext {
     {
         // add a recorder button
         let btn = TnButton::builder()
-            .init(
-                RECORDING_BUTTON.into(),
-                "Start Conversation".into(),
-            )
-            .set_attribute(
-                "class",
-                "btn btn-sm btn-outline btn-primary flex-1"
-            )
+            .init(RECORDING_BUTTON.into(), "Start Conversation".into())
+            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, toggle_recording)
             .build();
         context.add_component(btn);
@@ -94,10 +86,7 @@ fn build_session_context() -> TnContext {
     {
         // add a recorder
         let recorder = TnAudioRecorder::builder()
-            .init(
-                RECORDER.to_string(),
-                "Paused".to_string(),
-            )
+            .init(RECORDER.to_string(), "Paused".to_string())
             .set_action(
                 TnActionExecutionMethod::Await,
                 audio_input_stream_processing,
@@ -108,10 +97,7 @@ fn build_session_context() -> TnContext {
     {
         // add a player
         let player = TnAudioPlayer::builder()
-            .init(
-                PLAYER.to_string(),
-                "Paused".to_string(),
-            )
+            .init(PLAYER.to_string(), "Paused".to_string())
             .set_attribute("class", "flex-1 p-1 h-10")
             .set_action(
                 TnActionExecutionMethod::Await,
@@ -124,14 +110,8 @@ fn build_session_context() -> TnContext {
     {
         // add a reset button
         let btn = TnButton::builder()
-            .init(
-                RESET_BUTTON.into(),
-                "Reset The Conversation".into(),
-            )
-            .set_attribute(
-                "class",
-                "btn btn-sm btn-outline btn-primary flex-1",
-            )
+            .init(RESET_BUTTON.into(), "Reset The Conversation".into())
+            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, reset_conversation)
             .build();
         context.add_component(btn);
@@ -140,10 +120,7 @@ fn build_session_context() -> TnContext {
         // add a chatbox
         let transcript_output = TnChatBox::builder()
             .init(TRANSCRIPT_OUTPUT.to_string(), vec![])
-            .set_attribute(
-                "class",
-                "flex flex-col overflow-auto flex-1 p-2",
-            )
+            .set_attribute("class", "flex flex-col overflow-auto flex-1 p-2")
             .build();
 
         context.add_component(transcript_output);
@@ -151,14 +128,8 @@ fn build_session_context() -> TnContext {
     {
         // add a textarea showing partial stream content
         let llm_stream_output = TnStreamTextArea::builder()
-            .init(
-                LLM_STREAM_OUTPUT.to_string(),
-                Vec::new(),
-            )
-            .set_attribute(
-                "class",
-                "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19",
-            )
+            .init(LLM_STREAM_OUTPUT.to_string(), Vec::new())
+            .set_attribute("class", "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19")
             .build();
         context.add_component(llm_stream_output);
     }
@@ -179,18 +150,15 @@ fn build_session_context() -> TnContext {
 
     {
         let prompt = include_str!("../templates/drunk-bioinformatist.txt");
-        let mut prompt_box =
-            TnTextArea::builder().init(PROMPT.into(), prompt.into())
-                .set_attribute("hx-trigger", "change, server_event") // change will update the value one the textarea is out of focus
-                .set_attribute(
-                    "class",
-                    "flex-1 p-2 textarea textarea-bordered mx-auto h-96 max-h-96 min-h-96",
-                )
-                .set_attribute(
-                    "hx-vals",
-                    r##"js:{event_data:get_input_event(event)}"##,
-                )
-                .build();
+        let mut prompt_box = TnTextArea::builder()
+            .init(PROMPT.into(), prompt.into())
+            .set_attribute("hx-trigger", "change, server_event") // change will update the value one the textarea is out of focus
+            .set_attribute(
+                "class",
+                "flex-1 p-2 textarea textarea-bordered mx-auto h-96 max-h-96 min-h-96",
+            )
+            .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
+            .build();
         prompt_box.remove_attribute("disabled");
 
         context.add_component(prompt_box);
@@ -211,16 +179,10 @@ fn build_session_context() -> TnContext {
             ("aura-helios-en".into(), "Helios (M)".into()),
             ("aura-zeus-en".into(), "Zeus (M)".into()),
         ];
-        let tts_model_select = TnSelect::builder().init(
-            TTS_MODEL_SELECT.into(),
-            default_model,
-            model_options,
-        )
-        .set_attribute(
-            "class",
-            "select select-bordered w-full max-w-xs",
-        )
-        .build();
+        let tts_model_select = TnSelect::builder()
+            .init(TTS_MODEL_SELECT.into(), default_model, model_options)
+            .set_attribute("class", "select select-bordered w-full max-w-xs")
+            .build();
         context.add_component(tts_model_select);
     }
 
@@ -231,17 +193,11 @@ fn build_session_context() -> TnContext {
             ("socrat".into(), "Socrat".into()),
             ("poet".into(), "Poet".into()),
         ];
-        let preset_prompt_select = TnSelect::builder().init(
-            PRESET_PROMPT_SELECT.into(),
-            default_prompt,
-            prompt_options,
-        )
-        .set_attribute(
-            "class",
-            "select select-bordered w-full max-w-xs",
-        )
-        .set_action(TnActionExecutionMethod::Await, preset_prompt_select_change)
-        .build();
+        let preset_prompt_select = TnSelect::builder()
+            .init(PRESET_PROMPT_SELECT.into(), default_prompt, prompt_options)
+            .set_attribute("class", "select select-bordered w-full max-w-xs")
+            .set_action(TnActionExecutionMethod::Await, preset_prompt_select_change)
+            .build();
 
         context.add_component(preset_prompt_select);
 
@@ -355,49 +311,56 @@ struct AppPageTemplate {
 ///
 /// Returns:
 ///     A `String` containing the rendered HTML layout for the application page.
-fn layout(context: TnContext) -> String {
-    context.set_value_for_component_blocking(RECORDER, TnComponentValue::String("Paused".into()));
-    context.set_state_for_component_blocking(RECORDER, TnComponentState::Ready);
+///
+fn layout(context: TnContext) -> TnFutureString {
+    tn_future! {
+        context
+            .set_value_for_component(RECORDER, TnComponentValue::String("Paused".into()))
+            .await;
+        context
+            .set_state_for_component(RECORDER, TnComponentState::Ready)
+            .await;
 
-    context.set_value_for_component_blocking(
-        RECORDING_BUTTON,
-        TnComponentValue::String("Start Conversation".into()),
-    );
-    context.set_state_for_component_blocking(RECORDING_BUTTON, TnComponentState::Ready);
+        context
+            .set_value_for_component(
+                RECORDING_BUTTON,
+                TnComponentValue::String("Start Conversation".into()),
+            )
+            .await;
+        context
+            .set_state_for_component(RECORDING_BUTTON, TnComponentState::Ready)
+            .await;
 
-    let guard = context.blocking_read();
-    let btn = guard.render_to_string(RECORDING_BUTTON);
-    let recorder = guard.render_to_string(RECORDER);
-    let player = guard.render_to_string(PLAYER);
-    let transcript = guard.first_render_to_string(TRANSCRIPT_OUTPUT);
-    let status = guard.first_render_to_string(STATUS);
-    let prompt = guard.first_render_to_string(PROMPT);
-    let reset_button = guard.first_render_to_string(RESET_BUTTON);
-    let tts_model_select = guard.first_render_to_string(TTS_MODEL_SELECT);
-    let llm_stream_output = guard.first_render_to_string(LLM_STREAM_OUTPUT);
-    let preset_prompt_select = guard.first_render_to_string(PRESET_PROMPT_SELECT);
+        let guard = context.read().await;
+        let btn = guard.render_to_string(RECORDING_BUTTON).await;
+        let recorder = guard.render_to_string(RECORDER).await;
+        let player = guard.render_to_string(PLAYER).await;
+        let transcript = guard.first_render_to_string(TRANSCRIPT_OUTPUT).await;
+        let status = guard.first_render_to_string(STATUS).await;
+        let prompt = guard.first_render_to_string(PROMPT).await;
+        let reset_button = guard.first_render_to_string(RESET_BUTTON).await;
+        let tts_model_select = guard.first_render_to_string(TTS_MODEL_SELECT).await;
+        let llm_stream_output = guard.first_render_to_string(LLM_STREAM_OUTPUT).await;
+        let preset_prompt_select = guard.first_render_to_string(PRESET_PROMPT_SELECT).await;
 
-    let html = AppPageTemplate {
-        btn,
-        recorder,
-        player,
-        transcript,
-        status,
-        prompt,
-        reset_button,
-        tts_model_select,
-        llm_stream_output,
-        preset_prompt_select,
-    };
-    html.render().unwrap()
+        let html = AppPageTemplate {
+            btn,
+            recorder,
+            player,
+            transcript,
+            status,
+            prompt,
+            reset_button,
+            tts_model_select,
+            llm_stream_output,
+            preset_prompt_select,
+        };
+        html.render().unwrap()
+    }
 }
 
-fn _do_nothing(
-    context: TnContext,
-    event: TnEvent,
-    payload: Value,
-) -> Pin<Box<dyn Future<Output = ()> + Send + Sync>> {
-    let f = async move {
+fn _do_nothing(context: TnContext, event: TnEvent, payload: Value) -> TnFutureUnit {
+    tn_future! {
         //let comp = context.get_component(&event.e_target);
         tracing::info!(target: TRON_APP, "{:?}", payload);
         context
@@ -413,8 +376,7 @@ fn _do_nothing(
         send_sse_msg_to_client(&sse_tx, msg).await;
         let comp = context.get_component(&event.e_trigger).await;
         tracing::info!(target: TRON_APP, "value: {:?}", comp.read().await.value());
-    };
-    Box::pin(f)
+    }
 }
 
 /// Handles the change event for the preset prompt select dropdown.
@@ -431,8 +393,8 @@ fn preset_prompt_select_change(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let f = async move {
+) -> TnFutureHTMLResponse {
+    tn_future! {
         if event.e_type != "change" || event.e_state != "ready" {
             return None;
         }
@@ -461,8 +423,7 @@ fn preset_prompt_select_change(
 
         let html = context.render_component(&event.h_target.unwrap()).await;
         Some((HeaderMap::new(), Html::from(html)))
-    };
-    Box::pin(f)
+    }
 }
 
 /// Handles the reset conversation action.
@@ -474,12 +435,8 @@ fn preset_prompt_select_change(
 /// Returns:
 ///     A `TnHtmlResponse` containing the rendered HTML for the component that triggered the event.
 ///     If the event type is not "click" or the component state is not "ready", it returns `None`.
-fn reset_conversation(
-    context: TnContext,
-    event: TnEvent,
-    _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let f = async move {
+fn reset_conversation(context: TnContext, event: TnEvent, _payload: Value) -> TnFutureHTMLResponse {
+    tn_future! {
         {
             if event.e_type != "click" || event.e_state != "ready" {
                 return None;
@@ -504,8 +461,7 @@ fn reset_conversation(
 
         let html = context.render_component(&event.h_target.unwrap()).await;
         Some((HeaderMap::new(), Html::from(html)))
-    };
-    Box::pin(f)
+    }
 }
 
 /// Toggles the recording state of the audio recorder component.
@@ -527,12 +483,8 @@ fn reset_conversation(
 /// Returns:
 ///     A `TnHtmlResponse` containing the rendered HTML for the component that triggered the event.
 ///     If the event type is not "click" or "server_event", it returns `None`.
-fn toggle_recording(
-    context: TnContext,
-    event: TnEvent,
-    _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let f = async move {
+fn toggle_recording(context: TnContext, event: TnEvent, _payload: Value) -> TnFutureHTMLResponse {
+    tn_future! {
         if event.e_type != "click" && event.e_type != "server_event" {
             return None;
         }
@@ -648,9 +600,7 @@ fn toggle_recording(
         send_sse_msg_to_client(&sse_tx, msg).await;
         let html = context.render_component(&event.h_target.unwrap()).await;
         Some((HeaderMap::new(), Html::from(html)))
-    };
-
-    Box::pin(f)
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -678,8 +628,8 @@ fn audio_input_stream_processing(
     context: TnContext,
     event: TnEvent,
     payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let f = async move {
+) -> TnFutureHTMLResponse {
+    tn_future! {
         if event.e_type != "streaming" || event.e_state != "updating" {
             return None;
         }
@@ -764,9 +714,7 @@ fn audio_input_stream_processing(
         };
         let html = context.render_component(&event.h_target.unwrap()).await;
         Some((HeaderMap::new(), Html::from(html)))
-    };
-
-    Box::pin(f)
+    }
 }
 
 /// Handles the transcription service for the application.
@@ -981,8 +929,7 @@ async fn transcript_post_processing_service(
 
                         {
                             let components_guard = components.write().await;
-                            let transcript_area =
-                                components_guard.get(TRANSCRIPT_OUTPUT).unwrap();
+                            let transcript_area = components_guard.get(TRANSCRIPT_OUTPUT).unwrap();
                             chatbox::append_chatbox_value(
                                 transcript_area.clone(),
                                 ("user".into(), transcript.clone()),

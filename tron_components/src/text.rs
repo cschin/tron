@@ -36,11 +36,10 @@ impl Default for TnTextArea<'static> {
     }
 }
 
-
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnTextArea<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     /// Renders the TextArea component.
     async fn render(&self) -> String {
@@ -194,7 +193,7 @@ impl Default for TnStreamTextArea<'static> {
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnStreamTextArea<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     /// Implements internal rendering functions for TnStreamTextArea.
     async fn first_render(&self) -> String {
@@ -327,12 +326,9 @@ impl TnTextInputBuilder<'static> {
         self.base
             .set_attribute("hx-trigger", "change, server_event");
         self.base.set_attribute("type", "text");
-        self.base.set_attribute(
-            "hx-vals",
-            r##"js:{event_data:get_input_event(event)}"##,
-        ); //over-ride the default as we need the value of the input text
         self.base
-            .set_attribute("hx-swap", "outerHTML");
+            .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##); //over-ride the default as we need the value of the input text
+        self.base.set_attribute("hx-swap", "outerHTML");
         self
     }
 }
@@ -354,9 +350,8 @@ impl<'a: 'static> Default for TnTextInput<'a> {
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnTextInput<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
-
     /// Renders the internal representation of the text input component.
     async fn render(&self) -> String {
         format!(

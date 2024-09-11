@@ -47,8 +47,9 @@ use tron_app::{
             clean_textarea_with_context, update_and_send_textarea_with_context,
             TnStreamTextAreaBuilder, TnTextAreaBuilder,
         },
-        TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnD3PlotBuilder, TnDiv,
-        TnHtmlResponse, TnServiceRequestMsg, TnStreamTextArea,
+        tn_future, TnActionExecutionMethod, TnAsset, TnChatBox, TnD3Plot, TnD3PlotBuilder, TnDiv,
+        TnFutureHTMLResponse, TnFutureString, TnHtmlResponse, TnServiceRequestMsg,
+        TnStreamTextArea,
     },
     AppData, TnServerEventData, TnSseTriggerMsg,
 };
@@ -61,7 +62,6 @@ use once_cell::sync::Lazy;
 use std::io::{BufRead, BufReader};
 use std::{
     collections::{HashMap, VecDeque},
-    pin::Pin,
     sync::Arc,
     task::Context,
     vec,
@@ -182,7 +182,7 @@ async fn main() {
         ..Default::default()
     };
     // set app state
-    let app_share_data = AppData::builder(build_context, layout).build(); 
+    let app_share_data = AppData::builder(build_context, layout).build();
     tron_app::run(app_share_data, app_config).await
 }
 
@@ -214,14 +214,8 @@ fn build_context() -> TnContext {
 
     TnDiv::builder()
         .init(TOP_HIT_DIV.into(), "".into())
-        .set_attribute(
-            "class",
-            "flex flex-col w-full h-full",
-        )
-        .set_attribute(
-            "style",
-            "resize:none; overflow-y: auto;",
-        )
+        .set_attribute("class", "flex flex-col w-full h-full")
+        .set_attribute("style", "resize:none; overflow-y: auto;")
         .add_to_context(&mut context);
 
     {
@@ -264,10 +258,7 @@ fn build_context() -> TnContext {
         .set_attribute("class", "min-h-32 w-full")
         .set_attribute("style", "resize:none")
         .set_attribute("hx-trigger", "change, server_event")
-        .set_attribute(
-            "hx-vals",
-            r##"js:{event_data:get_input_event(event)}"##,
-        )
+        .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
         .build(); //over-ride the default as we need the value of the input text
     query_text_input.remove_attribute("disabled");
     context.add_component(query_text_input);
@@ -281,10 +272,7 @@ fn build_context() -> TnContext {
     // add a chatbox
     TnChatBox::builder()
         .init(QUERY_RESULT_TEXTAREA.into(), vec![])
-        .set_attribute(
-            "class",
-            "min-h-96 max-h-96 overflow-auto flex-1 p-2",
-        )
+        .set_attribute("class", "min-h-96 max-h-96 overflow-auto flex-1 p-2")
         .add_to_context(&mut context);
 
     {
@@ -355,30 +343,32 @@ struct AppPageTemplate {
     find_related_text_button: String,
 }
 
-fn layout(context: TnContext) -> String {
-    let context_guard = context.blocking_read();
-    let d3_plot = context_guard.first_render_to_string(D3PLOT);
-    let reset_button = context_guard.render_to_string(RESET_BUTTON);
-    let top_hit_div = context_guard.render_to_string(TOP_HIT_DIV);
-    let context_query_button = context_guard.render_to_string(CONTEXT_QUERY_BUTTON);
-    let query_stream_textarea = context_guard.first_render_to_string(QUERY_STREAM_TEXTAREA);
-    let query_result_textarea = context_guard.first_render_to_string(QUERY_RESULT_TEXTAREA);
-    let query_button = context_guard.render_to_string(QUERY_BUTTON);
-    let query_text_input = context_guard.render_to_string(QUERY_TEXT_INPUT);
-    let find_related_text_button = context_guard.render_to_string(FIND_RELATED_BUTTON);
+fn layout(context: TnContext) -> TnFutureString {
+    tn_future! {
+        let context_guard = context.read().await;
+        let d3_plot = context_guard.first_render_to_string(D3PLOT).await;
+        let reset_button = context_guard.render_to_string(RESET_BUTTON).await;
+        let top_hit_div = context_guard.render_to_string(TOP_HIT_DIV).await;
+        let context_query_button = context_guard.render_to_string(CONTEXT_QUERY_BUTTON).await;
+        let query_stream_textarea = context_guard.first_render_to_string(QUERY_STREAM_TEXTAREA).await;
+        let query_result_textarea = context_guard.first_render_to_string(QUERY_RESULT_TEXTAREA).await;
+        let query_button = context_guard.render_to_string(QUERY_BUTTON).await;
+        let query_text_input = context_guard.render_to_string(QUERY_TEXT_INPUT).await;
+        let find_related_text_button = context_guard.render_to_string(FIND_RELATED_BUTTON).await;
 
-    let html = AppPageTemplate {
-        d3_plot,
-        reset_button,
-        top_hit_div,
-        context_query_button,
-        query_result_textarea,
-        query_stream_textarea,
-        query_button,
-        query_text_input,
-        find_related_text_button,
-    };
-    html.render().unwrap()
+        let html = AppPageTemplate {
+            d3_plot,
+            reset_button,
+            top_hit_div,
+            context_query_button,
+            query_result_textarea,
+            query_stream_textarea,
+            query_button,
+            query_text_input,
+            find_related_text_button,
+        };
+        html.render().unwrap()
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -561,12 +551,8 @@ async fn update_plot_and_top_k<'a>(
     }
 }
 
-fn d3_plot_clicked(
-    context: TnContext,
-    event: TnEvent,
-    payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let action = async move {
+fn d3_plot_clicked(context: TnContext, event: TnEvent, payload: Value) -> TnFutureHTMLResponse {
+    tn_future! {
         tracing::info!(target: "tron_app", "event {:?}", event);
         tracing::info!(target: "tron_app", "payload {:?}", payload);
         let mut all_points = Vec::new();
@@ -607,16 +593,15 @@ fn d3_plot_clicked(
         update_plot_and_top_k(context, all_points_sorted, top_10).await;
 
         None
-    };
-    Box::pin(action)
+    }
 }
 
 fn reset_button_clicked(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let action = async move {
+) -> TnFutureHTMLResponse {
+    tn_future! {
         tracing::info!(target: "tron_app", "{:?}", event);
         if event.e_trigger != RESET_BUTTON {
             None
@@ -696,16 +681,15 @@ fn reset_button_clicked(
 
             None
         }
-    };
-    Box::pin(action)
+    }
 }
 
 fn query_button_clicked(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let action = async move {
+) -> TnFutureHTMLResponse {
+    tn_future! {
         if event.e_trigger != QUERY_BUTTON {
             return None;
         };
@@ -731,16 +715,11 @@ fn query_button_clicked(
         };
 
         None
-    };
-    Box::pin(action)
+    }
 }
 
-fn query_with_hits(
-    context: TnContext,
-    event: TnEvent,
-    _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let action = async move {
+fn query_with_hits(context: TnContext, event: TnEvent, _payload: Value) -> TnFutureHTMLResponse {
+    tn_future! {
         if event.e_trigger != CONTEXT_QUERY_BUTTON {
             return None;
         };
@@ -784,16 +763,15 @@ fn query_with_hits(
         }
 
         None
-    };
-    Box::pin(action)
+    }
 }
 
 fn find_related_button_clicked(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
-    let action = async move {
+) -> TnFutureHTMLResponse {
+    tn_future! {
         if event.e_trigger != FIND_RELATED_BUTTON {
             return None;
         };
@@ -858,10 +836,8 @@ fn find_related_button_clicked(
 
             update_plot_and_top_k(context, best_sorted_points, top_10).await;
         }
-
         None
-    };
-    Box::pin(action)
+    }
 }
 
 fn get_plot_data_highlight_fids(all_points_sorted: &[TwoDPoint], fids: HashSet<u32>) -> String {

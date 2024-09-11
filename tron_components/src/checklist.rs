@@ -39,7 +39,6 @@ impl Default for TnCheckList<'static> {
     }
 }
 
-
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnCheckList<'a>
 where
@@ -51,9 +50,8 @@ where
         for c in self.get_children() {
             let c_string = c.read().await.render().await;
             children_render_results.push(c_string)
-
         }
-            
+
         let children_render_results = children_render_results.join(" ");
         format!(
             r##"<{} {}>{}</{}>"##,

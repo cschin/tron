@@ -3,7 +3,6 @@ use axum::{
     http::{HeaderMap, HeaderName, HeaderValue},
     response::Html,
 };
-use futures_util::Future;
 
 //use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
@@ -15,12 +14,13 @@ use tracing::debug;
 use tron_app::tron_components::{
     checklist, radio_group,
     text::{self, append_and_update_stream_textarea_with_context, append_textarea_value},
-    TnActionExecutionMethod, TnButton, TnComponentState, TnComponentValue, TnContext,
-    TnContextBase, TnDnDFileUpload, TnEvent, TnFileUpload, TnHtmlResponse, TnRangeSlider, TnSelect,
+    tn_future, TnActionExecutionMethod, TnButton, TnComponentState, TnComponentValue, TnContext,
+    TnContextBase, TnDnDFileUpload, TnEvent, TnFileUpload, TnFutureHTMLResponse, TnFutureString,
+    TnRangeSlider, TnSelect,
 };
 
 //use std::sync::Mutex;
-use std::{collections::HashMap, pin::Pin, str::FromStr, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 // This is the main entry point of the application
 // It sets up the application configuration and state
@@ -239,8 +239,8 @@ fn counter_btn_clicked(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
-    let f = || async move {
+) -> TnFutureHTMLResponse {
+    tn_future! {
         tracing::debug!(target:"tron_app", "{:?}", event);
         if event.e_type == "server_event" {
             tracing::debug!(target:"tron_app", "in server_event");
@@ -345,8 +345,7 @@ fn counter_btn_clicked(
             }
         }
         None
-    };
-    Box::pin(f())
+    }
 }
 
 /// Cleans the stream textarea component.
@@ -377,30 +376,24 @@ fn clean_stream_textarea(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
-    let f = || async move {
+) -> TnFutureHTMLResponse {
+    tn_future! {
         if let Some(target) = event.h_target {
             text::clean_stream_textarea_with_context(&context, &target).await;
             None
         } else {
             None
         }
-    };
-    Box::pin(f())
+    }
 }
 
-fn clean_textarea(
-    context: TnContext,
-    event: TnEvent,
-    _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
-    let f = || async move {
+fn clean_textarea(context: TnContext, event: TnEvent, _payload: Value) -> TnFutureHTMLResponse {
+    tn_future! {
         text::clean_textarea_with_context(&context, "textarea").await;
         context.set_ready_for(&event.e_trigger).await;
         let html = context.render_component(&event.e_trigger).await;
         Some((HeaderMap::new(), Html::from(html)))
-    };
-    Box::pin(f())
+    }
 }
 
 /// Cleans the textarea component.
@@ -420,18 +413,13 @@ fn clean_textarea(
 ///
 /// A `Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>>` representing the asynchronous
 /// operation that generates the HTML response for the component that triggered the event.
-fn clean_textinput(
-    context: TnContext,
-    event: TnEvent,
-    _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
-    let f = || async move {
+fn clean_textinput(context: TnContext, event: TnEvent, _payload: Value) -> TnFutureHTMLResponse {
+    tn_future! {
         text::clean_textinput_with_context(context.clone(), "textinput").await;
         context.set_ready_for(&event.e_trigger).await;
         let html = context.render_component(&event.e_trigger).await;
         Some((HeaderMap::new(), Html::from(html)))
-    };
-    Box::pin(f())
+    }
 }
 
 /// Updates the stream textarea with the new value of the slider component.
@@ -463,8 +451,8 @@ fn slider_value_update(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
-    let f = || async move {
+) -> TnFutureHTMLResponse {
+    tn_future! {
         let slider = context.get_component(&event.e_trigger).await;
         if let TnComponentValue::String(s) = slider.read().await.value() {
             let new_str = format!("{} -- Value {};\n", event.e_trigger, s);
@@ -473,8 +461,7 @@ fn slider_value_update(
         }
         let html: String = context.render_component("slider").await;
         Some((HeaderMap::new(), Html::from(html)))
-    };
-    Box::pin(f())
+    }
 }
 
 /// Handles file upload events by processing uploaded file metadata and returning
@@ -503,12 +490,8 @@ fn slider_value_update(
 /// A `Future` that resolves to an HTML formatted response. The response is designed to be
 /// compatible with multi-threaded environments, suitable for asynchronous execution.
 ///
-fn handle_file_upload(
-    _context: TnContext,
-    event: TnEvent,
-    payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
-    let f = || async move {
+fn handle_file_upload(_context: TnContext, event: TnEvent, payload: Value) -> TnFutureHTMLResponse {
+    tn_future! {
         // process the "finished" event
         tracing::info!(target: "tron_app", "event payload: {:?}", payload["event_data"]["e_file_list"]);
         let file_list = payload["event_data"]["e_file_list"].as_array();
@@ -570,8 +553,7 @@ fn handle_file_upload(
             HeaderValue::from_str("#file_uploaded_container").unwrap(),
         );
         Some((header, Html::from(html.to_string())))
-    };
-    Box::pin(f())
+    }
 }
 
 /// Struct representing the HTML template for the application's main page.
@@ -632,8 +614,8 @@ struct AppPageTemplate {
 ///
 /// A `String` containing the HTML for the application's main page.
 
-fn layout(context: TnContext) -> Pin<Box<dyn Future<Output = String> + Send>> {
-    let f = async move {
+fn layout(context: TnContext) -> TnFutureString {
+    tn_future! {
         let context_guard = context.read().await;
         let mut buttons = Vec::<String>::new();
         for i in 0..10 {
@@ -676,6 +658,5 @@ fn layout(context: TnContext) -> Pin<Box<dyn Future<Output = String> + Send>> {
             dnd_file_upload,
         };
         html.render().unwrap()
-    };
-    Box::pin(f)
+    }
 }

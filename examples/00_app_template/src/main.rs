@@ -11,10 +11,10 @@ use tokio::sync::{mpsc::Sender, RwLock};
 use serde_json::Value;
 
 use tracing::debug;
-use tron_app::tron_components::{self, TnHtmlResponse};
+use tron_app::tron_components::{self, tn_future, TnFutureString, TnHtmlResponse};
 use tron_components::{
-    text::TnTextInput, TnButton, TnComponentState, TnComponentValue,
-    TnContext, TnContextBase, TnEvent, TnTextArea,
+    text::TnTextInput, TnButton, TnComponentState, TnComponentValue, TnContext, TnContextBase,
+    TnEvent, TnTextArea,
 };
 //use std::sync::Mutex;
 use std::{collections::HashMap, pin::Pin, sync::Arc};
@@ -26,7 +26,7 @@ use std::{collections::HashMap, pin::Pin, sync::Arc};
 async fn main() {
     let app_config = tron_app::AppConfigure::default();
     // set app state
-    let app_share_data = tron_app::AppData::builder(build_context, layout).build(); 
+    let app_share_data = tron_app::AppData::builder(build_context, layout).build();
     tron_app::run(app_share_data, app_config).await
 }
 
@@ -37,11 +37,11 @@ fn build_context() -> TnContext {
     TnContext { base: context }
 }
 
-fn layout(_context: TnContext) -> String {
-    "This is an template, please fill in the components and how to layout them.".into()
+fn layout(_context: TnContext) -> TnFutureString {
+    tn_future! {
+        "This is an template, please fill in the components and how to layout them.".into()
+    }
 }
-
-
 
 fn test_event_action(
     _context: TnContext,

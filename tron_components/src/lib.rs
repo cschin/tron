@@ -958,6 +958,23 @@ pub enum TnActionExecutionMethod {
     Await,
 }
 
+#[macro_export]
+macro_rules! tn_boxed_future_type {
+    ($name:ident, $output_type:ty) => {
+        pub type $name = std::pin::Pin<Box<dyn std::future::Future<Output = $output_type> + Send>>;
+    };
+}
+tn_boxed_future_type!(TnFutureString, String);
+tn_boxed_future_type!(TnFutureUnit, ());
+tn_boxed_future_type!(TnFutureHTMLResponse, TnHtmlResponse);
+
+#[macro_export]
+macro_rules! tn_future {
+    ( $($code:tt)* ) => {
+        Box::pin( async move { $($code)* })
+    };
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{button::TnButton, TnComponentBaseTrait};

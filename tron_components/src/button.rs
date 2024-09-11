@@ -34,7 +34,8 @@ impl Default for TnButton<'static> {
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnButton<'a>
 where
-    'a: 'static,{
+    'a: 'static,
+{
     /// Generates the internal HTML representation of the button component.
     async fn render(&self) -> String {
         format!(

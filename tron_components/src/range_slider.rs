@@ -29,10 +29,7 @@ impl TnRangeSliderBuilder<'static> {
             .set_attribute("type", "range")
             .set_attribute("min", &format!("{}", min))
             .set_attribute("max", &format!("{}", max))
-            .set_attribute(
-                "hx-vals",
-                r##"js:{event_data:get_input_event(event)}"##,
-            )
+            .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
             .set_attribute("hx-trigger", "change, server_event")
             .set_attribute("hx-swap", "none")
             .build();
@@ -57,7 +54,7 @@ impl Default for TnRangeSlider<'static> {
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnRangeSlider<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     /// Renders the `TnRangeSlider` component.
     async fn render(&self) -> String {

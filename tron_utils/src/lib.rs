@@ -97,7 +97,7 @@ pub struct HtmlAttributesBuilder {
 
 impl HtmlAttributesBuilder {
 
-    pub fn add_attribute(mut self, key: String, value: String) -> Self {
+    pub fn set_attribute(mut self, key: String, value: String) -> Self {
         self.attributes.insert(key, value);
         self
     }

@@ -87,7 +87,7 @@ pub fn html_escape_double_quote(input: &str) -> String {
 
 #[derive(Default)]
 pub struct HtmlAttributes {
-    pub attributes: HashMap<String, String>,
+    attributes: HashMap<String, String>,
 }
 
 #[derive(Default)]

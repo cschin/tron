@@ -48,12 +48,13 @@ impl Default for TnD3Plot<'static> {
     }
 }
 
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnD3Plot<'a>
 where
     'a: 'static
 {
     /// Renders the `TnScatterPlot` component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         let d3_plot_script = if let TnComponentValue::String(s) = self.value() {
             s.clone()
         } else {
@@ -67,7 +68,7 @@ where
         )
     }
     /// Renders the `TnRangeSlider` component for the first time.
-    fn first_render(&self) -> String {
+    async fn first_render(&self) -> String {
         let d3_plot_script = if let TnComponentValue::String(s) = self.value() {
             s.clone()
         } else {
@@ -83,7 +84,7 @@ where
         )
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }

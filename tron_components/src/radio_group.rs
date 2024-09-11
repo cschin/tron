@@ -65,18 +65,25 @@ impl<'a: 'static> Default for TnRadioGroup<'a> {
     }
 }
 
+async fn get_render_result(
+    c: &Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>,
+) -> String {
+    c.read().await.render().await
+}
+
 /// Implements methods for rendering `TnRadioGroup`.
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnRadioGroup<'a>
 where
     'a: 'static
 {
     /// Renders the internal structure of the `TnRadioGroup`.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         let children_render_results = self
             .get_children()
             .iter()
             .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>| {
-                c.blocking_read().render()
+                futures::executor::block_on(get_render_result(c))
             })
             .collect::<Vec<String>>()
             .join(" ");
@@ -90,13 +97,13 @@ where
     }
 
     /// Renders the internal structure of the `TnRadioGroup` for the first time.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 /// Represents a radio item component within a radio group.
@@ -150,12 +157,14 @@ impl Default for TnRadioItem<'static> {
     }
 }
 
+
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnRadioItem<'a>
 where
     'a: 'static
 {
     /// Renders the `TnRadioItem` component into HTML.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         let checked = if let &TnComponentValue::Bool(v) = self.value() {
             if v {
                 "checked"
@@ -202,13 +211,13 @@ where
     }
     /// Renders the first instance of the `TnRadioItem` component into HTML.
 
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 pub fn add_radio_group_to_context(
@@ -306,7 +315,7 @@ pub fn set_radio_item(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
     let f = async move {
         let keys = {
             let radio_item_guard = context.get_component(&event.e_trigger).await;
@@ -342,7 +351,7 @@ pub fn set_radio_item(
             let radio_item_guard = context.get_component(&event.e_trigger).await;
             let mut radio_item = radio_item_guard.write().await;
             radio_item.set_state(TnComponentState::Ready);
-            let radio_item_html = tokio::task::block_in_place(|| radio_item.render());
+            let radio_item_html = radio_item.render().await;
             Some((HeaderMap::new(), Html::from(radio_item_html)))
         }
     };

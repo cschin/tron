@@ -31,12 +31,12 @@ impl Default for TnButton<'static> {
     }
 }
 
-
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnButton<'a>
 where
     'a: 'static,{
     /// Generates the internal HTML representation of the button component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -50,11 +50,11 @@ where
     }
 
     /// Generates the initial HTML representation of the button component.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }

@@ -609,21 +609,21 @@ async fn tron_entry(
         {
             let target_guard = component_guard.get_mut(&tron_index).unwrap();
             let mut target = target_guard.write().await;
-            tokio::task::block_in_place(|| target.pre_render())
+            target.pre_render().await
         }
 
         let body = {
             let target_guard = component_guard.get_mut(&tron_index).unwrap();
             Body::new({
                 let target = target_guard.read().await;
-                tokio::task::block_in_place(|| target.render())
+                target.render().await
             })
         };
 
         {
             let target_guard = component_guard.get_mut(&tron_index).unwrap();
             let mut target = target_guard.write().await;
-            tokio::task::block_in_place(|| target.post_render())
+            target.post_render().await
         }
 
         let mut header_to_be_removed = Vec::<String>::new();

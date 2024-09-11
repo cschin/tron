@@ -64,12 +64,13 @@ impl Default for TnAudioRecorder<'static> {
     }
 }
 
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnAudioRecorder<'a>
 where
     'a: 'static,
 {
     /// Generates the internal HTML representation of the audio recorder component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -83,13 +84,13 @@ where
     }
 
     /// Generates the initial HTML representation of the audio recorder component.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 /// Appends new audio data to the specified audio recorder component.

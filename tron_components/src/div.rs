@@ -36,12 +36,13 @@ impl Default for TnDiv<'static> {
     }
 }
 
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnDiv<'a>
 where
     'a: 'static
 {
     /// Renders the Div component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -55,12 +56,12 @@ where
     }
 
     /// Renders the TextArea component for the first time.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 /// Appends text to the value of a TextArea component.

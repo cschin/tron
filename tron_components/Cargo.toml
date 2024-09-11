@@ -18,3 +18,5 @@ uuid = { version = "1.10.0", features = ["v4"] }
 tron_utils = { path = "../tron_utils" }
 tracing = "0.1.40"
 askama = "0.12.1"
+async-trait = "0.1.82"
+futures = "0.3.30"

@@ -11,6 +11,7 @@ pub mod range_slider;
 pub mod select;
 pub mod text;
 
+use async_trait::async_trait;
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
 pub use button::TnButton;
@@ -49,7 +50,8 @@ pub type TnExtraResponseHeader = HashMap<String, (String, bool)>; // (String, bo
 pub type TnElmTag = String;
 
 /// The type representing a component
-pub trait TnComponentBaseRenderTrait<'a>: TnComponentBaseTrait<'a> + TnComponentRenderTrait<'a>
+pub trait TnComponentBaseRenderTrait<'a>:
+    TnComponentBaseTrait<'a> + TnComponentRenderTrait<'a>
 where
     'a: 'static,
 {
@@ -379,18 +381,18 @@ impl TnContextBase<'static> {
 
     /// Renders the specified component to a string based on its `tron_id`.
     /// This method accesses the component by index, reads its state, and calls its render function.
-    pub fn render_to_string(&self, tron_id: &str) -> String {
+    pub async fn render_to_string(&self, tron_id: &str) -> String {
         let components_guard = self.components.blocking_read();
         let component = components_guard.get(tron_id).unwrap().blocking_read();
-        component.render()
+        component.render().await
     }
 
     /// Performs the initial rendering of a specified component to a string based on its `tron_id`.
     /// Similar to `render_to_string`, but specifically calls the component's first rendering logic.
-    pub fn first_render_to_string(&self, tron_id: &str) -> String {
+    pub async fn first_render_to_string(&self, tron_id: &str) -> String {
         let component_guard = self.components.blocking_read();
         let component = component_guard.get(tron_id).unwrap().blocking_read();
-        component.first_render()
+        component.first_render().await
     }
 
     /// Returns and increments the next available index.
@@ -464,7 +466,7 @@ impl TnContext {
         let context_guard = self.read().await;
         let components_guard = context_guard.components.read().await;
         let comp = components_guard.get(tron_id).unwrap().read().await;
-        comp.render()
+        comp.render().await
     }
 
     /// Asynchronously retrieves the value of a component by its `tron_id`.
@@ -904,31 +906,12 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
     }
 }
 
+#[async_trait]
 pub trait TnComponentRenderTrait<'a: 'static>: Send + Sync {
-    fn first_render(&self) -> String;
-    fn pre_render(&mut self);
-    fn render(&self) -> String;
-    fn post_render(&mut self);
-
-    // /// Performs the first render of the component (unimplemented)
-    // fn first_render(&self) -> String {
-    //     unimplemented!()
-    // }
-
-    // /// Performs pre-render operations (unimplemented)
-    // fn pre_render(&mut self) {
-    //     unimplemented!()
-    // }
-
-    // /// Renders the component (unimplemented)
-    // fn render(&self) -> String {
-    //     unimplemented!()
-    // }
-
-    // /// Performs post-render operations (unimplemented)
-    // fn post_render(&mut self) {
-    //     unimplemented!()
-    // }
+    async fn first_render(&self) -> String;
+    async fn pre_render(&mut self);
+    async fn render(&self) -> String;
+    async fn post_render(&mut self);
 }
 
 /// Represents a Tron event.
@@ -965,7 +948,7 @@ pub type TnActionFn =
         TnContext,
         event: TnEvent,
         payload: Value,
-    ) -> Pin<Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send + Sync>>;
+    ) -> Pin<Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send>>;
 
 /// Represents the method of execution for actions associated with Tron events.
 #[derive(Clone)]

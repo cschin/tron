@@ -75,6 +75,7 @@ impl<'a: 'static> Default for TnAudioPlayer<'a> {
     }
 }
 
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnAudioPlayer<'a>
 where
     'a: 'static,
@@ -89,7 +90,7 @@ where
     ///
     /// A string containing the HTML representation of the audio player component.
 
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         format!(
             r##"<{} {} controls autoplay>"##,
             self.base.tag,
@@ -106,13 +107,13 @@ where
     /// # Returns
     ///
     /// A string containing the initial HTML representation of the audio player component.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 
@@ -172,7 +173,7 @@ pub fn stop_audio_playing_action(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
     let f = async move {
         if event.e_type != "ended" || event.e_state != "updating" {
             return None;

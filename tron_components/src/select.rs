@@ -56,13 +56,13 @@ impl Default for TnSelect<'static> {
     }
 }
 
-
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnSelect<'a>
 where
     'a: 'static
 {
     /// Renders the TnSelect component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         let options = {
             let options = self.base.asset.as_ref().unwrap().get("options").unwrap();
             if let TnAsset::VecString2(options) = options {
@@ -96,10 +96,10 @@ where
     }
 
     /// Renders the TnSelect component for the first time.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }

@@ -3,7 +3,6 @@ use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields};
 
 
-
 fn dup_struct(ast: DeriveInput) -> proc_macro2::TokenStream {
     let struct_name = &ast.ident;
 

@@ -54,13 +54,13 @@ impl Default for TnRangeSlider<'static> {
     }
 }
 
-
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnRangeSlider<'a>
 where
     'a: 'static
 {
     /// Renders the `TnRangeSlider` component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         format!(
             r##"<{} type="range" {} value="{}"/>"##,
             self.base.tag,
@@ -72,11 +72,11 @@ where
         )
     }
     /// Renders the `TnRangeSlider` component for the first time.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }

@@ -65,12 +65,13 @@ impl Default for TnChatBox<'static> {
     }
 }
 
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnChatBox<'a>
 where
     'a: 'static,
 {
     /// Renders the chat box component for the first time.
-    fn first_render(&self) -> String {
+    async fn first_render(&self) -> String {
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
         {
@@ -116,7 +117,7 @@ where
     }
 
     /// Renders the chat box component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         // Retrieve the class attribute from the component's assets
         let class = if let TnAsset::HashMapString(class) =
             self.get_assets().unwrap().get("class").unwrap()
@@ -153,9 +154,9 @@ where
         }
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 /// Appends a new tag-message pair to the chat box component's value.

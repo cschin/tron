@@ -52,11 +52,12 @@ impl Default for TnFileUpload<'static> {
     }
 }
 
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnFileUpload<'a>
 where
     'a: 'static
 {
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         let tron_id = self.tron_id();
         let button_attributes = self
             .button_attributes
@@ -105,13 +106,13 @@ where
     }
 
     /// Renders the `TnRangeSlider` component for the first time.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 // Drag and Drop
@@ -170,13 +171,13 @@ impl Default for TnDnDFileUpload<'static> {
     }
 }
 
-
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnDnDFileUpload<'a>
 where
     'a: 'static
 {
     /// Renders the `TnScatterPlot` component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         let tron_id = self.tron_id();
         let button_attributes = self
             .button_attributes
@@ -229,11 +230,11 @@ where
     }
 
     /// Renders the `TnRangeSlider` component for the first time.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }

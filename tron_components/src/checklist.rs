@@ -39,18 +39,25 @@ impl Default for TnCheckList<'static> {
     }
 }
 
+async fn get_render_result(
+    c: &Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>,
+) -> String {
+    c.read().await.render().await
+}
+
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnCheckList<'a>
 where
     'a: 'static,
 {
     /// Renders the checklist component including its children.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         let children_render_results = self
             .get_children()
             .iter()
             .map(
                 |c: &Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>| {
-                    c.blocking_read().render()
+                    futures::executor::block_on(get_render_result(c))
                 },
             )
             .collect::<Vec<String>>()
@@ -65,13 +72,13 @@ where
     }
 
     /// Renders the checklist component for the first time.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 /// Represents a checkbox component.
@@ -110,12 +117,13 @@ impl Default for TnCheckBox<'static> {
     }
 }
 
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnCheckBox<'a>
 where
     'a: 'static,
 {
     /// Renders the checkbox component internally.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         let checked = if let &TnComponentValue::Bool(v) = self.value() {
             if v {
                 "checked"
@@ -161,13 +169,13 @@ where
         )
     }
     /// Renders the first instance of the checkbox component.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 /// Adds a checklist component to the context along with its child checkboxes.
@@ -258,7 +266,7 @@ pub fn toggle_checkbox(
     context: TnContext,
     event: TnEvent,
     payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
     let f = async move {
         // println!("paylod value {payload}");
         if let Value::String(checked) = &payload["event_data"]["e_value"] {
@@ -288,7 +296,7 @@ pub fn toggle_checkbox(
                 };
             }
             checkbox.set_state(TnComponentState::Ready);
-            let checkbox_html = tokio::task::block_in_place(|| checkbox.render());
+            let checkbox_html = checkbox.render().await;
             Some((HeaderMap::new(), Html::from(checkbox_html)))
         } else {
             None

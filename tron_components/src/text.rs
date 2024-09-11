@@ -37,13 +37,13 @@ impl Default for TnTextArea<'static> {
 }
 
 
-
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnTextArea<'a>
 where
     'a: 'static
 {
     /// Renders the TextArea component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -57,12 +57,12 @@ where
     }
 
     /// Renders the TextArea component for the first time.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 /// Appends text to the value of a TextArea component.
@@ -191,18 +191,18 @@ impl Default for TnStreamTextArea<'static> {
     }
 }
 
-
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnStreamTextArea<'a>
 where
     'a: 'static
 {
     /// Implements internal rendering functions for TnStreamTextArea.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
     /// Renders the stream text area, showing only the last appended string.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,
@@ -214,9 +214,9 @@ where
             self.base.tag
         )
     }
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 /// Appends a new string to the stream text area component but not rendering it.
@@ -351,13 +351,14 @@ impl<'a: 'static> Default for TnTextInput<'a> {
     }
 }
 
+#[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnTextInput<'a>
 where
     'a: 'static
 {
 
     /// Renders the internal representation of the text input component.
-    fn render(&self) -> String {
+    async fn render(&self) -> String {
         format!(
             r##"<{} {} value="{}">"##,
             self.base.tag,
@@ -369,13 +370,13 @@ where
         )
     }
     /// Renders the initial representation of the text input component.
-    fn first_render(&self) -> String {
-        self.render()
+    async fn first_render(&self) -> String {
+        self.render().await
     }
 
-    fn pre_render(&mut self) {}
+    async fn pre_render(&mut self) {}
 
-    fn post_render(&mut self) {}
+    async fn post_render(&mut self) {}
 }
 
 /// Cleans the text input component with the given context and Tron ID.

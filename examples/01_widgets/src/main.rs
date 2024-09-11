@@ -49,7 +49,7 @@ fn build_session_context() -> TnContext {
     loop {
         TnButton::builder()
             .init(format!("btn-{:02}", btn_idx), format!("{:02}", btn_idx))
-            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
+            .set_attr("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Spawn, counter_btn_clicked)
             .add_to_context(&mut context);
 
@@ -64,12 +64,12 @@ fn build_session_context() -> TnContext {
             "stream_textarea".into(),
             vec!["This is a streamable textarea\n".to_string()],
         )
-        .set_attribute("class", "textarea textarea-bordered flex-1 h-20")
+        .set_attr("class", "textarea textarea-bordered flex-1 h-20")
         .add_to_context(&mut context);
 
     text::TnTextArea::builder()
         .init("textarea".into(), "This is a textarea\n".to_string())
-        .set_attribute("class", "textarea textarea-bordered flex-1 h-20")
+        .set_attr("class", "textarea textarea-bordered flex-1 h-20")
         .add_to_context(&mut context);
 
     let checklist_items = vec![
@@ -93,7 +93,7 @@ fn build_session_context() -> TnContext {
         let checklist_guard = component_guard.get(&checklist_tron_id).unwrap();
         checklist_guard
             .blocking_write()
-            .set_attribute("class", "flex flex-row p-1 flex-1");
+            .set_attr("class", "flex flex-row p-1 flex-1");
     }
 
     let radio_group_items = vec![
@@ -116,7 +116,7 @@ fn build_session_context() -> TnContext {
         let radio_group_guard = component_guard.get(&radio_group_tron_id).unwrap();
         radio_group_guard
             .blocking_write()
-            .set_attribute("class", "flex flex-row p-1 flex-1");
+            .set_attr("class", "flex flex-row p-1 flex-1");
     }
     {
         let select_options = vec![
@@ -132,7 +132,7 @@ fn build_session_context() -> TnContext {
     {
         TnRangeSlider::builder()
             .init("slider".into(), 0.0, 0.0, 100.0)
-            .set_attribute("class", "flex-1")
+            .set_attr("class", "flex-1")
             .set_action(TnActionExecutionMethod::Await, slider_value_update)
             .add_to_context(&mut context);
     }
@@ -142,29 +142,29 @@ fn build_session_context() -> TnContext {
                 "clean_stream_textarea".into(),
                 "clean_stream_textarea".into(),
             )
-            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
-            .set_attribute("hx-target", "#stream_textarea")
+            .set_attr("class", "btn btn-sm btn-outline btn-primary flex-1")
+            .set_attr("hx-target", "#stream_textarea")
             .set_action(TnActionExecutionMethod::Await, clean_stream_textarea)
             .add_to_context(&mut context);
     }
     {
         TnButton::builder()
             .init("clean_textarea".into(), "clean_textarea".into())
-            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
+            .set_attr("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, clean_textarea)
             .add_to_context(&mut context);
     }
     {
         TnButton::builder()
             .init("clean_textinput".into(), "clean_textinput".into())
-            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
+            .set_attr("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, clean_textinput)
             .add_to_context(&mut context);
     }
     {
         text::TnTextInput::builder()
             .init("textinput".into(), "".into())
-            .set_attribute("class", "input input-bordered w-full")
+            .set_attr("class", "input input-bordered w-full")
             .add_to_context(&mut context);
     }
     {
@@ -600,7 +600,7 @@ struct AppPageTemplate {
 /// This function uses the `AppPageTemplate` struct to render the HTML template for the main page.
 /// It retrieves the HTML content for each component (buttons, textareas, checklist, radio group,
 /// select dropdown, and slider) by rendering them individually using the `render_to_string` and
-/// `first_render_to_string` methods of the `TnContext` struct.
+/// `get_pre_render_string` methods of the `TnContext` struct.
 ///
 /// The rendered HTML content for each component is then passed to an instance of the
 /// `AppPageTemplate` struct, which is rendered using the `render` method to generate the complete
@@ -627,7 +627,7 @@ fn layout(context: TnContext) -> TnFutureString {
         let context_guard = context.read().await;
         let textarea = context_guard.render_to_string("textarea").await;
         let stream_textarea = context_guard
-            .first_render_to_string("stream_textarea")
+            .get_pre_render_string("stream_textarea")
             .await;
         let textinput = context_guard.render_to_string("textinput").await;
         let checklist = context_guard.render_to_string("checklist").await;

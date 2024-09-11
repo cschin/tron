@@ -26,12 +26,12 @@ impl TnRangeSliderBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("input".into(), tnid, TnComponentType::Slider)
             .set_value(TnComponentValue::String(format!("{}", value)))
-            .set_attribute("type", "range")
-            .set_attribute("min", &format!("{}", min))
-            .set_attribute("max", &format!("{}", max))
-            .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
-            .set_attribute("hx-trigger", "change, server_event")
-            .set_attribute("hx-swap", "none")
+            .set_attr("type", "range")
+            .set_attr("min", &format!("{}", min))
+            .set_attr("max", &format!("{}", max))
+            .set_attr("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
+            .set_attr("hx-trigger", "change, server_event")
+            .set_attr("hx-swap", "none")
             .build();
         self
     }

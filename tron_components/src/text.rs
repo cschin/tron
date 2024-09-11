@@ -16,9 +16,9 @@ impl TnTextAreaBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("textarea".into(), name, TnComponentType::TextArea)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("disabled", "")
-            .set_attribute("hx-trigger", "server_event")
-            .set_attribute("type", "text")
+            .set_attr("disabled", "")
+            .set_attr("hx-trigger", "server_event")
+            .set_attr("type", "text")
             .build();
         self
     }
@@ -161,8 +161,8 @@ impl TnStreamTextAreaBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("textarea".into(), tnid, component_type)
             .set_value(TnComponentValue::VecString(value))
-            .set_attribute("type", "text")
-            .set_attribute("disabled", "")
+            .set_attr("type", "text")
+            .set_attr("disabled", "")
             .build();
         // stream textarea is totally passive!!
         self.base.remove_attribute("hx-trigger");
@@ -324,11 +324,11 @@ impl TnTextInputBuilder<'static> {
             .set_value(TnComponentValue::String(value.to_string()));
 
         self.base
-            .set_attribute("hx-trigger", "change, server_event");
-        self.base.set_attribute("type", "text");
+            .set_attr("hx-trigger", "change, server_event");
+        self.base.set_attr("type", "text");
         self.base
-            .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##); //over-ride the default as we need the value of the input text
-        self.base.set_attribute("hx-swap", "outerHTML");
+            .set_attr("hx-vals", r##"js:{event_data:get_input_event(event)}"##); //over-ride the default as we need the value of the input text
+        self.base.set_attr("hx-swap", "outerHTML");
         self
     }
 }

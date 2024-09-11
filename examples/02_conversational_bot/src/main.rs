@@ -78,7 +78,7 @@ fn build_session_context() -> TnContext {
         // add a recorder button
         let btn = TnButton::builder()
             .init(RECORDING_BUTTON.into(), "Start Conversation".into())
-            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
+            .set_attr("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, toggle_recording)
             .build();
         context.add_component(btn);
@@ -98,7 +98,7 @@ fn build_session_context() -> TnContext {
         // add a player
         let player = TnAudioPlayer::builder()
             .init(PLAYER.to_string(), "Paused".to_string())
-            .set_attribute("class", "flex-1 p-1 h-10")
+            .set_attr("class", "flex-1 p-1 h-10")
             .set_action(
                 TnActionExecutionMethod::Await,
                 audio_player::stop_audio_playing_action,
@@ -111,7 +111,7 @@ fn build_session_context() -> TnContext {
         // add a reset button
         let btn = TnButton::builder()
             .init(RESET_BUTTON.into(), "Reset The Conversation".into())
-            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
+            .set_attr("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, reset_conversation)
             .build();
         context.add_component(btn);
@@ -120,7 +120,7 @@ fn build_session_context() -> TnContext {
         // add a chatbox
         let transcript_output = TnChatBox::builder()
             .init(TRANSCRIPT_OUTPUT.to_string(), vec![])
-            .set_attribute("class", "flex flex-col overflow-auto flex-1 p-2")
+            .set_attr("class", "flex flex-col overflow-auto flex-1 p-2")
             .build();
 
         context.add_component(transcript_output);
@@ -129,7 +129,7 @@ fn build_session_context() -> TnContext {
         // add a textarea showing partial stream content
         let llm_stream_output = TnStreamTextArea::builder()
             .init(LLM_STREAM_OUTPUT.to_string(), Vec::new())
-            .set_attribute("class", "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19")
+            .set_attr("class", "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19")
             .build();
         context.add_component(llm_stream_output);
     }
@@ -138,11 +138,11 @@ fn build_session_context() -> TnContext {
         // add a status box
         let status_output = TnStreamTextArea::builder()
             .init(STATUS.to_string(), Vec::new())
-            .set_attribute(
+            .set_attr(
                 "class",
                 "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40",
             )
-            .set_attribute("hx-trigger", "server_event")
+            .set_attr("hx-trigger", "server_event")
             .build();
 
         context.add_component(status_output);
@@ -152,12 +152,12 @@ fn build_session_context() -> TnContext {
         let prompt = include_str!("../templates/drunk-bioinformatist.txt");
         let mut prompt_box = TnTextArea::builder()
             .init(PROMPT.into(), prompt.into())
-            .set_attribute("hx-trigger", "change, server_event") // change will update the value one the textarea is out of focus
-            .set_attribute(
+            .set_attr("hx-trigger", "change, server_event") // change will update the value one the textarea is out of focus
+            .set_attr(
                 "class",
                 "flex-1 p-2 textarea textarea-bordered mx-auto h-96 max-h-96 min-h-96",
             )
-            .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
+            .set_attr("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
             .build();
         prompt_box.remove_attribute("disabled");
 
@@ -181,7 +181,7 @@ fn build_session_context() -> TnContext {
         ];
         let tts_model_select = TnSelect::builder()
             .init(TTS_MODEL_SELECT.into(), default_model, model_options)
-            .set_attribute("class", "select select-bordered w-full max-w-xs")
+            .set_attr("class", "select select-bordered w-full max-w-xs")
             .build();
         context.add_component(tts_model_select);
     }
@@ -195,7 +195,7 @@ fn build_session_context() -> TnContext {
         ];
         let preset_prompt_select = TnSelect::builder()
             .init(PRESET_PROMPT_SELECT.into(), default_prompt, prompt_options)
-            .set_attribute("class", "select select-bordered w-full max-w-xs")
+            .set_attr("class", "select select-bordered w-full max-w-xs")
             .set_action(TnActionExecutionMethod::Await, preset_prompt_select_change)
             .build();
 
@@ -335,13 +335,13 @@ fn layout(context: TnContext) -> TnFutureString {
         let btn = guard.render_to_string(RECORDING_BUTTON).await;
         let recorder = guard.render_to_string(RECORDER).await;
         let player = guard.render_to_string(PLAYER).await;
-        let transcript = guard.first_render_to_string(TRANSCRIPT_OUTPUT).await;
-        let status = guard.first_render_to_string(STATUS).await;
-        let prompt = guard.first_render_to_string(PROMPT).await;
-        let reset_button = guard.first_render_to_string(RESET_BUTTON).await;
-        let tts_model_select = guard.first_render_to_string(TTS_MODEL_SELECT).await;
-        let llm_stream_output = guard.first_render_to_string(LLM_STREAM_OUTPUT).await;
-        let preset_prompt_select = guard.first_render_to_string(PRESET_PROMPT_SELECT).await;
+        let transcript = guard.get_pre_render_string(TRANSCRIPT_OUTPUT).await;
+        let status = guard.get_pre_render_string(STATUS).await;
+        let prompt = guard.get_pre_render_string(PROMPT).await;
+        let reset_button = guard.get_pre_render_string(RESET_BUTTON).await;
+        let tts_model_select = guard.get_pre_render_string(TTS_MODEL_SELECT).await;
+        let llm_stream_output = guard.get_pre_render_string(LLM_STREAM_OUTPUT).await;
+        let preset_prompt_select = guard.get_pre_render_string(PRESET_PROMPT_SELECT).await;
 
         let html = AppPageTemplate {
             btn,

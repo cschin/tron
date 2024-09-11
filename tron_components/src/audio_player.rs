@@ -49,9 +49,9 @@ impl<'a: 'static> TnAudioPlayerBuilder<'a> {
         self.base = TnComponentBase::builder(self.base)
             .init("audio".to_string(), tnid.clone(), component_type)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("src", &format!("/tron_streaming/{}", tnid))
-            .set_attribute("type", "audio/mp3")
-            .set_attribute("hx-trigger", "server_event, ended")
+            .set_attr("src", &format!("/tron_streaming/{}", tnid))
+            .set_attr("type", "audio/mp3")
+            .set_attr("hx-trigger", "server_event, ended")
             .build();
         self
     }

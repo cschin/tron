@@ -39,8 +39,8 @@ impl TnAudioRecorderBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".to_string(), tnid, component_type)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("hx-trigger", "streaming, server_event")
-            .set_attribute("hx-vals", r##"js:{event_data:get_audio_event(event)}"##)
+            .set_attr("hx-trigger", "streaming, server_event")
+            .set_attr("hx-vals", r##"js:{event_data:get_audio_event(event)}"##)
             .create_assets()
             .build();
         self.base

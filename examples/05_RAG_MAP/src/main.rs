@@ -194,7 +194,7 @@ fn build_context() -> TnContext {
     let d3_plot_script = include_str!("../templates/d3_plot_script.html").to_string();
     TnD3Plot::builder()
         .init(D3PLOT.into(), d3_plot_script)
-        .set_attribute(
+        .set_attr(
             "hx-vals",
             r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##,
         )
@@ -203,19 +203,19 @@ fn build_context() -> TnContext {
 
     TnButton::builder()
         .init(RESET_BUTTON.into(), "Reset".into())
-        .set_attribute(
+        .set_attr(
             "class",
             "btn btn-sm btn-outline btn-primary w-full h-min p-1",
         )
-        .set_attribute("hx-target", &format!("#{D3PLOT}"))
-        .set_attribute("hx-swap", "none")
+        .set_attr("hx-target", &format!("#{D3PLOT}"))
+        .set_attr("hx-swap", "none")
         .set_action(TnActionExecutionMethod::Await, reset_button_clicked)
         .add_to_context(&mut context);
 
     TnDiv::builder()
         .init(TOP_HIT_DIV.into(), "".into())
-        .set_attribute("class", "flex flex-col w-full h-full")
-        .set_attribute("style", "resize:none; overflow-y: auto;")
+        .set_attr("class", "flex flex-col w-full h-full")
+        .set_attr("style", "resize:none; overflow-y: auto;")
         .add_to_context(&mut context);
 
     {
@@ -228,7 +228,7 @@ fn build_context() -> TnContext {
 
     TnButton::builder()
         .init(CONTEXT_QUERY_BUTTON.into(), "Query With The Hits".into())
-        .set_attribute(
+        .set_attr(
             "class",
             "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item",
         )
@@ -237,7 +237,7 @@ fn build_context() -> TnContext {
 
     TnButton::builder()
         .init(QUERY_BUTTON.into(), "General Query".into())
-        .set_attribute(
+        .set_attr(
             "class",
             "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item",
         )
@@ -246,7 +246,7 @@ fn build_context() -> TnContext {
 
     TnButton::builder()
         .init(FIND_RELATED_BUTTON.into(), "Find Related Text".into())
-        .set_attribute(
+        .set_attr(
             "class",
             "btn btn-sm btn-outline btn-primary w-full h-min p-1 join-item",
         )
@@ -255,24 +255,24 @@ fn build_context() -> TnContext {
 
     let mut query_text_input = TnTextArea::builder()
         .init(QUERY_TEXT_INPUT.into(), "".into())
-        .set_attribute("class", "min-h-32 w-full")
-        .set_attribute("style", "resize:none")
-        .set_attribute("hx-trigger", "change, server_event")
-        .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
+        .set_attr("class", "min-h-32 w-full")
+        .set_attr("style", "resize:none")
+        .set_attr("hx-trigger", "change, server_event")
+        .set_attr("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
         .build(); //over-ride the default as we need the value of the input text
     query_text_input.remove_attribute("disabled");
     context.add_component(query_text_input);
 
     TnStreamTextArea::builder()
         .init(QUERY_STREAM_TEXTAREA.into(), Vec::new())
-        .set_attribute("class", "min-h-24 w-full")
-        .set_attribute("style", r#"resize:none"#)
+        .set_attr("class", "min-h-24 w-full")
+        .set_attr("style", r#"resize:none"#)
         .add_to_context(&mut context);
 
     // add a chatbox
     TnChatBox::builder()
         .init(QUERY_RESULT_TEXTAREA.into(), vec![])
-        .set_attribute("class", "min-h-96 max-h-96 overflow-auto flex-1 p-2")
+        .set_attr("class", "min-h-96 max-h-96 overflow-auto flex-1 p-2")
         .add_to_context(&mut context);
 
     {
@@ -346,12 +346,12 @@ struct AppPageTemplate {
 fn layout(context: TnContext) -> TnFutureString {
     tn_future! {
         let context_guard = context.read().await;
-        let d3_plot = context_guard.first_render_to_string(D3PLOT).await;
+        let d3_plot = context_guard.get_pre_render_string(D3PLOT).await;
         let reset_button = context_guard.render_to_string(RESET_BUTTON).await;
         let top_hit_div = context_guard.render_to_string(TOP_HIT_DIV).await;
         let context_query_button = context_guard.render_to_string(CONTEXT_QUERY_BUTTON).await;
-        let query_stream_textarea = context_guard.first_render_to_string(QUERY_STREAM_TEXTAREA).await;
-        let query_result_textarea = context_guard.first_render_to_string(QUERY_RESULT_TEXTAREA).await;
+        let query_stream_textarea = context_guard.get_pre_render_string(QUERY_STREAM_TEXTAREA).await;
+        let query_result_textarea = context_guard.get_pre_render_string(QUERY_RESULT_TEXTAREA).await;
         let query_button = context_guard.render_to_string(QUERY_BUTTON).await;
         let query_text_input = context_guard.render_to_string(QUERY_TEXT_INPUT).await;
         let find_related_text_button = context_guard.render_to_string(FIND_RELATED_BUTTON).await;

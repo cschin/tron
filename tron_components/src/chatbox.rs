@@ -25,9 +25,9 @@ impl TnChatBoxBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("div".into(), tnid, TnComponentType::ChatBox)
             .set_value(TnComponentValue::VecString2(value))
-            .set_attribute("hx-trigger", "server_event")
-            .set_attribute("hx-swap", "beforeend scroll:bottom focus-scroll:true ")
-            .set_attribute("class", "flex-col")
+            .set_attr("hx-trigger", "server_event")
+            .set_attr("hx-swap", "beforeend scroll:bottom focus-scroll:true ")
+            .set_attr("class", "flex-col")
             .create_assets()
             .build();
         let class = HashMap::from_iter(vec![

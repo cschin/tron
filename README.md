@@ -188,13 +188,13 @@ fn build_context() -> TnContext {
 
     let component_index = 0;
     let mut btn = TnButton::new(component_index, BUTTON.into(), "click me".into());
-    btn.set_attribute(
+    btn.set_attr(
         "class".to_string(),
         "btn btn-sm btn-outline btn-primary flex-1".to_string(),
     );
 
-    btn.set_attribute("hx-target".to_string(), "#count".to_string());
-    btn.set_attribute("hx-swap".to_string(), "innerHTML".to_string());
+    btn.set_attr("hx-target".to_string(), "#count".to_string());
+    btn.set_attr("hx-swap".to_string(), "innerHTML".to_string());
     context.asset.blocking_write().insert("count".into(), TnAsset::U32(0));
 
     context.add_component(btn);

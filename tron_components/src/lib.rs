@@ -389,7 +389,7 @@ impl TnContextBase<'static> {
 
     /// Performs the initial rendering of a specified component to a string based on its `tron_id`.
     /// Similar to `render_to_string`, but specifically calls the component's first rendering logic.
-    pub async fn first_render_to_string(&self, tron_id: &str) -> String {
+    pub async fn get_pre_render_string(&self, tron_id: &str) -> String {
         let component_guard = self.components.read().await;
         let component = component_guard.get(tron_id).unwrap().read().await;
         component.first_render().await
@@ -585,7 +585,7 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn get_type(&self) -> TnComponentType;
 
     fn attributes(&self) -> &TnElmAttributes;
-    fn set_attribute(&mut self, key: &str, value: &str);
+    fn set_attr(&mut self, key: &str, value: &str);
     fn remove_attribute(&mut self, key: &str);
     fn generate_attr_string(&self) -> String;
 
@@ -719,7 +719,7 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
     }
 
     /// Sets an attribute for the component
-    fn set_attribute(&mut self, key: &str, val: &str) {
+    fn set_attr(&mut self, key: &str, val: &str) {
         self.attributes.insert(key.into(), val.into());
     }
 
@@ -875,7 +875,7 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
     }
 
     /// Sets an attribute for the component
-    pub fn set_attribute(mut self, key: &str, val: &str) -> TnComponentBaseBuilder<'a> {
+    pub fn set_attr(mut self, key: &str, val: &str) -> TnComponentBaseBuilder<'a> {
         self.base.attributes.insert(key.into(), val.into());
         self
     }
@@ -978,7 +978,7 @@ mod tests {
     fn test_simple_button() {
         let btn = TnButton::builder()
             .init("12".into(), "12".into())
-            .set_attribute("hx-get", &format!("/tron/{}", 12))
+            .set_attr("hx-get", &format!("/tron/{}", 12))
             .build();
         println!("{}", btn.generate_attr_string());
     }

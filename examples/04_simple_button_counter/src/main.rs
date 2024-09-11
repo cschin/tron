@@ -45,9 +45,9 @@ fn build_context() -> TnContext {
 
     let btn = TnButton::builder()
         .init(BUTTON.into(), "click me".into())
-        .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
-        .set_attribute("hx-target", "#count")
-        .set_attribute("hx-swap", "innerHTML")
+        .set_attr("class", "btn btn-sm btn-outline btn-primary flex-1")
+        .set_attr("hx-target", "#count")
+        .set_attr("hx-swap", "innerHTML")
         .set_action(TnActionExecutionMethod::Await, button_clicked)
         .build();
     context

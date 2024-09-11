@@ -26,10 +26,10 @@ impl TnSelectBuilder<'static> {
         self.base = TnComponentBase::builder(self.base)
             .init("select".into(), tnid, TnComponentType::Select)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("hx-trigger", "change, server_event")
-            .set_attribute("type", "select")
-            .set_attribute("hx-swap", "none")
-            .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
+            .set_attr("hx-trigger", "change, server_event")
+            .set_attr("type", "select")
+            .set_attr("hx-swap", "none")
+            .set_attr("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
             .create_assets()
             .build(); //over-ride the default as we need the value of the input text
         self.base

@@ -16,7 +16,7 @@ impl<'a: 'static> SLButtonBuilder<'a> {
         self.base = TnComponentBase::builder(self.base)
             .init("sl-button".into(), tnid, component_type)
             .set_value(TnComponentValue::String(value))
-            .set_attribute("hx-trigger", "click, server_event")
+            .set_attr("hx-trigger", "click, server_event")
             .build();
         self
     }

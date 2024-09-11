@@ -96,9 +96,8 @@ pub struct HtmlAttributesBuilder {
 }
 
 impl HtmlAttributesBuilder {
-
-    pub fn set_attribute(mut self, key: String, value: String) -> Self {
-        self.attributes.insert(key, value);
+    pub fn set_attribute(mut self, key: &str, value: &str) -> Self {
+        self.attributes.insert(key.into(), value.into());
         self
     }
 
@@ -118,7 +117,8 @@ impl HtmlAttributes {
 use std::fmt;
 impl fmt::Display for HtmlAttributes {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let s =       self.attributes
+        let s = self
+            .attributes
             .iter()
             .map(|(k, v)| {
                 if v.is_empty() {

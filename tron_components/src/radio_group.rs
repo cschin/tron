@@ -65,12 +65,11 @@ impl<'a: 'static> Default for TnRadioGroup<'a> {
     }
 }
 
-
 /// Implements methods for rendering `TnRadioGroup`.
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnRadioGroup<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     /// Renders the internal structure of the `TnRadioGroup`.
     async fn render(&self) -> String {
@@ -78,9 +77,8 @@ where
         for c in self.get_children() {
             let c_string = c.read().await.render().await;
             children_render_results.push(c_string)
-
         }
-            
+
         let children_render_results = children_render_results.join(" ");
         format!(
             r##"<{} {}>{}</{}>"##,
@@ -152,11 +150,10 @@ impl Default for TnRadioItem<'static> {
     }
 }
 
-
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnRadioItem<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     /// Renders the `TnRadioItem` component into HTML.
     async fn render(&self) -> String {

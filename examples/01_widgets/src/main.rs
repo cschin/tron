@@ -49,10 +49,7 @@ fn build_session_context() -> TnContext {
     loop {
         TnButton::builder()
             .init(format!("btn-{:02}", btn_idx), format!("{:02}", btn_idx))
-            .set_attribute(
-                "class",
-                "btn btn-sm btn-outline btn-primary flex-1",
-            )
+            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Spawn, counter_btn_clicked)
             .add_to_context(&mut context);
 
@@ -67,18 +64,12 @@ fn build_session_context() -> TnContext {
             "stream_textarea".into(),
             vec!["This is a streamable textarea\n".to_string()],
         )
-        .set_attribute(
-            "class",
-            "textarea textarea-bordered flex-1 h-20",
-        )
+        .set_attribute("class", "textarea textarea-bordered flex-1 h-20")
         .add_to_context(&mut context);
 
     text::TnTextArea::builder()
         .init("textarea".into(), "This is a textarea\n".to_string())
-        .set_attribute(
-            "class",
-            "textarea textarea-bordered flex-1 h-20",
-        )
+        .set_attribute("class", "textarea textarea-bordered flex-1 h-20")
         .add_to_context(&mut context);
 
     let checklist_items = vec![
@@ -151,10 +142,7 @@ fn build_session_context() -> TnContext {
                 "clean_stream_textarea".into(),
                 "clean_stream_textarea".into(),
             )
-            .set_attribute(
-                "class",
-                "btn btn-sm btn-outline btn-primary flex-1",
-            )
+            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_attribute("hx-target", "#stream_textarea")
             .set_action(TnActionExecutionMethod::Await, clean_stream_textarea)
             .add_to_context(&mut context);
@@ -162,20 +150,14 @@ fn build_session_context() -> TnContext {
     {
         TnButton::builder()
             .init("clean_textarea".into(), "clean_textarea".into())
-            .set_attribute(
-                "class",
-                "btn btn-sm btn-outline btn-primary flex-1",
-            )
+            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, clean_textarea)
             .add_to_context(&mut context);
     }
     {
         TnButton::builder()
             .init("clean_textinput".into(), "clean_textinput".into())
-            .set_attribute(
-                "class",
-                "btn btn-sm btn-outline btn-primary flex-1",
-            )
+            .set_attribute("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, clean_textinput)
             .add_to_context(&mut context);
     }
@@ -257,7 +239,7 @@ fn counter_btn_clicked(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
     let f = || async move {
         tracing::debug!(target:"tron_app", "{:?}", event);
         if event.e_type == "server_event" {
@@ -321,9 +303,8 @@ fn counter_btn_clicked(
                 debug!("tx dropped");
             }
 
-            let msg =
-                r##"{"server_event_data": { "target":"textarea", "new_state":"ready" } }"##
-                    .to_string();
+            let msg = r##"{"server_event_data": { "target":"textarea", "new_state":"ready" } }"##
+                .to_string();
             if sse_tx.send(msg).await.is_err() {
                 debug!("tx dropped");
             }
@@ -396,7 +377,7 @@ fn clean_stream_textarea(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
     let f = || async move {
         if let Some(target) = event.h_target {
             text::clean_stream_textarea_with_context(&context, &target).await;
@@ -412,7 +393,7 @@ fn clean_textarea(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
     let f = || async move {
         text::clean_textarea_with_context(&context, "textarea").await;
         context.set_ready_for(&event.e_trigger).await;
@@ -443,7 +424,7 @@ fn clean_textinput(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
     let f = || async move {
         text::clean_textinput_with_context(context.clone(), "textinput").await;
         context.set_ready_for(&event.e_trigger).await;
@@ -482,7 +463,7 @@ fn slider_value_update(
     context: TnContext,
     event: TnEvent,
     _payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
     let f = || async move {
         let slider = context.get_component(&event.e_trigger).await;
         if let TnComponentValue::String(s) = slider.read().await.value() {
@@ -526,7 +507,7 @@ fn handle_file_upload(
     _context: TnContext,
     event: TnEvent,
     payload: Value,
-) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>> {
+) -> Pin<Box<dyn Future<Output = TnHtmlResponse> + Send>> {
     let f = || async move {
         // process the "finished" event
         tracing::info!(target: "tron_app", "event payload: {:?}", payload["event_data"]["e_file_list"]);
@@ -651,40 +632,50 @@ struct AppPageTemplate {
 ///
 /// A `String` containing the HTML for the application's main page.
 
-fn layout(context: TnContext) -> String {
-    let context_guard = context.blocking_read();
-    let buttons = (0..10)
-        .map(|i| context_guard.render_to_string(&format!("btn-{:02}", i)))
-        .collect::<Vec<String>>();
+fn layout(context: TnContext) -> Pin<Box<dyn Future<Output = String> + Send>> {
+    let f = async move {
+        let context_guard = context.read().await;
+        let mut buttons = Vec::<String>::new();
+        for i in 0..10 {
+            let b = context_guard
+                .render_to_string(&format!("btn-{:02}", i))
+                .await;
+            buttons.push(b);
+        }
+        let context_guard = context.read().await;
+        let textarea = context_guard.render_to_string("textarea").await;
+        let stream_textarea = context_guard
+            .first_render_to_string("stream_textarea")
+            .await;
+        let textinput = context_guard.render_to_string("textinput").await;
+        let checklist = context_guard.render_to_string("checklist").await;
+        let radio_group = context_guard.render_to_string("radio_group").await;
+        let select = context_guard.render_to_string("select_one").await;
+        let clean_stream_textarea = context_guard
+            .render_to_string("clean_stream_textarea")
+            .await;
+        let clean_textarea = context_guard.render_to_string("clean_textarea").await;
+        let clean_textinput = context_guard.render_to_string("clean_textinput").await;
+        let slider = context_guard.render_to_string("slider").await;
+        let file_upload = context_guard.render_to_string("file_upload").await;
+        let dnd_file_upload = context_guard.render_to_string("dnd_file_upload").await;
 
-    let context_guard = context.blocking_read();
-    let textarea = context_guard.render_to_string("textarea");
-    let stream_textarea = context_guard.first_render_to_string("stream_textarea");
-    let textinput = context_guard.render_to_string("textinput");
-    let checklist = context_guard.render_to_string("checklist");
-    let radio_group = context_guard.render_to_string("radio_group");
-    let select = context_guard.render_to_string("select_one");
-    let clean_stream_textarea = context_guard.render_to_string("clean_stream_textarea");
-    let clean_textarea = context_guard.render_to_string("clean_textarea");
-    let clean_textinput = context_guard.render_to_string("clean_textinput");
-    let slider = context_guard.render_to_string("slider");
-    let file_upload = context_guard.render_to_string("file_upload");
-    let dnd_file_upload = context_guard.render_to_string("dnd_file_upload");
-
-    let html = AppPageTemplate {
-        buttons,
-        textarea,
-        stream_textarea,
-        textinput,
-        checklist,
-        radio_group,
-        select,
-        clean_stream_textarea,
-        clean_textarea,
-        clean_textinput,
-        slider,
-        file_upload,
-        dnd_file_upload,
+        let html = AppPageTemplate {
+            buttons,
+            textarea,
+            stream_textarea,
+            textinput,
+            checklist,
+            radio_group,
+            select,
+            clean_stream_textarea,
+            clean_textarea,
+            clean_textinput,
+            slider,
+            file_upload,
+            dnd_file_upload,
+        };
+        html.render().unwrap()
     };
-    html.render().unwrap()
+    Box::pin(f)
 }

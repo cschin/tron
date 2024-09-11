@@ -29,10 +29,7 @@ impl TnSelectBuilder<'static> {
             .set_attribute("hx-trigger", "change, server_event")
             .set_attribute("type", "select")
             .set_attribute("hx-swap", "none")
-            .set_attribute(
-                "hx-vals",
-                r##"js:{event_data:get_input_event(event)}"##,
-            )
+            .set_attribute("hx-vals", r##"js:{event_data:get_input_event(event)}"##)
             .create_assets()
             .build(); //over-ride the default as we need the value of the input text
         self.base
@@ -59,7 +56,7 @@ impl Default for TnSelect<'static> {
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for TnSelect<'a>
 where
-    'a: 'static
+    'a: 'static,
 {
     /// Renders the TnSelect component.
     async fn render(&self) -> String {

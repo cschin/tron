@@ -943,12 +943,11 @@ pub type TnHtmlResponse = Option<(HeaderMap, Html<String>)>;
 /// This type defines a function signature for processing Tron events asynchronously. It takes a
 /// `TnContext`, a `TnEvent`, and a payload of type `Value` as input parameters and returns a future
 /// wrapping the HTML response along with its headers, represented by `TnHtmlResponse`.
-pub type TnActionFn =
-    fn(
-        TnContext,
-        event: TnEvent,
-        payload: Value,
-    ) -> Pin<Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send>>;
+pub type TnActionFn = fn(
+    TnContext,
+    event: TnEvent,
+    payload: Value,
+) -> Pin<Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send>>;
 
 /// Represents the method of execution for actions associated with Tron events.
 #[derive(Clone)]

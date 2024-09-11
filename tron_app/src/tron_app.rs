@@ -13,7 +13,7 @@ use axum::{
     BoxError, Router,
 };
 use axum_server::tls_rustls::RustlsConfig;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::sync::RwLock;
 use tron_components::{
@@ -50,7 +50,7 @@ pub struct Ports {
 pub type SessionId = tower_sessions::session::Id;
 
 /// Represents a session context containing mappings of session IDs to Tron contexts.
-pub type SessionContext = RwLock<HashMap<SessionId, TnContext>>;
+pub type SessionContextStore = RwLock<HashMap<SessionId, TnContext>>;
 
 /// Alias for a context builder function.
 type ContextBuilder = Arc<Box<dyn Fn() -> TnContext + Send + Sync>>;
@@ -77,7 +77,7 @@ type SessionExpiry = RwLock<HashMap<SessionId, time::OffsetDateTime>>;
 pub struct AppData {
     pub head: Option<String>, // for inject head section to the html index page
     pub html_attributes: Option<String>,
-    pub context: SessionContext,
+    pub context_store: SessionContextStore,
     pub session_expiry: SessionExpiry,
     pub build_context: ContextBuilder,
     pub build_layout: LayoutFunction,
@@ -86,7 +86,7 @@ pub struct AppData {
 pub struct AppDataBuilder {
     pub head: Option<String>, // for inject head section to the html index page
     pub html_attributes: Option<String>,
-    pub context: SessionContext,
+    pub context_store: SessionContextStore,
     pub session_expiry: RwLock<HashMap<SessionId, time::OffsetDateTime>>,
     pub build_context: fn() -> TnContext,
     pub build_layout: fn(TnContext) -> Pin<Box<dyn futures_util::Future<Output = String> + Send>>,
@@ -100,7 +100,7 @@ impl AppData {
         AppDataBuilder {
             head: Some(include_str!("../templates/head.html").to_string()),
             html_attributes: Some(r#"leng="en""#.into()),
-            context: RwLock::new(HashMap::default()),
+            context_store: RwLock::new(HashMap::default()),
             session_expiry: RwLock::new(HashMap::default()),
             build_context,
             build_layout,
@@ -117,8 +117,8 @@ impl AppDataBuilder {
         self.html_attributes = Some(html_attributes.into());
         self
     }
-    pub fn set_context(mut self, context: SessionContext) -> Self {
-        self.context = context;
+    pub fn set_context(mut self, context: SessionContextStore) -> Self {
+        self.context_store = context;
         self
     }
     pub fn session_expiry(mut self, session_expiry: SessionExpiry) -> Self {
@@ -129,7 +129,7 @@ impl AppDataBuilder {
         AppData {
             head: self.head,
             html_attributes: self.html_attributes,
-            context: self.context,
+            context_store: self.context_store,
             session_expiry: self.session_expiry,
             build_context: Arc::new(Box::new(self.build_context)),
             build_layout: Arc::new(Box::new(self.build_layout)),
@@ -433,7 +433,7 @@ async fn load_page(
     };
 
     {
-        let mut session_contexts = app_data.context.write().await;
+        let mut session_contexts = app_data.context_store.write().await;
         let context = if session_contexts.contains_key(&session_id) {
             session_contexts.get_mut(&session_id).unwrap()
         } else {
@@ -449,7 +449,7 @@ async fn load_page(
         }
     };
 
-    let context_guard = app_data.context.read().await;
+    let context_guard = app_data.context_store.read().await;
     let context = context_guard.get(&session_id).unwrap().clone();
     //let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context.clone()));
     let layout = (*app_data.build_layout)(context).await;
@@ -540,7 +540,7 @@ async fn tron_entry(
         return (StatusCode::FORBIDDEN, response_headers, Body::default());
     };
     {
-        let context = app_data.context.read().await;
+        let context = app_data.context_store.read().await;
         if !context.contains_key(&session_id) {
             //return Err(StatusCode::FORBIDDEN);
             return (StatusCode::FORBIDDEN, response_headers, Body::default());
@@ -556,8 +556,8 @@ async fn tron_entry(
 
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {
-                let context_guard = app_data.context.read().await;
-                let context = context_guard.get(&session_id).unwrap().clone();
+                let context_store_guard = app_data.context_store.read().await;
+                let context = context_store_guard.get(&session_id).unwrap().clone();
                 context
                     .set_value_for_component(&evt.e_trigger, TnComponentValue::String(value))
                     .await;
@@ -565,8 +565,8 @@ async fn tron_entry(
         }
 
         let has_event_action = {
-            let context_guard = app_data.context.read().await;
-            let context = context_guard.get(&session_id).unwrap().clone();
+            let context_store_guard = app_data.context_store.read().await;
+            let context = context_store_guard.get(&session_id).unwrap().clone();
             let c = context.get_component_by_id(&tron_index).await;
             let c = c.read().await;
             c.get_action().is_some()
@@ -574,14 +574,26 @@ async fn tron_entry(
 
         if has_event_action {
             let (action_exec_method, action_generator) = {
-                let context_guard = app_data.context.read().await;
-                let context = context_guard.get(&session_id).unwrap().clone();
+                let context_store_guard = app_data.context_store.read().await;
+                let context = context_store_guard.get(&session_id).unwrap().clone();
                 let c = context.get_component_by_id(&tron_index).await;
                 let c = c.read().await;
                 c.get_action().as_ref().unwrap().clone()
             };
-            let context_guard = app_data.context.read().await;
-            let context = context_guard.get(&session_id).unwrap().clone();
+
+            let context_store_guard = app_data.context_store.read().await;
+            {
+                let context = context_store_guard.get(&session_id).unwrap().clone();
+                let mut base = context.write().await;
+                base.user_data = Arc::new(RwLock::new(
+                    session
+                        .get("user_data")
+                        .await
+                        .expect("error on getting user data"),
+                ));
+            }
+
+            let context = context_store_guard.get(&session_id).unwrap().clone();
             let action = action_generator(context, evt, payload);
             match action_exec_method {
                 TnActionExecutionMethod::Spawn => {
@@ -604,7 +616,7 @@ async fn tron_entry(
         // send default rendered element + header processing
         let mut response_headers = HeaderMap::new();
         response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
-        let context_guard = app_data.context.read().await;
+        let context_guard = app_data.context_store.read().await;
         let context = &context_guard.get(&session_id).unwrap().read().await;
 
         // when there a hx_target, we update the component indicated by hx_target than the triggering component
@@ -699,7 +711,7 @@ async fn get_session_component_from_app_data(
     session_id: tower_sessions::session::Id,
     tron_idx: TnComponentId,
 ) -> TnComponent<'static> {
-    let guard = app_data.context.read().await;
+    let guard = app_data.context_store.read().await;
     let session_context = guard.get(&session_id).unwrap();
     let context_guard = session_context.base.read().await;
 
@@ -779,7 +791,7 @@ async fn upload(
         e.extend_from_slice(&data);
     }
     {
-        let guard = app_data.context.read().await;
+        let guard = app_data.context_store.read().await;
         let context = guard.get(&session_id).unwrap();
         let asset_ref = context.get_asset_ref().await;
         let mut asset_guard = asset_ref.write().await;
@@ -887,14 +899,14 @@ async fn sse_event_handler(
     };
 
     {
-        let context_guard = app_data.context.read().await;
+        let context_guard = app_data.context_store.read().await;
         if !context_guard.contains_key(&session_id) {
             return Err(StatusCode::FORBIDDEN);
         }
     }
 
     let stream = {
-        let mut session_guard = app_data.context.write().await;
+        let mut session_guard = app_data.context_store.write().await;
         let context_guard = session_guard.get_mut(&session_id).unwrap().write().await;
         let mut channel_guard = context_guard.sse_channel.write().await;
         if let Some(rx) = channel_guard.as_mut().unwrap().rx.take() {
@@ -947,14 +959,14 @@ async fn tron_stream(
         return (StatusCode::FORBIDDEN, default_header, Body::default());
     };
     {
-        let context_guard = app_data.context.read().await;
+        let context_guard = app_data.context_store.read().await;
         if !context_guard.contains_key(&session_id) {
             return (StatusCode::FORBIDDEN, default_header, Body::default());
         }
     }
 
     {
-        let session_guard = app_data.context.read().await;
+        let session_guard = app_data.context_store.read().await;
         let context_guard = session_guard.get(&session_id).unwrap().read().await;
         let stream_data_guard = &context_guard.stream_data.read().await;
         if !stream_data_guard.contains_key(&stream_id) {
@@ -963,7 +975,7 @@ async fn tron_stream(
     }
 
     let (protocol, data_queue) = {
-        let session_guard = app_data.context.read().await;
+        let session_guard = app_data.context_store.read().await;
         let context_guard = session_guard.get(&session_id).unwrap().write().await;
         let mut channels = context_guard.stream_data.write().await;
 
@@ -1067,7 +1079,7 @@ async fn logout_handler() -> Redirect {
 async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> impl IntoResponse {
     let logout_html = {
         let session_id = session.id().unwrap();
-        let context_guard = app_data.context.write().await;
+        let context_guard = app_data.context_store.write().await;
         let context = context_guard.get(&session_id).unwrap();
         let base = context.base.read().await;
         let logout_html = base.assets.read().await;
@@ -1081,7 +1093,7 @@ async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> i
     // remove data from the session in app_data
     {
         let session_id = session.id().unwrap();
-        let mut context_guard = app_data.context.write().await;
+        let mut context_guard = app_data.context_store.write().await;
 
         context_guard.remove(&session_id);
     }
@@ -1106,8 +1118,8 @@ async fn logged_out(State(app_data): State<Arc<AppData>>, session: Session) -> i
 /// * `refresh_token` - The refresh token obtained from the authentication service.
 /// * `token_type` - The type of the token (e.g., "Bearer").
 #[allow(dead_code)]
-#[derive(Deserialize, Debug)]
-struct JWTToken {
+#[derive(Deserialize, Serialize, Debug)]
+pub struct JWTToken {
     access_token: String,
     expires_in: usize,
     id_token: String,
@@ -1143,6 +1155,41 @@ struct Claims {
     email: String,
     #[serde(rename(deserialize = "cognito:username"))]
     username: String,
+}
+
+fn extract_user_info(
+    token_value: &Value,
+    header_kid: &str,
+    jwt_value: &JWTToken,
+) -> Result<(String, String), Box<dyn std::error::Error>> {
+    let keys = token_value["keys"]
+        .as_array()
+        .ok_or("Invalid token structure: 'keys' is not an array")?;
+    let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
+    validation.validate_aud = false; // there is no audience available in cognito's JWT
+    for obj in keys {
+        if obj["kid"].as_str() == Some(header_kid) {
+            let _n = obj["n"].as_str().ok_or("Missing 'n' in key")?;
+            let _e = obj["e"].as_str().ok_or("Missing 'e' in key")?;
+
+            let token = jsonwebtoken::decode::<Claims>(
+                &jwt_value.id_token,
+                &jsonwebtoken::DecodingKey::from_rsa_components(
+                    obj["n"].as_str().unwrap(),
+                    obj["e"].as_str().unwrap(),
+                )
+                .unwrap(),
+                &validation,
+            )
+            .unwrap();
+
+            tracing::info!(target = "tron_app", "cognito decode token: {:?}", token);
+
+            return Ok((token.claims.username, token.claims.email));
+        }
+    }
+
+    Err("No matching key found".into())
 }
 
 /// Handles the callback from the Cognito authentication service after a user logs in.
@@ -1213,39 +1260,30 @@ async fn cognito_callback(
         .send()
         .await
         .expect("cognito call fail");
-    let value: Value = serde_json::from_str(&res.text().await.unwrap()).unwrap();
+    let token_value: Value = serde_json::from_str(&res.text().await.unwrap()).unwrap();
     tracing::debug!(
         target = "tron_app",
         "cognito jwks res: {:?}",
-        value["keys"].as_array().unwrap()
+        token_value["keys"].as_array().unwrap()
     );
     let header_kid = header.kid.unwrap();
     let header_kid = header_kid.as_str();
-    let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
-    validation.validate_aud = false; // there is no audience available in cognito's JWT
-    value["keys"].as_array().unwrap().iter().for_each(|obj| {
-        if obj["kid"].as_str().unwrap() == header_kid {
-            let token = jsonwebtoken::decode::<Claims>(
-                &jwt_value.id_token,
-                &jsonwebtoken::DecodingKey::from_rsa_components(
-                    obj["n"].as_str().unwrap(),
-                    obj["e"].as_str().unwrap(),
-                )
-                .unwrap(),
-                &validation,
-            )
-            .unwrap();
-            tracing::info!(target = "tron_app", "cognito decode token: {:?}", token);
-        }
-    });
+    // let mut validation = jsonwebtoken::Validation::new(jsonwebtoken::Algorithm::RS256);
+    // validation.validate_aud = false; // there is no audience available in cognito's JWT
+
+    let (username, email) = extract_user_info(&token_value, header_kid, &jwt_value)
+        .expect("error on get user name and email from JWT");
 
     if session.id().is_none() {
         session.insert("session_set", true).await.unwrap();
     };
     let _ = session.insert("token", jwt_value.id_token).await;
+    // TODO: use a proper struct to pass the user_data
+    let user_data = format!(r#"{{ "username":"{}", "email":"{}" }}"#, username, email);
+    let _ = session.insert("user_data", user_data).await;
     tracing::debug!(target:"tron_app", "in congito_callback session_id: {:?}", session.id());
     tracing::debug!(target:"tron_app", "in congito_callback session: {:?}", session);
-    tracing::debug!(target:"tron_app", "in congito_callback token: {:?}", session.get_value("token").await.unwrap());
+    tracing::info!(target:"tron_app", "in congito_callback token: {:?}", session.get_value("token").await.unwrap());
 
     // we can't use the axum redirect response as it won't set the session cookie
     // Html::from(r#"<script> window.location.replace("/"); </script>"#)
@@ -1341,7 +1379,7 @@ async fn clean_up_session(app_data: Arc<AppData>) {
             let now = OffsetDateTime::now_utc();
             tracing::info!(target: "tron_app", "in clean up expiry sessions {}", now);
             let mut to_remove = Vec::new();
-            let context_guard = app_data.context.read().await;
+            let context_guard = app_data.context_store.read().await;
             for (key, value) in guard.iter() {
                 tracing::debug!(target: "tron_app", "in clean up expiry session: {} {} {}", key, now, value );
                 if *value < now && context_guard.contains_key(key) {
@@ -1357,7 +1395,7 @@ async fn clean_up_session(app_data: Arc<AppData>) {
                 tracing::info!(target:"tron_app","Couldn't get the current memory usage :(");
             }
 
-            let mut context_guard = app_data.context.write().await;
+            let mut context_guard = app_data.context_store.write().await;
             for key in to_remove {
                 tracing::info!(target: "tron_app", "session removed: {} ", key );
                 let mut session_context = context_guard.remove(&key);

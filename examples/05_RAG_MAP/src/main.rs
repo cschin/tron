@@ -881,7 +881,7 @@ async fn api_test(
         return (StatusCode::FORBIDDEN, response_headers, Body::default());
     };
 
-    let context_guard = app_data.context.read().await;
+    let context_guard = app_data.context_store.read().await;
     let context = context_guard.get(&session_id).unwrap().clone();
 
     tracing::info!(target: "tron_app", "path: {}", fid);

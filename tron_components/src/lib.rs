@@ -326,7 +326,6 @@ pub type TnService = (
 /// - `sse_channel`: A `TnSseChannel` for managing server-sent events communication.
 /// - `service_handles`: A vector of `JoinHandle`s for managing service threads.
 /// - `services`: A hash map that maps service names (`TnServiceName`) to their corresponding service handlers (`TnService`).
-/// - `next_index`: A `u32` value used to generate the next component index.
 pub struct TnContextBase<'a: 'static> {
     pub components: TnComponentMap<'a>, // component ID mapped to Component structs
     pub scripts: HashMap<TnComponentType, String>,
@@ -335,7 +334,7 @@ pub struct TnContextBase<'a: 'static> {
     pub sse_channel: TnSseChannel,
     pub service_handles: Vec<JoinHandle<()>>,
     pub services: HashMap<TnServiceName, TnService>,
-    next_index: u32,
+    pub user_data: Arc<RwLock<Option<String>>>,
 }
 
 /// Provides the implementation for `TnContextBase`, a context management structure for handling
@@ -353,7 +352,7 @@ impl TnContextBase<'static> {
             stream_data: Arc::new(RwLock::new(HashMap::default())),
             services: HashMap::default(),
             sse_channel: Arc::new(RwLock::new(None)),
-            next_index: 0,
+            user_data: Arc::new(RwLock::new(None)),
         }
     }
 
@@ -393,13 +392,6 @@ impl TnContextBase<'static> {
         let component_guard = self.components.read().await;
         let component = component_guard.get(tron_id).unwrap().read().await;
         component.initial_render().await
-    }
-
-    /// Returns and increments the next available index.
-    pub fn next_index(&mut self) -> u32 {
-        let rtn = self.next_index;
-        self.next_index += 1;
-        rtn
     }
 }
 
@@ -635,7 +627,9 @@ impl TnComponentBase<'static> {
             .add("hx-swap", "outerHTML")
             .add("hx-vals", r#"js:{event_data:get_event(event)}"#)
             .add("hx-ext", "json-enc")
-            .add("state", "ready").build().take();
+            .add("state", "ready")
+            .build()
+            .take();
     }
 }
 
@@ -938,11 +932,7 @@ pub type TnHtmlResponse = Option<(HeaderMap, Html<String>)>;
 /// This type defines a function signature for processing Tron events asynchronously. It takes a
 /// `TnContext`, a `TnEvent`, and a payload of type `Value` as input parameters and returns a future
 /// wrapping the HTML response along with its headers, represented by `TnHtmlResponse`.
-pub type TnActionFn = fn(
-    TnContext,
-    event: TnEvent,
-    payload: Value,
-) -> Pin<Box<dyn futures_util::Future<Output = TnHtmlResponse> + Send>>;
+pub type TnActionFn = fn(TnContext, event: TnEvent, payload: Value) -> TnFutureHTMLResponse;
 
 /// Represents the method of execution for actions associated with Tron events.
 #[derive(Clone)]

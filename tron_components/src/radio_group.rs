@@ -65,11 +65,6 @@ impl<'a: 'static> Default for TnRadioGroup<'a> {
     }
 }
 
-async fn get_render_result(
-    c: &Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>,
-) -> String {
-    c.read().await.render().await
-}
 
 /// Implements methods for rendering `TnRadioGroup`.
 #[async_trait]
@@ -79,14 +74,14 @@ where
 {
     /// Renders the internal structure of the `TnRadioGroup`.
     async fn render(&self) -> String {
-        let children_render_results = self
-            .get_children()
-            .iter()
-            .map(|c: &Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>| {
-                futures::executor::block_on(get_render_result(c))
-            })
-            .collect::<Vec<String>>()
-            .join(" ");
+        let mut children_render_results = Vec::<String>::new();
+        for c in self.get_children() {
+            let c_string = c.read().await.render().await;
+            children_render_results.push(c_string)
+
+        }
+            
+        let children_render_results = children_render_results.join(" ");
         format!(
             r##"<{} {}>{}</{}>"##,
             self.base.tag,

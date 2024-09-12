@@ -553,21 +553,21 @@ async fn tron_entry(
 
     tracing::debug!(target: "tron_app", "event payload: {:?}", payload);
 
+    {
+        let context_store_guard = app_data.context_store.read().await;
+        let context = context_store_guard.get(&session_id).unwrap().clone();
+        let mut base = context.write().await;
+        let user_data = session
+            .get::<String>("user_data")
+            .await
+            .expect("error on getting user data");
+        base.user_data = Arc::new(RwLock::new(user_data));
+    }
+
     let response = if let Some(event_data) = match_event(&payload).await {
         let mut evt = event_data.tn_event;
         evt.h_target.clone_from(&hx_target);
         tracing::debug!(target: "tron_app", "event tn_event: {:?}", evt);
-
-        {
-            let context_store_guard = app_data.context_store.read().await;
-            let context = context_store_guard.get(&session_id).unwrap().clone();
-            let mut base = context.write().await;
-            let userdata = session
-                .get::<String>("user_data")
-                .await
-                .expect("error on getting user data");
-            base.user_data = Arc::new(RwLock::new(userdata));
-        }
 
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {

@@ -94,9 +94,9 @@ where
         self.render().await
     }
 
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 /// Represents a radio item component within a radio group.
@@ -207,9 +207,9 @@ where
         self.render().await
     }
 
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 pub fn add_radio_group_to_context(

@@ -67,9 +67,9 @@ where
         self.render().await
     }
 
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 /// Represents a checkbox component.
@@ -164,9 +164,9 @@ where
         self.render().await
     }
 
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 /// Adds a checklist component to the context along with its child checkboxes.

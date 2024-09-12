@@ -457,8 +457,11 @@ impl TnContext {
     pub async fn render_component(&self, tron_id: &str) -> String {
         let context_guard = self.read().await;
         let components_guard = context_guard.components.read().await;
-        let comp = components_guard.get(tron_id).unwrap().read().await;
-        comp.render().await
+        let mut comp = components_guard.get(tron_id).unwrap().write().await;
+        comp.pre_render(&context_guard).await;
+        let out = comp.render().await;
+        comp.post_render(&context_guard).await;
+        out
     }
 
     /// Asynchronously retrieves the value of a component by its `tron_id`.
@@ -898,9 +901,9 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
 #[async_trait]
 pub trait TnComponentRenderTrait<'a: 'static>: Send + Sync {
     async fn initial_render(&self) -> String;
-    async fn pre_render(&mut self);
+    async fn pre_render(&mut self, ctx_base: &TnContextBase);
     async fn render(&self) -> String;
-    async fn post_render(&mut self);
+    async fn post_render(&mut self, ctx_base: &TnContextBase);
 }
 
 /// Represents a Tron event.

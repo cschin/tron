@@ -74,79 +74,60 @@ async fn main() {
 fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
 
-    {
         // add a recorder button
-        let btn = TnButton::builder()
+        TnButton::builder()
             .init(RECORDING_BUTTON.into(), "Start Conversation".into())
             .set_attr("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, toggle_recording)
-            .build();
-        context.add_component(btn);
-    }
-    {
+            .add_to_context(&mut context);
+
         // add a recorder
-        let recorder = TnAudioRecorder::builder()
+        TnAudioRecorder::builder()
             .init(RECORDER.to_string(), "Paused".to_string())
             .set_action(
                 TnActionExecutionMethod::Await,
                 audio_input_stream_processing,
             )
-            .build();
-        context.add_component(recorder);
-    }
-    {
+            .add_to_context(&mut context);
+
         // add a player
-        let player = TnAudioPlayer::builder()
+        TnAudioPlayer::builder()
             .init(PLAYER.to_string(), "Paused".to_string())
             .set_attr("class", "flex-1 p-1 h-10")
             .set_action(
                 TnActionExecutionMethod::Await,
                 audio_player::stop_audio_playing_action,
             )
-            .build();
-        context.add_component(player);
-    }
+            .add_to_context(&mut context);
 
-    {
         // add a reset button
-        let btn = TnButton::builder()
+        TnButton::builder()
             .init(RESET_BUTTON.into(), "Reset The Conversation".into())
             .set_attr("class", "btn btn-sm btn-outline btn-primary flex-1")
             .set_action(TnActionExecutionMethod::Await, reset_conversation)
-            .build();
-        context.add_component(btn);
-    }
-    {
+            .add_to_context(&mut context);
+
         // add a chatbox
-        let transcript_output = TnChatBox::builder()
+        TnChatBox::builder()
             .init(TRANSCRIPT_OUTPUT.to_string(), vec![])
             .set_attr("class", "flex flex-col overflow-auto flex-1 p-2")
-            .build();
+            .add_to_context(&mut context);
 
-        context.add_component(transcript_output);
-    }
-    {
         // add a textarea showing partial stream content
-        let llm_stream_output = TnStreamTextArea::builder()
+        TnStreamTextArea::builder()
             .init(LLM_STREAM_OUTPUT.to_string(), Vec::new())
             .set_attr("class", "overflow-auto flex-1 p-2 h-19 max-h-19 min-h-19")
-            .build();
-        context.add_component(llm_stream_output);
-    }
+            .add_to_context(&mut context);
 
-    {
         // add a status box
-        let status_output = TnStreamTextArea::builder()
+        TnStreamTextArea::builder()
             .init(STATUS.to_string(), Vec::new())
             .set_attr(
                 "class",
                 "flex-1 p-2 textarea textarea-bordered h-40 max-h-40 min-h-40",
             )
             .set_attr("hx-trigger", "server_event")
-            .build();
-
-        context.add_component(status_output);
-    }
+            .add_to_context(&mut context);
 
     {
         let prompt = include_str!("../templates/drunk-bioinformatist.txt");
@@ -179,11 +160,10 @@ fn build_session_context() -> TnContext {
             ("aura-helios-en".into(), "Helios (M)".into()),
             ("aura-zeus-en".into(), "Zeus (M)".into()),
         ];
-        let tts_model_select = TnSelect::builder()
+        TnSelect::builder()
             .init(TTS_MODEL_SELECT.into(), default_model, model_options)
             .set_attr("class", "select select-bordered w-full max-w-xs")
-            .build();
-        context.add_component(tts_model_select);
+            .add_to_context(&mut context);
     }
 
     {
@@ -193,13 +173,11 @@ fn build_session_context() -> TnContext {
             ("socrat".into(), "Socrat".into()),
             ("poet".into(), "Poet".into()),
         ];
-        let preset_prompt_select = TnSelect::builder()
+        TnSelect::builder()
             .init(PRESET_PROMPT_SELECT.into(), default_prompt, prompt_options)
             .set_attr("class", "select select-bordered w-full max-w-xs")
             .set_action(TnActionExecutionMethod::Await, preset_prompt_select_change)
-            .build();
-
-        context.add_component(preset_prompt_select);
+            .add_to_context(&mut context);
 
         let mut prompts = HashMap::<String, String>::default();
         let prompt = include_str!("../templates/drunk-bioinformatist.txt");

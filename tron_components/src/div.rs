@@ -59,9 +59,9 @@ where
     async fn initial_render(&self) -> String {
         self.render().await
     }
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 /// Appends text to the value of a TextArea component.

@@ -150,9 +150,9 @@ where
         }
     }
 
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 /// Appends a new tag-message pair to the chat box component's value.

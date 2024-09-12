@@ -372,7 +372,7 @@ async fn index(
         tracing::info!(target:"tron_app", "setting session");
         let mut session_expiry = app_data.session_expiry.write().await;
         session_expiry.insert(session.id().unwrap(), session.expiry_date());
-        
+
         // We need to insert the "userdata" into the session or when we call session.get("userdata"),
         // the session is reset, it maybe a bug in the library
         session.insert("userdata", "").await.unwrap();
@@ -558,6 +558,17 @@ async fn tron_entry(
         evt.h_target.clone_from(&hx_target);
         tracing::debug!(target: "tron_app", "event tn_event: {:?}", evt);
 
+        {
+            let context_store_guard = app_data.context_store.read().await;
+            let context = context_store_guard.get(&session_id).unwrap().clone();
+            let mut base = context.write().await;
+            let userdata = session
+                .get::<String>("user_data")
+                .await
+                .expect("error on getting user data");
+            base.user_data = Arc::new(RwLock::new(userdata));
+        }
+
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {
                 let context_store_guard = app_data.context_store.read().await;
@@ -585,17 +596,6 @@ async fn tron_entry(
                 c.get_action().as_ref().unwrap().clone()
             };
 
-            {
-                let context_store_guard = app_data.context_store.read().await;
-                let context = context_store_guard.get(&session_id).unwrap().clone();
-                let mut base = context.write().await;
-                let userdata = session
-                    .get::<String>("user_data")
-                    .await
-                    .expect("error on getting user data");
-                base.user_data = Arc::new(RwLock::new(userdata));
-            }
-
             let context_store_guard = app_data.context_store.read().await;
             let context = context_store_guard.get(&session_id).unwrap().clone();
             let action = action_generator(context, evt, payload);
@@ -603,7 +603,7 @@ async fn tron_entry(
                 TnActionExecutionMethod::Spawn => {
                     tokio::task::spawn(action);
                     None
-                }
+                },
                 TnActionExecutionMethod::Await => action.await,
             }
         } else {
@@ -620,8 +620,6 @@ async fn tron_entry(
         // send default rendered element + header processing
         let mut response_headers = HeaderMap::new();
         response_headers.insert(header::CONTENT_TYPE, "text/html".parse().unwrap());
-        let context_guard = app_data.context_store.read().await;
-        let context = &context_guard.get(&session_id).unwrap().read().await;
 
         // when there a hx_target, we update the component indicated by hx_target than the triggering component
         let tron_index = if let Some(hx_target) = hx_target {
@@ -630,15 +628,19 @@ async fn tron_entry(
             tron_index
         };
 
-        let mut component_guard = context.components.write().await;
-
         {
+            let context_store_guard = app_data.context_store.read().await;
+            let base = &context_store_guard.get(&session_id).unwrap().read().await;
+            let mut component_guard = base.components.write().await;
             let target_guard = component_guard.get_mut(&tron_index).unwrap();
             let mut target = target_guard.write().await;
-            target.pre_render().await
+            target.pre_render(base).await;
         }
 
         let body = {
+            let context_store_guard = app_data.context_store.read().await;
+            let base = &context_store_guard.get(&session_id).unwrap().read().await;
+            let mut component_guard = base.components.write().await;
             let target_guard = component_guard.get_mut(&tron_index).unwrap();
             Body::new({
                 let target = target_guard.read().await;
@@ -647,13 +649,19 @@ async fn tron_entry(
         };
 
         {
+            let context_store_guard = app_data.context_store.read().await;
+            let base = &context_store_guard.get(&session_id).unwrap().read().await;
+            let mut component_guard = base.components.write().await;
             let target_guard = component_guard.get_mut(&tron_index).unwrap();
             let mut target = target_guard.write().await;
-            target.post_render().await
+            target.post_render(base).await
         }
 
         let mut header_to_be_removed = Vec::<String>::new();
 
+        let context_store_guard = app_data.context_store.read().await;
+        let base = &context_store_guard.get(&session_id).unwrap().read().await;
+        let mut component_guard = base.components.write().await;
         let target_guard = component_guard.get_mut(&tron_index).unwrap();
         target_guard
             .write()

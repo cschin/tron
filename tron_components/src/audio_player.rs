@@ -111,9 +111,9 @@ where
         self.render().await
     }
 
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 /// Asynchronously starts playing audio associated with a given component and sends an SSE message.

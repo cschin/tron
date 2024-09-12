@@ -59,9 +59,9 @@ where
     async fn initial_render(&self) -> String {
         self.render().await
     }
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 /// Appends text to the value of a TextArea component.
@@ -213,9 +213,9 @@ where
             self.base.tag
         )
     }
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 /// Appends a new string to the stream text area component but not rendering it.
@@ -369,9 +369,9 @@ where
         self.render().await
     }
 
-    async fn pre_render(&mut self) {}
+    async fn pre_render(&mut self, _ctx: &TnContextBase) {}
 
-    async fn post_render(&mut self) {}
+    async fn post_render(&mut self, _ctx: &TnContextBase) {}
 }
 
 /// Cleans the text input component with the given context and Tron ID.

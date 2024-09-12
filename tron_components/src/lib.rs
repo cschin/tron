@@ -581,6 +581,7 @@ pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
 
     fn attributes(&self) -> &TnElmAttributes;
     fn set_attr(&mut self, key: &str, value: &str);
+    fn set_attrs(&mut self, attrs: TnElmAttributes);
     fn remove_attribute(&mut self, key: &str);
     fn generate_attr_string(&self) -> String;
 
@@ -718,6 +719,11 @@ impl TnComponentBaseTrait<'static> for TnComponentBase<'static> {
     /// Sets an attribute for the component
     fn set_attr(&mut self, key: &str, val: &str) {
         self.attributes.insert(key.into(), val.into());
+    }
+
+    /// Sets an attributes for the component
+    fn set_attrs(&mut self, attrs: TnElmAttributes) {
+        self.attributes = attrs;
     }
 
     /// Removes an attribute from the component

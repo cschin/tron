@@ -86,6 +86,10 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
                     .insert(key.into(), val.into());
             }
 
+            fn set_attrs(&mut self, attrs: TnElmAttributes) {
+                self.base.attributes = attrs;
+            }
+
             fn remove_attribute(&mut self, key: &str) {
                 self.base
                     .attributes

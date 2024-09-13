@@ -529,8 +529,8 @@ async fn tron_entry(
     //request: Request,
 ) -> impl IntoResponse {
     tracing::debug!(target: "tron_app", "headers: {:?}", headers);
-
-    //let _hx_trigger = headers.get("hx-trigger");
+    tracing::debug!(target: "tron_app", "event payload: {:?}", payload);
+    
     let hx_target: Option<String> = headers
         .get("hx-target")
         .map(|hx_target| hx_target.to_str().unwrap().to_string());
@@ -543,21 +543,16 @@ async fn tron_entry(
     } else {
         return (StatusCode::FORBIDDEN, response_headers, Body::default());
     };
-    {
-        let context = app_data.context_store.read().await;
-        if !context.contains_key(&session_id) {
-            //return Err(StatusCode::FORBIDDEN);
-            return (StatusCode::FORBIDDEN, response_headers, Body::default());
-        }
+
+    let context_store_guard = app_data.context_store.read().await;
+    if !context_store_guard.contains_key(&session_id) {
+        //return Err(StatusCode::FORBIDDEN);
+        return (StatusCode::FORBIDDEN, response_headers, Body::default());
     }
 
-    tracing::debug!(target: "tron_app", "event payload: {:?}", payload);
-    let context_store_guard = app_data.context_store.read().await;
     let context = context_store_guard.get(&session_id).unwrap().clone();
 
     {
-        //let context_store_guard = app_data.context_store.read().await;
-        //let context = context_store_guard.get(&session_id).unwrap().clone();
         let mut context_guard = context.write().await;
         let user_data = session
             .get::<String>("user_data")
@@ -571,7 +566,6 @@ async fn tron_entry(
         evt.h_target.clone_from(&hx_target);
         tracing::debug!(target: "tron_app", "event tn_event: {:?}", evt);
 
-      
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {
                 context

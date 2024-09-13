@@ -909,8 +909,10 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
 #[async_trait]
 pub trait TnComponentRenderTrait<'a: 'static>: Send + Sync {
     async fn initial_render(&self) -> String;
+    // we pass &TnContextBase not the &TnContext to ensure read-only access in pre_render 
     async fn pre_render(&mut self, ctx_base: &TnContextBase);
     async fn render(&self) -> String;
+    // we pass &TnContextBase not the &TnContext to ensure read-only access in post_render 
     async fn post_render(&mut self, ctx_base: &TnContextBase);
 }
 

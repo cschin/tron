@@ -552,16 +552,18 @@ async fn tron_entry(
     }
 
     tracing::debug!(target: "tron_app", "event payload: {:?}", payload);
+    let context_store_guard = app_data.context_store.read().await;
+    let context = context_store_guard.get(&session_id).unwrap().clone();
 
     {
-        let context_store_guard = app_data.context_store.read().await;
-        let context = context_store_guard.get(&session_id).unwrap().clone();
-        let mut base = context.write().await;
+        //let context_store_guard = app_data.context_store.read().await;
+        //let context = context_store_guard.get(&session_id).unwrap().clone();
+        let mut context_guard = context.write().await;
         let user_data = session
             .get::<String>("user_data")
             .await
             .expect("error on getting user data");
-        base.user_data = Arc::new(RwLock::new(user_data));
+        context_guard.user_data = Arc::new(RwLock::new(user_data));
     }
 
     let response = if let Some(event_data) = match_event(&payload).await {
@@ -569,45 +571,39 @@ async fn tron_entry(
         evt.h_target.clone_from(&hx_target);
         tracing::debug!(target: "tron_app", "event tn_event: {:?}", evt);
 
+      
         if evt.e_type == "change" {
             if let Some(value) = event_data.e_value {
-                let context_store_guard = app_data.context_store.read().await;
-                let context = context_store_guard.get(&session_id).unwrap().clone();
                 context
                     .set_value_for_component(&evt.e_trigger, TnComponentValue::String(value))
                     .await;
             }
         }
+        {
+            let component_guard = context.get_component_by_id(&tron_index).await;
 
-        let has_event_action = {
-            let context_store_guard = app_data.context_store.read().await;
-            let context = context_store_guard.get(&session_id).unwrap().clone();
-            let c = context.get_component_by_id(&tron_index).await;
-            let c = c.read().await;
-            c.get_action().is_some()
-        };
-
-        if has_event_action {
-            let (action_exec_method, action_generator) = {
-                let context_store_guard = app_data.context_store.read().await;
-                let context = context_store_guard.get(&session_id).unwrap().clone();
-                let c = context.get_component_by_id(&tron_index).await;
-                let c = c.read().await;
-                c.get_action().as_ref().unwrap().clone()
+            let has_event_action = {
+                let component = component_guard.read().await;
+                component.get_action().is_some()
             };
+            // we need to acquire a new lock for component, or it will have a deadlock
+            if has_event_action {
+                let (action_exec_method, action_generator) = {
+                    let component = component_guard.read().await;
+                    component.get_action().as_ref().unwrap().clone()
+                };
 
-            let context_store_guard = app_data.context_store.read().await;
-            let context = context_store_guard.get(&session_id).unwrap().clone();
-            let action = action_generator(context, evt, payload);
-            match action_exec_method {
-                TnActionExecutionMethod::Spawn => {
-                    tokio::task::spawn(action);
-                    None
-                },
-                TnActionExecutionMethod::Await => action.await,
+                let action = action_generator(context.clone(), evt, payload);
+                match action_exec_method {
+                    TnActionExecutionMethod::Spawn => {
+                        tokio::task::spawn(action);
+                        None
+                    }
+                    TnActionExecutionMethod::Await => action.await,
+                }
+            } else {
+                None
             }
-        } else {
-            None
         }
     } else {
         None
@@ -628,47 +624,21 @@ async fn tron_entry(
             tron_index
         };
 
-        {
-            let context_store_guard = app_data.context_store.read().await;
-            let base = &context_store_guard.get(&session_id).unwrap().read().await;
-            let mut component_guard = base.components.write().await;
-            let target_guard = component_guard.get_mut(&tron_index).unwrap();
-            let mut target = target_guard.write().await;
-            target.pre_render(base).await;
-        }
-
         let body = {
-            let context_store_guard = app_data.context_store.read().await;
-            let base = &context_store_guard.get(&session_id).unwrap().read().await;
-            let mut component_guard = base.components.write().await;
-            let target_guard = component_guard.get_mut(&tron_index).unwrap();
-            Body::new({
-                let target = target_guard.read().await;
-                target.render().await
-            })
-        };
-
-        {
-            let context_store_guard = app_data.context_store.read().await;
-            let base = &context_store_guard.get(&session_id).unwrap().read().await;
-            let mut component_guard = base.components.write().await;
+            let context_guard = context.read().await;
+            let mut component_guard = context_guard.components.write().await;
             let target_guard = component_guard.get_mut(&tron_index).unwrap();
             let mut target = target_guard.write().await;
-            target.post_render(base).await
-        }
 
-        let mut header_to_be_removed = Vec::<String>::new();
+            target.pre_render(&context_guard).await;
 
-        let context_store_guard = app_data.context_store.read().await;
-        let base = &context_store_guard.get(&session_id).unwrap().read().await;
-        let mut component_guard = base.components.write().await;
-        let target_guard = component_guard.get_mut(&tron_index).unwrap();
-        target_guard
-            .write()
-            .await
-            .extra_headers()
-            .iter()
-            .for_each(|(k, v)| {
+            let body = Body::new(target.render().await);
+
+            target.post_render(&context_guard).await;
+
+            let mut header_to_be_removed = Vec::<String>::new();
+
+            target.extra_headers().iter().for_each(|(k, v)| {
                 response_headers.insert(
                     HeaderName::from_bytes(k.as_bytes()).unwrap(),
                     HeaderValue::from_bytes(v.0.as_bytes()).unwrap(),
@@ -678,14 +648,17 @@ async fn tron_entry(
                 };
             });
 
-        // remove the header items that we only want to use it once
-        for k in header_to_be_removed {
-            target_guard.write().await.remove_header(&k);
-        }
+            // remove the header items that we only want to use it once
+            for k in header_to_be_removed {
+                target.remove_header(&k);
+            }
+            body
+        };
 
         (StatusCode::OK, response_headers, body)
     }
 }
+
 /// Retrieves a specific component associated with a session from application data.
 ///
 /// This asynchronous function accesses shared application data to retrieve a component

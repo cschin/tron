@@ -41,7 +41,7 @@ use rand::{thread_rng, Rng};
 
 use axum::{body::Bytes, http::HeaderMap, response::Html};
 use bytes::BytesMut;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 /// This for the HTML element attributes
 pub type TnElmAttributes = HashMap<String, String>;
 /// For adding extra header for the HTTP responses
@@ -316,6 +316,12 @@ pub type TnService = (
     Mutex<Option<Receiver<TnServiceResponseMsg>>>,
 );
 
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct UserData {
+    pub username: String,
+    pub email: String,
+}
+
 /// Represents the base context structure for managing various aspects of a UI-centric application.
 ///
 /// Fields:
@@ -392,6 +398,13 @@ impl TnContextBase<'static> {
         let component_guard = self.components.read().await;
         let component = component_guard.get(tron_id).unwrap().read().await;
         component.initial_render().await
+    }
+
+    pub async fn get_user_data(&self) -> Option<UserData> {
+        let user_data = self.user_data.read().await;
+        user_data
+            .as_ref()
+            .map(|json_str| serde_json::from_str(json_str).unwrap())
     }
 }
 
@@ -909,10 +922,10 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
 #[async_trait]
 pub trait TnComponentRenderTrait<'a: 'static>: Send + Sync {
     async fn initial_render(&self) -> String;
-    // we pass &TnContextBase not the &TnContext to ensure read-only access in pre_render 
+    // we pass &TnContextBase not the &TnContext to ensure read-only access in pre_render
     async fn pre_render(&mut self, ctx_base: &TnContextBase);
     async fn render(&self) -> String;
-    // we pass &TnContextBase not the &TnContext to ensure read-only access in post_render 
+    // we pass &TnContextBase not the &TnContext to ensure read-only access in post_render
     async fn post_render(&mut self, ctx_base: &TnContextBase);
 }
 

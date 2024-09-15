@@ -454,6 +454,18 @@ async fn load_page(
     };
 
     let context_store_guard = app_data.context_store.read().await;
+    {
+        let context = context_store_guard.get(&session_id).unwrap().clone();
+        let mut context_guard = context.write().await;
+        if context_guard.user_data.write().await.is_none() {
+            let user_data = session
+                .get::<String>("user_data")
+                .await
+                .expect("error on getting user data");
+            context_guard.user_data = Arc::new(RwLock::new(user_data));
+        }
+    }
+    
     let context = context_store_guard.get(&session_id).unwrap().clone();
     //let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context.clone()));
     let layout = (*app_data.build_layout)(context).await;
@@ -530,7 +542,7 @@ async fn tron_entry(
 ) -> impl IntoResponse {
     tracing::debug!(target: "tron_app", "headers: {:?}", headers);
     tracing::debug!(target: "tron_app", "event payload: {:?}", payload);
-    
+
     let hx_target: Option<String> = headers
         .get("hx-target")
         .map(|hx_target| hx_target.to_str().unwrap().to_string());
@@ -551,15 +563,6 @@ async fn tron_entry(
     }
 
     let context = context_store_guard.get(&session_id).unwrap().clone();
-
-    {
-        let mut context_guard = context.write().await;
-        let user_data = session
-            .get::<String>("user_data")
-            .await
-            .expect("error on getting user data");
-        context_guard.user_data = Arc::new(RwLock::new(user_data));
-    }
 
     let response = if let Some(event_data) = match_event(&payload).await {
         let mut evt = event_data.tn_event;

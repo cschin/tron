@@ -447,22 +447,22 @@ impl TnContext {
 
     /// Asynchronously retrieves a component by its `tron_id`.
     pub async fn get_component(&self, tron_id: &str) -> TnComponent<'static> {
-        let context_guard = self.write().await;
+        let context_guard = self.read().await;
         let components_guard = context_guard.components.read().await;
         components_guard.get(tron_id).unwrap().clone()
     }
 
     /// Asynchronously retrieves a component by its `id`.
     pub async fn get_component_by_id(&self, id: &String) -> TnComponent<'static> {
-        let context_guard = self.write().await;
+        let context_guard = self.read().await;
         let components_guard = context_guard.components.read().await;
         components_guard.get(id).unwrap().clone()
     }
 
     /// Synchronously retrieves a component by its `tron_id`.
     pub fn blocking_get_component(&self, tron_id: &str) -> TnComponent<'static> {
-        let context_guard = self.blocking_write();
-        let components_guard = context_guard.components.blocking_write();
+        let context_guard = self.blocking_read();
+        let components_guard = context_guard.components.blocking_read();
         components_guard.get(tron_id).unwrap().clone()
     }
 

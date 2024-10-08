@@ -37,9 +37,15 @@
       }
 
       console.log('New message from server:', event.data, target, state);
-      document.getElementById(target).setAttribute("state", state);
-      console.log("server side trigger:", "#" + target);
-      htmx.trigger("#" + target, "server_event", {event_data:{}});
+      let elm = document.getElementById(target);
+      if (elm != null) {
+          elm.setAttribute("state", state);
+          console.log("server side trigger:", "#" + target);
+          htmx.trigger("#" + target, "server_event", {event_data:{}});
+      } else {
+          console.log(`Element with id '${target}' not found`);
+      }
+
     };
 
     // Listen for errors

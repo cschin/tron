@@ -3,13 +3,24 @@
 
         if ("stream_textarea_control" in event_data && event_data["stream_textarea_control"] == "append_text") {
             let elm = document.getElementById(target);
-            elm.innerHTML = elm.innerHTML + event_data["payload"];
-            elm.scrollTop = elm.scrollHeight;
+            if (elm !== null) {
+                elm.innerHTML = elm.innerHTML + event_data["payload"];
+                elm.scrollTop = elm.scrollHeight;
+            }
+            else {
+                console.log(`Element with id '${target}' not found`);
+            }
         };
 
         if ("stream_textarea_control" in event_data && event_data["stream_textarea_control"] == "update_text") {
             let elm = document.getElementById(target);
-            elm.innerHTML = "";
+            if (elm !== null) {
+                elm.innerHTML = "";
+            } else {
+                console.log(`Element with id '${target}' not found`);
+            }
+
+
         };
 
     }

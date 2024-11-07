@@ -167,6 +167,18 @@ pub async fn append_chatbox_value(
     }
 }
 
+
+/// Appends a new tag-message pair to the chat box component's value.
+pub async fn clean_chatbox_value(
+    comp: Arc<RwLock<Box<dyn TnComponentBaseRenderTrait<'static>>>>,
+) {
+    let mut comp = comp.write().await;
+    assert!(comp.get_type() == TnComponentType::ChatBox);
+    if let TnComponentValue::VecString2(v) = comp.get_mut_value() {
+        v.clear();
+    }
+}
+
 /// Cleans the chat box component's transcript and triggers an update.
 ///
 /// This function removes the transcript content of the chat box component identified by `tron_id`

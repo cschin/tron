@@ -11,13 +11,13 @@ use serde_json::Value;
 
 use tracing::debug;
 
-use tron_app::tron_components::{
+use tron_app::{tron_components::{
     checklist, radio_group,
     text::{self, append_and_update_stream_textarea_with_context, append_textarea_value},
     tn_future, TnActionExecutionMethod, TnButton, TnComponentState, TnComponentValue, TnContext,
     TnContextBase, TnDnDFileUpload, TnEvent, TnFileUpload, TnFutureHTMLResponse, TnFutureString,
     TnRangeSlider, TnSelect,
-};
+}, Ports};
 
 //use std::sync::Mutex;
 use std::{collections::HashMap, str::FromStr, sync::Arc};
@@ -29,6 +29,7 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 async fn main() {
     let app_config = tron_app::AppConfigure {
         cognito_login: false,
+        ports: Ports {https: 3002, http:8082},
         http_only: true,
         log_level: Some("server=debug,tower_http=debug,tron_app=info"),
         ..Default::default()

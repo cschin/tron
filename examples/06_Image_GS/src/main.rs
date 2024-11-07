@@ -30,8 +30,7 @@ use serde_json::{Number, Value};
 
 use tracing::debug;
 use tron_app::{
-    send_sse_msg_to_client,
-    tron_components::{
+    send_sse_msg_to_client, tron_components::{
         self, button,
         d3_plot::SseD3PlotTriggerMsg,
         div::{clean_div_with_context, update_and_send_div_with_context, TnDivBuilder},
@@ -43,8 +42,7 @@ use tron_app::{
         tn_future, TnActionExecutionMethod, TnActionFn, TnAsset, TnChatBox, TnD3Plot, TnDiv,
         TnDnDFileUpload, TnFutureHTMLResponse, TnFutureString, TnHtmlResponse, TnServiceRequestMsg,
         TnStreamTextArea,
-    },
-    AppData, TnServerEventData, TnSseTriggerMsg, TRON_APP,
+    }, AppData, Ports, TnServerEventData, TnSseTriggerMsg, TRON_APP
 };
 use tron_components::{
     text::TnTextInput, TnButton, TnComponentState, TnComponentValue, TnContext, TnContextBase,
@@ -70,6 +68,7 @@ async fn main() {
 
     let app_config = tron_app::AppConfigure {
         address: [0, 0, 0, 0],
+        ports: Ports {http:8083, https:3003},
         http_only: true,
         api_router: Some(api_routes),
         cognito_login: false,

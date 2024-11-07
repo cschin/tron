@@ -42,8 +42,8 @@ pub static TRON_APP: &str = "tron_app";
 /// This struct encapsulates the HTTP and HTTPS ports used in a network configuration.
 #[derive(Clone, Copy)]
 pub struct Ports {
-    http: u16,
-    https: u16,
+    pub http: u16,
+    pub https: u16,
 }
 
 /// Represents a session ID used in Tower Sessions.
@@ -298,15 +298,18 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
 
     tokio::task::spawn(clean_up_session(app_share_data.clone()));
 
-    let addr = SocketAddr::from((config.address, ports.https));
+  
 
     if config.http_only {
+        let addr = SocketAddr::from((config.address, ports.http));
         tracing::info!(target:"tron_app", "Starting server at {}", addr);
+        
         axum_server::bind(addr)
             .serve(app_routes.into_make_service())
             .await
             .unwrap();
     } else {
+        let addr = SocketAddr::from((config.address, ports.https));
         // optional: spawn a second server to redirect http requests to this server
         tokio::spawn(redirect_http_to_https(config.address, ports));
 

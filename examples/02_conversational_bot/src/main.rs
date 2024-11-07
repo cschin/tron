@@ -23,7 +23,7 @@ use tokio::sync::{
 };
 #[allow(unused_imports)]
 use tracing::{debug, info};
-use tron_app::tron_components;
+use tron_app::{tron_components, Ports};
 use tron_app::{send_sse_msg_to_client, TnServerEventData, TnSseTriggerMsg};
 use tron_components::audio_recorder::SseAudioRecorderTriggerMsg;
 use tron_components::{text::append_and_update_stream_textarea_with_context, *};
@@ -51,6 +51,7 @@ async fn main() {
     // Configure the application
     let app_configure = tron_app::AppConfigure {
         log_level: Some("server=info,tower_http=info,tron_app=info"),
+        ports: Ports {https: 3001, http:8081},
         cognito_login: true,
         session_expiry: Some(time::Duration::seconds_f32(600.0)),
         ..Default::default()

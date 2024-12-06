@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use std::f64::consts::PI;
 
 use anyhow::Result;
+use candle_core::shape::SCALAR;
 use candle_core::{op, scalar::TensorScalar, DType, Device, Shape, Tensor, Var};
 use candle_nn::{Optimizer, VarMap};
 use image::{DynamicImage, GenericImageView, ImageEncoder, ImageFormat};
@@ -46,13 +47,35 @@ fn render(gs: &Var, grids_xy: &[Tensor], device: &Device) -> Result<Vec<Tensor>>
             |(ux0, uy0, a0, b0, c0, red0, green0, blue0, alpha0)| -> Result<_> {
                 let a0 = &a0
                     .erf()?
-                    .add(&Tensor::from_slice(&[1.0_f32], (), device)?)?
-                    .mul(&Tensor::from_slice(&[2.0_f32], (), device)?)?;
+                    .add(&Tensor::from_slice(&[1.005_f32], SCALAR, device)?)?
+                    .mul(&Tensor::from_slice(&[2.0_f32], SCALAR, device)?)?;
 
                 let b0 = &b0
                     .erf()?
-                    .add(&Tensor::from_slice(&[1.0_f32], (), device)?)?
+                    .add(&Tensor::from_slice(&[1.005_f32], (), device)?)?
                     .mul(&Tensor::from_slice(&[2.0_f32], (), device)?)?;
+
+                let red0 = red0
+                    .erf()?
+                    .add(&Tensor::from_slice(&[1.0_f32], SCALAR, device).unwrap())?
+                    .mul(&Tensor::from_slice(&[0.5_f32], SCALAR, device)?)?;
+                let green0 = green0
+                    .erf()?
+                    .add(&Tensor::from_slice(&[1.0_f32], SCALAR, device).unwrap())?
+                    .mul(&Tensor::from_slice(&[0.5_f32], SCALAR, device)?)?;
+                let blue0 = blue0
+                    .erf()?
+                    .add(&Tensor::from_slice(&[1.0_f32], SCALAR, device).unwrap())?
+                    .mul(&Tensor::from_slice(&[0.5_f32], SCALAR, device)?)?;
+                let alpha0 = alpha0
+                    .erf()?
+                    .add(&Tensor::from_slice(&[1.0_f32], SCALAR, device).unwrap())?
+                    .mul(&Tensor::from_slice(&[0.5_f32], SCALAR, device)?)?;
+
+                // let red0 = red0.clamp(0.0, 1.0).unwrap();
+                // let green0 = green0.clamp(0.0, 1.0).unwrap();
+                // let blue0 = blue0.clamp(0.0, 1.0).unwrap();
+                // let alpha0 = alpha0.clamp(0.0, 1.0).unwrap();
 
                 let dx = x.broadcast_sub(&ux0)?;
                 let dy = y.broadcast_sub(&uy0)?;
@@ -163,13 +186,13 @@ pub async fn gs_fit(context: &TnContext, ref_img: &DynamicImage) -> Result<()> {
     let var_init = [
         ("ux", 0.0_f32, dims.0 as f32),
         ("uy", 0.0_f32, dims.1 as f32),
-        ("a", -1.5_f32, -1.0_f32),
-        ("b", -1.5_f32, -1.0_f32),
+        ("a", -2.0_f32, -1.5_f32),
+        ("b", -2.0_f32, -1.5_f32),
         ("c", -PI as f32, PI as f32),
-        ("red", 0.00_f32, 0.05_f32),
-        ("green", 0.00_f32, 0.05_f32),
-        ("blue", 0.00_f32, 0.05_f32),
-        ("alpha", 0.00_f32, 1.0_f32),
+        ("red", -0.5_f32, -0.4_f32),
+        ("green", -0.5_f32, -0.4_f32),
+        ("blue", -0.5_f32, -0.4_f32),
+        ("alpha", -0.01_f32, 0.01_f32),
     ];
     let r = var_init
         .into_iter()

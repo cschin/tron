@@ -378,7 +378,7 @@ struct TwoDPoint<'a> {
     chunk: &'a DocumentChunk,
 }
 
-impl<'a> Ord for TwoDPoint<'a> {
+impl Ord for TwoDPoint<'_> {
     fn cmp(&self, other: &Self) -> Ordering {
         // Notice that the we flip the ordering on costs.
         // In case of a tie we compare positions - this step is necessary
@@ -388,19 +388,19 @@ impl<'a> Ord for TwoDPoint<'a> {
 }
 
 // `PartialOrd` needs to be implemented as well.
-impl<'a> PartialOrd for TwoDPoint<'a> {
+impl PartialOrd for TwoDPoint<'_> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<'a> PartialEq for TwoDPoint<'a> {
+impl PartialEq for TwoDPoint<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.d == other.d
     }
 }
 
-impl<'a> Eq for TwoDPoint<'a> {}
+impl Eq for TwoDPoint<'_> {}
 
 use ordered_float::OrderedFloat;
 use std::collections::BinaryHeap;

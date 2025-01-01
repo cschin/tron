@@ -43,7 +43,6 @@ async fn main() {
 /// This function creates and adds various components to the context,
 /// such as buttons, textareas, checklists, radio groups, a select dropdown,
 /// a range slider, and buttons for cleaning the textareas and text input.
-
 fn build_session_context() -> TnContext {
     let mut context = TnContextBase::<'static>::default();
     let mut btn_idx = 0_u32;
@@ -372,7 +371,6 @@ fn counter_btn_clicked(
 ///
 /// A `Pin<Box<dyn Future<Output = TnHtmlResponse> + Send + Sync>>` representing the asynchronous
 /// operation that generates the HTML response, or `None` if the event type is not handled.
-
 fn clean_stream_textarea(
     context: TnContext,
     event: TnEvent,
@@ -614,7 +612,6 @@ struct AppPageTemplate {
 /// # Returns
 ///
 /// A `String` containing the HTML for the application's main page.
-
 fn layout(context: TnContext) -> TnFutureString {
     tn_future! {
         let context_guard = context.read().await;

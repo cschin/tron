@@ -64,7 +64,7 @@ use gs_service::gs_service;
 #[tokio::main]
 async fn main() {
     let api_routes =
-        Router::<Arc<AppData>>::new().route("/result_images/:image_id", get(get_image));
+        Router::<Arc<AppData>>::new().route("/result_images/{image_id}", get(get_image));
 
     let app_config = tron_app::AppConfigure {
         address: [0, 0, 0, 0],

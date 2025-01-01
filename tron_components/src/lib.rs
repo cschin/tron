@@ -13,7 +13,6 @@ pub mod text;
 
 pub use audio_player::TnAudioPlayer;
 pub use audio_recorder::TnAudioRecorder;
-use axum::async_trait;
 pub use button::TnButton;
 pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
@@ -24,6 +23,8 @@ pub use radio_group::{TnRadioGroup, TnRadioItem};
 pub use range_slider::TnRangeSlider;
 pub use select::TnSelect;
 pub use text::{TnStreamTextArea, TnTextArea, TnTextInput};
+
+pub use async_trait::async_trait;
 
 use serde_json::Value;
 use std::{
@@ -171,7 +172,7 @@ use std::sync::LazyLock;
 static COMPONENT_TYPE_SCRIPTS: LazyLock<Mutex<HashMap<TnComponentType, String>>> =
     LazyLock::new(|| Mutex::new(HashMap::default()));
 
-impl<'a: 'static> TnComponentType {
+impl TnComponentType {
     fn register_script(t: TnComponentType, script: &str) {
         let mut m = COMPONENT_TYPE_SCRIPTS.blocking_lock();
         m.entry(t).or_insert_with(|| script.into());
@@ -348,7 +349,6 @@ pub struct TnContextBase<'a: 'static> {
 impl TnContextBase<'static> {
     /// Constructs a new instance of `TnContextBase` with default settings.
     /// Initializes all internal storages (components, assets, streams, services, and SSE channels) as empty.
-
     pub fn new() -> Self {
         TnContextBase {
             components: Arc::new(RwLock::new(HashMap::default())),
@@ -587,7 +587,6 @@ impl Default for TnContextBase<'static> {
 /// This trait provides methods for managing component properties,
 /// rendering, handling attributes and headers, managing children and parents,
 /// and setting actions.
-
 pub trait TnComponentBaseTrait<'a: 'static>: Send + Sync {
     fn tron_id(&self) -> &TnComponentId;
     fn get_type(&self) -> TnComponentType;
@@ -676,7 +675,6 @@ impl TnComponentBase<'static> {
 /// ```
 ///
 /// This is useful for initializing components with a unique ID and default settings.
-
 impl Default for TnComponentBase<'static> {
     fn default() -> TnComponentBase<'static> {
         let mut rng = thread_rng();
@@ -920,7 +918,7 @@ impl<'a: 'static> TnComponentBaseBuilder<'a> {
 }
 
 #[async_trait]
-pub trait TnComponentRenderTrait<'a: 'static>: Send + Sync {
+pub trait TnComponentRenderTrait<'a>: Send + Sync {
     async fn initial_render(&self) -> String;
     // we pass &TnContextBase not the &TnContext to ensure read-only access in pre_render
     async fn pre_render(&mut self, ctx_base: &TnContextBase);
@@ -950,7 +948,6 @@ use tokio::sync::{mpsc::Sender, RwLock};
 use tron_utils::{send_sse_msg_to_client, HtmlAttributes, TnServerEventData, TnSseTriggerMsg};
 
 /// Represents an HTML response along with its headers, wrapped in an optional tuple.
-
 pub type TnHtmlResponse = Option<(HeaderMap, Html<String>)>;
 
 /// Represents an asynchronous action function that processes Tron events.

@@ -172,7 +172,7 @@ async fn main() {
         })
         .await;
 
-    let api_routes = Router::<Arc<AppData>>::new().route("/file_checked/:fid", post(api_test));
+    let api_routes = Router::<Arc<AppData>>::new().route("/file_checked/{fid}", post(api_test));
 
     let app_config = tron_app::AppConfigure {
         address: [0, 0, 0, 0],

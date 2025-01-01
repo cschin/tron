@@ -1,17 +1,11 @@
 use askama::Template;
 use axum::{
-    body::Body,
-    extract::{DefaultBodyLimit, Host, Json, Multipart, OriginalUri, Path, Query, Request, State},
-    handler::HandlerWithoutStateExt,
-    http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode, Uri},
-    middleware::{self, Next},
-    response::{
+    body::Body, extract::{DefaultBodyLimit, Json, Multipart, OriginalUri, Path, Query, Request, State}, handler::HandlerWithoutStateExt, http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode, Uri}, middleware::{self, Next}, response::{
         sse::{self, KeepAlive},
         Html, IntoResponse, Redirect, Sse,
-    },
-    routing::{get, post},
-    BoxError, Router,
+    }, routing::{get, post}, BoxError, Router
 };
+use axum_extra::extract::Host;
 use axum_server::tls_rustls::RustlsConfig;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -253,12 +247,12 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         .route("/", get(index))
         .route("/server_events", get(sse_event_handler))
         .route("/load_page", get(load_page))
-        .route("/tron/:tron_id", get(tron_entry).post(tron_entry))
+        .route("/tron/{tron_id}", get(tron_entry).post(tron_entry))
         .route(
-            "/tron_streaming/:stream_id",
+            "/tron_streaming/{stream_id}",
             get(tron_stream).post(tron_stream),
         )
-        .route("/upload/:tron_id", post(upload))
+        .route("/upload/{tron_id}", post(upload))
         .layer(DefaultBodyLimit::max(64 * 1024 * 1024));
 
     let routes = if let Some(api_router) = config.api_router {

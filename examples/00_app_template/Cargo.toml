@@ -6,7 +6,7 @@ description.workspace = true
 edition.workspace = true
 
 [dependencies]
-axum = "0.7.5"
+axum = "0.8.1"
 serde = { version = "1.0.210", features = ["derive"] }
 tokio = { version = "1.40.0", features = ["full"] }
 tracing = "0.1.40"

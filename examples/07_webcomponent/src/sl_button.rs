@@ -1,4 +1,4 @@
-use axum::async_trait;
+use async_trait::async_trait;
 use std::collections::HashMap;
 use tron_app::tron_components::*;
 use tron_app::tron_macro::*;
@@ -24,8 +24,6 @@ impl<'a: 'static> SLButtonBuilder<'a> {
 
 #[async_trait]
 impl<'a> TnComponentRenderTrait<'a> for SLButton<'a>
-where
-    'a: 'static,
 {
     /// Generates the internal HTML representation of the button component.
     async fn render(&self) -> String {

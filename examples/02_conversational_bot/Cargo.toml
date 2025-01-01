@@ -6,7 +6,7 @@ description.workspace = true
 edition.workspace = true
 
 [dependencies]
-axum = { version = "0.7.5", features = ["multipart"] }
+axum = { version = "0.8.1", features = ["multipart"] }
 serde = { version = "1.0.197", features = ["derive"] }
 tokio = { version = "1.37.0", features = ["full"] }
 tracing = "0.1.40"
@@ -25,9 +25,9 @@ http = "1.1.0"
 tokio-tungstenite = { version = "0.23", features = ["rustls-tls-webpki-roots"] }
 rand = "0.8.5"
 data-encoding = "2.5.0"
-thiserror = "1.0.59"
+thiserror = "2.0.9"
 reqwest = "0.12.4"
-async-openai = "0.24.0"
+async-openai = "0.26.0"
 time = "0.3.30"
 memory-stats = "1.1.0"
 # console-subscriber = "0.2.0"

@@ -743,7 +743,7 @@ fn query_with_hits(context: TnContext, event: TnEvent, _payload: Value) -> TnFut
             };
 
             if let Some(TnAsset::String(s)) = asset.get("top_k_chunk") {
-                query_text.push_str("\n with the following chunks of text:\n");
+                query_text.push_str(r#"\n using the summary of the relevant information from the following chunks of text to answer the above question. when constructing the answers include the text following "Paragraph:" and the TITLE of the paragraph from used for constructing the answer as citation.\n"#);
                 query_text.push_str(s);
             };
 

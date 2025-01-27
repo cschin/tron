@@ -48,12 +48,12 @@
 
     const x_scale = d3.scaleLinear()
       //.domain([0, 8])
-      .domain([-3, 3])
+      .domain([-1.05, 1.05])
       .range([0, width]);
 
     const y_scale = d3.scaleLinear()
-      //.domain([-2, 4])
-      .domain([-6,0])
+      //.domain([-12, 12])
+      .domain([-1.05, 1.05])
       .range([height, 0]);
 
     return {

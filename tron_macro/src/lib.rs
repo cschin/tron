@@ -83,12 +83,12 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             fn set_attr(&mut self, key: &str, val: &str) {
                 self.base
                     .attributes
-                    .insert(key.into(), val.into());
+                    .insert(key.to_string(), val.to_string());
             }
 
             fn update_attrs(&mut self, attrs: TnElmAttributes) {
                 for (k, v) in attrs {
-                    self.base.attributes.insert(k, v);
+                    self.base.attributes.insert(k.to_string(), v.to_string());
                 }
             }
 
@@ -105,13 +105,13 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             fn set_header(&mut self, key: &str, val: (String, bool)) {
                 self.base
                     .extra_response_headers
-                    .insert(key.into(), val);
+                    .insert(key.to_string(), val);
             }
 
             fn remove_header(&mut self, key: &str) {
                 self.base
                     .extra_response_headers
-                    .remove(key.into());
+                    .remove(key);
             }
 
             fn clear_header(&mut self) {
@@ -206,7 +206,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             pub fn set_attr(mut self, key: &str, val: &str) -> #builder_name<'static> {
                 self.base
                     .attributes
-                    .insert(key.to_string(), val.to_string());
+                    .insert(key.into(), val.into());
                 self
             }
 

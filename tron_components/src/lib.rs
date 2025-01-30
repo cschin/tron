@@ -317,7 +317,7 @@ pub type TnService = (
     Mutex<Option<Receiver<TnServiceResponseMsg>>>,
 );
 
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 pub struct UserData {
     pub username: String,
     pub email: String,

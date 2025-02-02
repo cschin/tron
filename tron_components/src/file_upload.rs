@@ -204,15 +204,17 @@ where
             </button>
             </div>
             <script>
-                let theDropzone = new Dropzone('#{tron_id}_form', {{paramName:'{tron_id}_form',  url: "/upload/{}"}});
-                window.tron_assets["dropzones"] = {{"{tron_id}_form":theDropzone}};
-                theDropzone.on("complete", function(file) {{
-                    htmx.trigger("#{tron_id}", "finished", {{}});
-                }});
-                document.querySelector('#{tron_id}_clear_btn').addEventListener('click', 
-                    function () {{ 
-                        window.tron_assets["dropzones"]["{tron_id}_form"].removeAllFiles(); 
-                }});
+                {{
+                    let theDropzone = new Dropzone('#{tron_id}_form', {{paramName:'{tron_id}_form',  url: "/upload/{}"}});
+                    window.tron_assets["dropzones"] = {{"{tron_id}_form":theDropzone}};
+                    theDropzone.on("complete", function(file) {{
+                        htmx.trigger("#{tron_id}", "finished", {{}});
+                    }});
+                    document.querySelector('#{tron_id}_clear_btn').addEventListener('click', 
+                        function () {{ 
+                            window.tron_assets["dropzones"]["{tron_id}_form"].removeAllFiles(); 
+                    }});
+                }}
             </script>"##,
             self.base.tag,
             self.generate_attr_string(),

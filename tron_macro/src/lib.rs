@@ -206,7 +206,7 @@ pub fn component_base_macro_derive(input: TokenStream) -> TokenStream {
             pub fn set_attr(mut self, key: &str, val: &str) -> #builder_name<'static> {
                 self.base
                     .attributes
-                    .insert(key.into(), val.into());
+                    .insert(key.to_string(), val.to_string());
                 self
             }
 

@@ -6,6 +6,7 @@ use tron_macro::*;
 #[derive(ComponentBase)]
 pub struct TnRangeSlider<'a: 'static> {
     base: TnComponentBase<'a>,
+    default_value: f32,
 }
 
 impl TnRangeSliderBuilder<'static> {
@@ -33,6 +34,7 @@ impl TnRangeSliderBuilder<'static> {
             .set_attr("hx-trigger", "change, server_event")
             .set_attr("hx-swap", "none")
             .build();
+        self.default_value = value;
         self.base.value = TnComponentValue::String(format!("{}", value.round() as u32));
         self
     }
@@ -48,6 +50,7 @@ impl Default for TnRangeSlider<'static> {
                 value: TnComponentValue::String("range".to_string()),
                 ..Default::default()
             },
+            default_value: 0.0
         }
     }
 }
@@ -75,10 +78,7 @@ where
             r##"<{} type="range" {} value="{}"/>"##,
             self.base.tag,
             self.generate_attr_string(),
-            match self.value() {
-                TnComponentValue::String(v) => v,
-                _ => "0.0",
-            },
+            format!("{}", self.default_value.round() as u32)
         )
     }
 

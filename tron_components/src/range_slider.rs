@@ -33,6 +33,7 @@ impl TnRangeSliderBuilder<'static> {
             .set_attr("hx-trigger", "change, server_event")
             .set_attr("hx-swap", "none")
             .build();
+        self.base.value = TnComponentValue::String(format!("{}", value.round() as u32));
         self
     }
 }
@@ -70,7 +71,15 @@ where
     }
     /// Renders the `TnRangeSlider` component for the first time.
     async fn initial_render(&self) -> String {
-        self.render().await
+        format!(
+            r##"<{} type="range" {} value="{}"/>"##,
+            self.base.tag,
+            self.generate_attr_string(),
+            match self.value() {
+                TnComponentValue::String(v) => v,
+                _ => "0.0",
+            },
+        )
     }
 
     async fn pre_render(&mut self, _ctx: &TnContextBase) {}

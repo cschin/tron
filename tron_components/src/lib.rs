@@ -119,6 +119,7 @@ pub enum TnAsset {
     String(String),
     Bytes(BytesMut),
     U32(u32),
+    F32(f32),
     Value(Value), //json
     Bool(bool),
 }

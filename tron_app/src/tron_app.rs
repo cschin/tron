@@ -1,9 +1,16 @@
 use askama::Template;
 use axum::{
-    body::Body, extract::{DefaultBodyLimit, Json, Multipart, OriginalUri, Path, Query, Request, State}, handler::HandlerWithoutStateExt, http::{header, HeaderMap, HeaderName, HeaderValue, StatusCode, Uri}, middleware::{self, Next}, response::{
+    body::Body,
+    extract::{DefaultBodyLimit, Json, Multipart, OriginalUri, Path, Query, Request, State},
+    handler::HandlerWithoutStateExt,
+    http::{header, HeaderMap, HeaderName, HeaderValue, Response, StatusCode, Uri},
+    middleware::{self, Next},
+    response::{
         sse::{self, KeepAlive},
         Html, IntoResponse, Redirect, Sse,
-    }, routing::{get, post}, BoxError, Router
+    },
+    routing::{get, post},
+    BoxError, Router,
 };
 use axum_extra::extract::Host;
 use axum_server::tls_rustls::RustlsConfig;
@@ -292,12 +299,10 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
 
     tokio::task::spawn(clean_up_session(app_share_data.clone()));
 
-  
-
     if config.http_only {
         let addr = SocketAddr::from((config.address, ports.http));
         tracing::info!(target:"tron_app", "Starting server at {}", addr);
-        
+
         axum_server::bind(addr)
             .serve(app_routes.into_make_service())
             .await
@@ -400,7 +405,12 @@ async fn index(
         };
         let html = html.render().unwrap();
 
-        Html::from(html).into_response()
+        Response::builder()
+            .header("Cache-Control", "no-cache, no-store, must-revalidate")
+            .header("Pragma", "no-cache")
+            .header("Expires", "0")
+            .body(Body::from(html))
+            .unwrap()
     }
 }
 
@@ -423,10 +433,7 @@ async fn index(
 ///
 /// Returns `StatusCode::FORBIDDEN` if the session ID is not available.
 ///
-async fn load_page(
-    State(app_data): State<Arc<AppData>>,
-    session: Session,
-) -> Result<Html<String>, StatusCode> {
+async fn load_page(State(app_data): State<Arc<AppData>>, session: Session) -> impl IntoResponse {
     let session_id = if let Some(session_id) = session.id() {
         session_id
     } else {
@@ -462,11 +469,12 @@ async fn load_page(
             context_guard.user_data = Arc::new(RwLock::new(user_data));
         }
     }
-    
+
     let context = context_store_guard.get(&session_id).unwrap().clone();
     //let layout = tokio::task::block_in_place(|| (*app_data.build_layout)(context.clone()));
     let layout = (*app_data.build_layout)(context).await;
-    Ok(Html::from(layout))
+
+    Ok(Response::builder().body(Body::from(layout)).unwrap())
 }
 
 /// Represents event data associated with a Tron event.

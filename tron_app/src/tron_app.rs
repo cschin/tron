@@ -308,7 +308,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
             .await {
                 Ok(_) => {},
                 Err(e) => {
-                    eprint!("Can't start the server, Error {}", e);
+                    eprintln!("Can't start the server, Error: {}", e);
                 }
             };
     } else {
@@ -336,7 +336,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
             .await {
                 Ok(_) => {},
                 Err(e) => {
-                    eprint!("Can't start the server, Error {}", e);
+                    eprintln!("Can't start the server, Error: {}", e);
                 }
             }
     }

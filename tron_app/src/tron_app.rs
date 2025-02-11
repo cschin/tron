@@ -303,10 +303,14 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         let addr = SocketAddr::from((config.address, ports.http));
         tracing::info!(target:"tron_app", "Starting server at {}", addr);
 
-        axum_server::bind(addr)
+        match axum_server::bind(addr)
             .serve(app_routes.into_make_service())
-            .await
-            .unwrap();
+            .await {
+                Ok(_) => {},
+                Err(e) => {
+                    eprint!("Can't start the server, Error {}", e);
+                }
+            };
     } else {
         let addr = SocketAddr::from((config.address, ports.https));
         // optional: spawn a second server to redirect http requests to this server
@@ -327,10 +331,14 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
         .unwrap();
 
         tracing::info!(target:"tron_app", "Starting server at {}", addr);
-        axum_server::bind_rustls(addr, tls_config)
+        match axum_server::bind_rustls(addr, tls_config)
             .serve(app_routes.into_make_service())
-            .await
-            .unwrap();
+            .await {
+                Ok(_) => {},
+                Err(e) => {
+                    eprint!("Can't start the server, Error {}", e);
+                }
+            }
     }
 }
 

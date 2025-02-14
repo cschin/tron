@@ -1384,7 +1384,7 @@ async fn clean_up_session(app_data: Arc<AppData>) {
         };
         {
             if let Some(usage) = memory_stats() {
-                tracing::info!(target:"tron_app", "Current physical memory usage: {}", usage.physical_mem);
+                tracing::info!(target:"tron_app", "Current physical memory usage: {} Mb", usage.physical_mem/1_000_000);
             } else {
                 tracing::info!(target:"tron_app","Couldn't get the current memory usage :(");
             }
@@ -1414,7 +1414,7 @@ async fn clean_up_session(app_data: Arc<AppData>) {
                 }
             }
             if let Some(usage) = memory_stats() {
-                tracing::info!(target:"tron_app", "Current physical memory usage: {}", usage.physical_mem);
+                tracing::info!(target:"tron_app", "Current physical memory usage: {} Mb", usage.physical_mem/1_000_000);
             } else {
                 tracing::info!(target:"tron_app", "Couldn't get the current memory usage :(");
             }

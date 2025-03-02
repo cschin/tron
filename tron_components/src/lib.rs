@@ -174,12 +174,12 @@ static COMPONENT_TYPE_SCRIPTS: LazyLock<Mutex<HashMap<TnComponentType, String>>>
     LazyLock::new(|| Mutex::new(HashMap::default()));
 
 impl TnComponentType {
-    fn register_script(t: TnComponentType, script: &str) {
+    pub fn register_script(t: TnComponentType, script: &str) {
         let mut m = COMPONENT_TYPE_SCRIPTS.blocking_lock();
         m.entry(t).or_insert_with(|| script.into());
     }
 
-    fn get_script(&self) -> Option<String> {
+    pub fn get_script(&self) -> Option<String> {
         let m = COMPONENT_TYPE_SCRIPTS.blocking_lock();
         m.get(self).cloned()
     }

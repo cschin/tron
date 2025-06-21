@@ -1,0 +1,141 @@
+<style>
+     #container {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+    } 
+
+    button {
+        margin: 5px;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 4px;
+        background: #007bff;
+        color: white;
+        cursor: pointer;
+        font-size: 14px;
+    }
+
+    button:hover {
+        background: #0056b3;
+    }
+</style>
+
+<script>
+    let deckgl;
+    let currentData = [];
+
+
+    function deckgl_plot(target) {
+        console.log("deskgl_plot called with target:", target);
+        initDeckGL(target);
+        console.log("deckgl initialized with target:", target);
+    }
+
+
+    // Generate sample data
+    function generateRandomData() {
+        const data = [];
+        for (let i = 0; i < 1000; i++) {
+            data.push({
+                position: [
+                    (Math.random() - 0.5) * 360, // longitude
+                    (Math.random() - 0.5) * 180  // latitude
+                ],
+                color: [
+                    Math.random() * 255,
+                    Math.random() * 255,
+                    Math.random() * 255
+                ],
+                radius: Math.random() * 50 + 10,
+                value: Math.random() * 100,
+                id: i
+            });
+        }
+        currentData = data;
+        updateVisualization();
+    }
+
+
+    function updateVisualization() {
+        const scatterplotLayer = new deck.ScatterplotLayer({
+            id: 'scatterplot-layer',
+            data: currentData,
+            pickable: true,
+            opacity: 0.8,
+            stroked: true,
+            filled: true,
+            radiusScale: 1,
+            radiusMinPixels: 3,
+            radiusMaxPixels: 100,
+            lineWidthMinPixels: 2,
+            getPosition: d => d.position,
+            getRadius: d => d.radius,
+            getFillColor: d => d.color,
+            getLineColor: [255, 255, 255, 100],
+            onHover: ({ object, x, y }) => {
+                if (object) {
+                    const tooltip = document.getElementById('tooltip');
+                    if (!tooltip) {
+                        const div = document.createElement('div');
+                        div.id = 'tooltip';
+                        div.style.position = 'absolute';
+                        div.style.background = 'rgba(0, 0, 0, 0.8)';
+                        div.style.color = 'white';
+                        div.style.padding = '8px';
+                        div.style.borderRadius = '4px';
+                        div.style.fontSize = '12px';
+                        div.style.pointerEvents = 'none';
+                        div.style.zIndex = '10000';
+                        document.body.appendChild(div);
+                    }
+                    const tooltipEl = document.getElementById('tooltip');
+                    tooltipEl.style.left = x + 'px';
+                    tooltipEl.style.top = y + 'px';
+                    tooltipEl.style.display = 'block';
+                    tooltipEl.innerHTML = `
+                            ID: ${object.id}<br>
+                            Position: [${object.position[0].toFixed(2)}, ${object.position[1].toFixed(2)}]<br>
+                            Value: ${object.value.toFixed(2)}<br>
+                            Radius: ${object.radius.toFixed(1)}
+                        `;
+                } else {
+                    const tooltip = document.getElementById('tooltip');
+                    if (tooltip) {
+                        tooltip.style.display = 'none';
+                    }
+                }
+            }
+        });
+
+        deckgl.setProps({
+            layers: [scatterplotLayer]
+        });
+    }
+
+
+    function initDeckGL(target) {
+        deckgl = new deck.DeckGL({
+            container: target || 'container',
+            initialViewState: {
+                longitude: 0,
+                latitude: 0,
+                zoom: 1,
+                pitch: 0,
+                bearing: 0
+            },
+            controller: true,
+            layers: []
+        });
+
+        // Generate initial data
+        generateRandomData();
+    }
+
+    // Initialize when page loads
+    window.addEventListener('load', () => {
+        // Wait a moment for deck.gl to fully load
+        setTimeout(initDeckGL, 100);
+    });
+
+</script>

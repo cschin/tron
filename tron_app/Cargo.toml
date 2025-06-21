@@ -28,6 +28,6 @@ tron_macro = { path = "../tron_macro" }
 reqwest = { version = "0.12.4", features = ["json"] }
 jsonwebtoken = "9.3.0"
 memory-stats = "1.1.0"
-askama = "0.12.1"
-rustls = { version = "0.23.12", features=["ring"], default-feature=false }
+askama = "0.14.0"
+rustls = { version = "0.23.12", features=["ring"], default-features =false }
 ring = "0.17.8"

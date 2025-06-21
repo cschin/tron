@@ -15,4 +15,4 @@ tracing = "0.1.40"
 serde_json = "1.0.115"
 futures-util = "0.3.30"
 tron_app = {path = "../../tron_app"}
-askama = "0.12.1"
+askama = "0.14.0"

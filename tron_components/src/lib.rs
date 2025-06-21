@@ -4,6 +4,7 @@ pub mod button;
 pub mod chatbox;
 pub mod checklist;
 pub mod d3_plot;
+pub mod deckgl_plot;
 pub mod div;
 pub mod file_upload;
 pub mod radio_group;
@@ -17,6 +18,7 @@ pub use button::TnButton;
 pub use chatbox::TnChatBox;
 pub use checklist::{TnCheckBox, TnCheckList};
 pub use d3_plot::{TnD3Plot, TnD3PlotBuilder};
+pub use deckgl_plot::{TnDeckGLPlot, TnDeckGLPlotBuilder};
 pub use div::TnDiv;
 pub use file_upload::{TnDnDFileUpload, TnFileUpload};
 pub use radio_group::{TnRadioGroup, TnRadioItem};
@@ -38,7 +40,7 @@ use tokio::{
     task::JoinHandle,
 };
 
-use rand::{thread_rng, Rng};
+use rand::Rng;
 
 use axum::{body::Bytes, http::HeaderMap, response::Html};
 use bytes::BytesMut;
@@ -678,8 +680,8 @@ impl TnComponentBase<'static> {
 /// This is useful for initializing components with a unique ID and default settings.
 impl Default for TnComponentBase<'static> {
     fn default() -> TnComponentBase<'static> {
-        let mut rng = thread_rng();
-        let id: u32 = rng.gen();
+        let mut rng = rand::rng();
+        let id: u32 = rng.random();
         let tron_id = format!("{:x}", id);
         TnComponentBase {
             tag: "div".into(),

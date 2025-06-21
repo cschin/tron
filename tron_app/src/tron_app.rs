@@ -260,7 +260,7 @@ pub async fn run(app_share_data: AppData, config: AppConfigure) {
             get(tron_stream).post(tron_stream),
         )
         .route("/upload/{tron_id}", post(upload))
-        .layer(DefaultBodyLimit::max(64 * 1024 * 1024));
+        .layer(DefaultBodyLimit::max(4096 * 1024 * 1024));
 
     let routes = if let Some(api_router) = config.api_router {
         //let api_routes = Router::new().nest_service("/api", api_router);

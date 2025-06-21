@@ -205,7 +205,7 @@ where
             </div>
             <script>
                 {{
-                    let theDropzone = new Dropzone('#{tron_id}_form', {{paramName:'{tron_id}_form',  url: "/upload/{}"}});
+                    let theDropzone = new Dropzone('#{tron_id}_form', {{paramName:'{tron_id}_form',  url: "/upload/{}", maxFilesize:2048}});
                     window.tron_assets["dropzones"] = {{"{tron_id}_form":theDropzone}};
                     theDropzone.on("complete", function(file) {{
                         htmx.trigger("#{tron_id}", "finished", {{}});

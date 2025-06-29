@@ -1,9 +1,21 @@
-<div class="container mx-auto px-4">
-    <div class="flex flex-row p-1">
-        <button onclick="generateRandomData('deskgl_plot')">Generate Random Data</button>
-        <div class="flex flex-row p-1 basic-2">
-            {{deckgl_area}}
+<div class="container mx-auto">
+    <div class="flex flex-1 flex-col justify-self-center min-h-dvh ontent-center" >
+        <h1 clall="h-32 mx-auto">Viewer</h1>
+
+        
+    <div class="flex flex-row content-center">
+        <div class="flex-1 min-w-[500px] min-h-[500px] max-w-[500px] max-h-[500px] p-1 border-solid">
+            {{deckgl_area_1}}
         </div>
-        <!-- <div id="container"></div> -->
+        <div class="flex-1 min-w-[500px] min-h-[500px] max-w-[500px] max-h-[500px] p-1 border-solid">
+            {{deckgl_area_2}}
+        </div>
+        <div class="min-w-100px p-1">
+            <button onclick="generateRandomData('deck_gl_area_1')"
+                class="flex flex-row btn btn-sm btn-outline btn-primary">Generate Random Data 1</button>
+            <button onclick="generateRandomData('deck_gl_area_2')"
+                class="flex flex-row btn btn-sm btn-outline btn-primary">Generate Random Data 2</button>
+        </div>
+    </div>
     </div>
 </div>

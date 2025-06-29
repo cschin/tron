@@ -76,24 +76,30 @@ async fn main() {
     tron_app::run(app_share_data, app_config).await
 }
 
-static DECKGL_AREA: &str = "desk_gl_area";
+static DECKGL_AREA_1: &str = "deck_gl_area_1";
+static DECKGL_AREA_2: &str = "deck_gl_area_2";
 
 fn build_context() -> TnContext {
     let mut context = TnContextBase::default();
 
-    TnDiv::builder()
-        .init(DECKGL_AREA.into(), "".into())
-        .add_to_context(&mut context);
-
 
     let deckgl_plot_script = include_str!("../templates/deckgl_plot_script.html").to_string();
     TnDeckGLPlot::builder()
-        .init(DECKGL_AREA.into(), deckgl_plot_script)
+        .init(DECKGL_AREA_1.into(), deckgl_plot_script)
         .set_attr(
             "hx-vals",
             r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##,
         )
-        .set_attr("style", "width: 100vw; height: 100vh;")
+        .set_attr("class", "w-full h-full p-1 border-solid")
+        .add_to_context(&mut context);
+
+    TnDeckGLPlot::builder()
+        .init(DECKGL_AREA_2.into(), "".to_string())
+        .set_attr(
+            "hx-vals",
+            r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##,
+        )
+        .set_attr("class", "w-full h-full p-1 border-solid")
         .add_to_context(&mut context);
 
     let context = TnContext {
@@ -107,14 +113,17 @@ fn build_context() -> TnContext {
 #[derive(Template)] // this will generate the code...
 #[template(path = "app_page.html", escape = "none")] // using the template in this path, relative                                    // to the `templates` dir in the crate root
 struct AppPageTemplate {
-    deckgl_area: String,
+    deckgl_area_1: String,
+    deckgl_area_2: String,
 }
 
 fn layout(context: TnContext) -> TnFutureString {
     tn_future! {let context_guard = context.read().await;
-        let deckgl_area = context_guard.get_initial_rendered_string(DECKGL_AREA).await;
+        let deckgl_area_1 = context_guard.get_initial_rendered_string(DECKGL_AREA_1).await;
+        let deckgl_area_2 = context_guard.get_initial_rendered_string(DECKGL_AREA_2).await;
         let html = AppPageTemplate {
-            deckgl_area,
+            deckgl_area_1,
+            deckgl_area_2,
         };
         html.render().unwrap()
     }

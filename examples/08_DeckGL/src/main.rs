@@ -86,19 +86,11 @@ fn build_context() -> TnContext {
     let deckgl_plot_script = include_str!("../templates/deckgl_plot_script.html").to_string();
     TnDeckGLPlot::builder()
         .init(DECKGL_AREA_1.into(), deckgl_plot_script)
-        .set_attr(
-            "hx-vals",
-            r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##,
-        )
         .set_attr("class", "w-full h-full p-1 border-solid")
         .add_to_context(&mut context);
 
     TnDeckGLPlot::builder()
         .init(DECKGL_AREA_2.into(), "".to_string())
-        .set_attr(
-            "hx-vals",
-            r##"js:{event_data:get_event_with_transformed_coordinate(event)}"##,
-        )
         .set_attr("class", "w-full h-full p-1 border-solid")
         .add_to_context(&mut context);
 

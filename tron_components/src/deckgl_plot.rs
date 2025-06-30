@@ -27,10 +27,6 @@ impl<'a: 'static> TnDeckGLPlotBuilder<'a> {
             .set_attr("type", "deckgl_plot")
             .set_attr("hx-trigger", "click, server_event")
             .set_attr("hx-swap", "none")
-            .set_attr(
-                "hx-vals",
-                r##"js:{event_data:get_event_with_coordinate(event)}"##,
-            )
             .build();
         self
     }
